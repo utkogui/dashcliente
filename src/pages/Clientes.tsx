@@ -26,9 +26,11 @@ import {
 } from '@mui/material'
 import { useState, useEffect } from 'react'
 import { Search, Add, Edit, Delete, Business } from '@mui/icons-material'
+import InputMask from 'react-input-mask'
 import { useData } from '../contexts/DataContext'
 import { validateEmail, validateTelefone, validateRequired, validateAnoInicio, formatTelefone } from '../utils/validations'
 import { formatEndereco } from '../utils/formatters'
+import { masks, validateMask } from '../utils/masks'
 
 const Clientes = () => {
   const { clientes, contratos, addCliente, updateCliente, deleteCliente, loading, error } = useData()
@@ -157,10 +159,10 @@ const Clientes = () => {
         return
       }
 
-      if (formData.telefone && !validateTelefone(formData.telefone)) {
-        setFormError('Telefone inválido')
-        return
-      }
+          if (formData.telefone && !validateMask.telefone(formData.telefone)) {
+      setFormError('Telefone inválido (mínimo 10 dígitos)')
+      return
+    }
 
       if (!validateAnoInicio(formData.anoInicio)) {
         setFormError('Ano de início deve estar entre 2000 e ' + (new Date().getFullYear() + 1))
@@ -400,14 +402,23 @@ const Clientes = () => {
                 disabled={submitting}
               />
 
-              <TextField
-                label="Telefone"
-                placeholder="(11) 99999-9999"
+              <InputMask
+                mask={masks.telefone}
                 value={formData.telefone}
                 onChange={(e) => handleInputChange('telefone', e.target.value)}
-                fullWidth
                 disabled={submitting}
-              />
+              >
+                {(inputProps: any) => (
+                  <TextField
+                    {...inputProps}
+                    label="Telefone"
+                    placeholder="(11) 99999-9999"
+                    fullWidth
+                    disabled={submitting}
+                    helperText="Ex: (11) 99999-9999"
+                  />
+                )}
+              </InputMask>
             </Box>
 
             <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 2 }}>
@@ -441,16 +452,27 @@ const Clientes = () => {
                 </Select>
               </FormControl>
 
-              <TextField
-                label="Ano de Início *"
-                type="number"
-                placeholder="2023"
-                value={formData.anoInicio}
-                onChange={(e) => handleInputChange('anoInicio', parseInt(e.target.value) || new Date().getFullYear())}
-                fullWidth
+              <InputMask
+                mask={masks.ano}
+                value={formData.anoInicio.toString()}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, '')
+                  handleInputChange('anoInicio', value ? parseInt(value) : new Date().getFullYear())
+                }}
                 disabled={submitting}
-                inputProps={{ min: 2000, max: new Date().getFullYear() + 1 }}
-              />
+              >
+                {(inputProps: any) => (
+                  <TextField
+                    {...inputProps}
+                    label="Ano de Início *"
+                    placeholder="2023"
+                    fullWidth
+                    disabled={submitting}
+                    helperText="Ex: 2023"
+                    inputProps={{ min: 2000, max: new Date().getFullYear() + 1 }}
+                  />
+                )}
+              </InputMask>
             </Box>
 
             <TextField

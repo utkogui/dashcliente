@@ -27,10 +27,12 @@ import {
 } from '@mui/material'
 import { useState, useEffect } from 'react'
 import { Search, Add, Edit, Delete, TrendingUp, AttachMoney, Receipt } from '@mui/icons-material'
+import InputMask from 'react-input-mask'
 import { useData } from '../contexts/DataContext'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { formatCurrency, formatPercentual } from '../utils/formatters'
+import { masks } from '../utils/masks'
 
 // Tipos
 interface Contrato {
@@ -78,6 +80,7 @@ const Contratos = () => {
   })
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   const periodosFechados = [
     'Mensal',
@@ -576,46 +579,80 @@ const Contratos = () => {
             {formData.tipoContrato === 'hora' ? (
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Valor por Hora (R$) *"
-                    type="number"
+                  <InputMask
+                    mask="999999.99"
                     value={formData.valorHora}
-                    onChange={(e) => handleInputChange('valorHora', e.target.value)}
-                    disabled={submitting}
-                    InputProps={{
-                      startAdornment: <Typography>R$</Typography>
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/[^\d.,]/g, '').replace(',', '.')
+                      handleInputChange('valorHora', value)
                     }}
-                  />
+                    disabled={submitting}
+                  >
+                    {(inputProps: any) => (
+                      <TextField
+                        {...inputProps}
+                        fullWidth
+                        label="Valor por Hora (R$) *"
+                        helperText="Ex: 150,00"
+                        placeholder="150,00"
+                        disabled={submitting}
+                        InputProps={{
+                          startAdornment: <Typography>R$</Typography>
+                        }}
+                      />
+                    )}
+                  </InputMask>
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Horas Mensais *"
-                    type="number"
+                  <InputMask
+                    mask="999"
                     value={formData.horasMensais}
-                    onChange={(e) => handleInputChange('horasMensais', e.target.value)}
-                    disabled={submitting}
-                    InputProps={{
-                      endAdornment: <Typography>h/mês</Typography>
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '')
+                      handleInputChange('horasMensais', value)
                     }}
-                  />
+                    disabled={submitting}
+                  >
+                    {(inputProps: any) => (
+                      <TextField
+                        {...inputProps}
+                        fullWidth
+                        label="Horas Mensais *"
+                        placeholder="160"
+                        disabled={submitting}
+                        InputProps={{
+                          endAdornment: <Typography>h/mês</Typography>
+                        }}
+                      />
+                    )}
+                  </InputMask>
                 </Grid>
               </Grid>
             ) : (
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Valor Fechado (R$) *"
-                    type="number"
+                  <InputMask
+                    mask="999999.99"
                     value={formData.valorFechado}
-                    onChange={(e) => handleInputChange('valorFechado', e.target.value)}
-                    disabled={submitting}
-                    InputProps={{
-                      startAdornment: <Typography>R$</Typography>
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/[^\d.,]/g, '').replace(',', '.')
+                      handleInputChange('valorFechado', value)
                     }}
-                  />
+                    disabled={submitting}
+                  >
+                    {(inputProps: any) => (
+                      <TextField
+                        {...inputProps}
+                        fullWidth
+                        label="Valor Fechado (R$) *"
+                        placeholder="5000,00"
+                        disabled={submitting}
+                        InputProps={{
+                          startAdornment: <Typography>R$</Typography>
+                        }}
+                      />
+                    )}
+                  </InputMask>
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <FormControl fullWidth disabled={submitting}>
@@ -638,43 +675,76 @@ const Contratos = () => {
 
             <Grid container spacing={2}>
               <Grid item xs={12} sm={4}>
-                <TextField
-                  fullWidth
-                  label="Valor Recebido (R$) *"
-                  type="number"
+                <InputMask
+                  mask="999999.99"
                   value={formData.valorRecebido}
-                  onChange={(e) => handleInputChange('valorRecebido', e.target.value)}
-                  disabled={submitting}
-                  InputProps={{
-                    startAdornment: <Typography>R$</Typography>
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/[^\d.,]/g, '').replace(',', '.')
+                    handleInputChange('valorRecebido', value)
                   }}
-                />
+                  disabled={submitting}
+                >
+                  {(inputProps: any) => (
+                    <TextField
+                      {...inputProps}
+                      fullWidth
+                      label="Valor Recebido (R$) *"
+                      placeholder="6000,00"
+                      disabled={submitting}
+                      InputProps={{
+                        startAdornment: <Typography>R$</Typography>
+                      }}
+                    />
+                  )}
+                </InputMask>
               </Grid>
               <Grid item xs={12} sm={4}>
-                <TextField
-                  fullWidth
-                  label="Valor Pago (R$) *"
-                  type="number"
+                <InputMask
+                  mask="999999.99"
                   value={formData.valorPago}
-                  onChange={(e) => handleInputChange('valorPago', e.target.value)}
-                  disabled={submitting}
-                  InputProps={{
-                    startAdornment: <Typography>R$</Typography>
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/[^\d.,]/g, '').replace(',', '.')
+                    handleInputChange('valorPago', value)
                   }}
-                />
+                  disabled={submitting}
+                >
+                  {(inputProps: any) => (
+                    <TextField
+                      {...inputProps}
+                      fullWidth
+                      label="Valor Pago (R$) *"
+                      placeholder="4000,00"
+                      disabled={submitting}
+                      InputProps={{
+                        startAdornment: <Typography>R$</Typography>
+                      }}
+                    />
+                  )}
+                </InputMask>
               </Grid>
               <Grid item xs={12} sm={4}>
-                <TextField
-                  fullWidth
-                  label="Percentual Impostos (%)"
-                  type="number"
+                <InputMask
+                  mask="99.99"
                   value={formData.percentualImpostos}
-                  onChange={(e) => handleInputChange('percentualImpostos', e.target.value)}
-                  disabled={submitting}
-                  InputProps={{
-                    endAdornment: <Typography>%</Typography>
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/[^\d.,]/g, '').replace(',', '.')
+                    handleInputChange('percentualImpostos', value)
                   }}
-                />
+                  disabled={submitting}
+                >
+                  {(inputProps: any) => (
+                    <TextField
+                      {...inputProps}
+                      fullWidth
+                      label="Percentual Impostos (%)"
+                      placeholder="13,00"
+                      disabled={submitting}
+                      InputProps={{
+                        endAdornment: <Typography>%</Typography>
+                      }}
+                    />
+                  )}
+                </InputMask>
               </Grid>
             </Grid>
 

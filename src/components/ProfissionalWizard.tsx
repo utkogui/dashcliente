@@ -27,7 +27,9 @@ import {
   Receipt,
   CheckCircle,
 } from '@mui/icons-material'
+import InputMask from 'react-input-mask'
 import { validateEmail, validateTelefone, validateRequired } from '../utils/validations'
+import { masks, validateMask } from '../utils/masks'
 
 interface ProfissionalWizardProps {
   open: boolean
@@ -153,8 +155,8 @@ const ProfissionalWizard: React.FC<ProfissionalWizardProps> = ({
         if (!validateRequired(formData.dataAdmissao)) {
           newErrors.dataAdmissao = 'Data de admissão é obrigatória'
         }
-        if (formData.telefone && !validateTelefone(formData.telefone)) {
-          newErrors.telefone = 'Telefone inválido'
+        if (formData.telefone && !validateMask.telefone(formData.telefone)) {
+          newErrors.telefone = 'Telefone inválido (mínimo 10 dígitos)'
         }
         break
 
@@ -273,15 +275,23 @@ const ProfissionalWizard: React.FC<ProfissionalWizardProps> = ({
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Telefone"
+                <InputMask
+                  mask={masks.telefone}
                   value={formData.telefone}
                   onChange={(e) => handleInputChange('telefone', e.target.value)}
-                  error={!!errors.telefone}
-                  helperText={errors.telefone}
                   disabled={submitting}
-                />
+                >
+                  {(inputProps: any) => (
+                    <TextField
+                      {...inputProps}
+                      fullWidth
+                      label="Telefone"
+                      error={!!errors.telefone}
+                      helperText={errors.telefone || 'Ex: (11) 99999-9999'}
+                      placeholder="(11) 99999-9999"
+                    />
+                  )}
+                </InputMask>
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField
@@ -384,36 +394,56 @@ const ProfissionalWizard: React.FC<ProfissionalWizardProps> = ({
             <Grid container spacing={2}>
               {formData.tipoContrato === 'hora' ? (
                 <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Valor por Hora (R$) *"
-                    type="number"
-                    value={formData.valorHora || ''}
-                    onChange={(e) => handleInputChange('valorHora', parseFloat(e.target.value) || null)}
-                    error={!!errors.valorHora}
-                    helperText={errors.valorHora}
-                    disabled={submitting}
-                    InputProps={{
-                      startAdornment: <Typography>R$</Typography>
+                  <InputMask
+                    mask="999999.99"
+                    value={formData.valorHora?.toString() || ''}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/[^\d.,]/g, '').replace(',', '.')
+                      handleInputChange('valorHora', value ? parseFloat(value) : null)
                     }}
-                  />
+                    disabled={submitting}
+                  >
+                    {(inputProps: any) => (
+                      <TextField
+                        {...inputProps}
+                        fullWidth
+                        label="Valor por Hora (R$) *"
+                        error={!!errors.valorHora}
+                        helperText={errors.valorHora || 'Ex: 150,00'}
+                        placeholder="150,00"
+                        InputProps={{
+                          startAdornment: <Typography>R$</Typography>
+                        }}
+                      />
+                    )}
+                  </InputMask>
                 </Grid>
               ) : (
                 <>
                   <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Valor Fechado (R$) *"
-                      type="number"
-                      value={formData.valorFechado || ''}
-                      onChange={(e) => handleInputChange('valorFechado', parseFloat(e.target.value) || null)}
-                      error={!!errors.valorFechado}
-                      helperText={errors.valorFechado}
-                      disabled={submitting}
-                      InputProps={{
-                        startAdornment: <Typography>R$</Typography>
+                    <InputMask
+                      mask="999999.99"
+                      value={formData.valorFechado?.toString() || ''}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/[^\d.,]/g, '').replace(',', '.')
+                        handleInputChange('valorFechado', value ? parseFloat(value) : null)
                       }}
-                    />
+                      disabled={submitting}
+                    >
+                      {(inputProps: any) => (
+                        <TextField
+                          {...inputProps}
+                          fullWidth
+                          label="Valor Fechado (R$) *"
+                          error={!!errors.valorFechado}
+                          helperText={errors.valorFechado || 'Ex: 5000,00'}
+                          placeholder="5000,00"
+                          InputProps={{
+                            startAdornment: <Typography>R$</Typography>
+                          }}
+                        />
+                      )}
+                    </InputMask>
                   </Grid>
                   <Grid item xs={12} sm={6}>
                     <FormControl fullWidth error={!!errors.periodoFechado} disabled={submitting}>
@@ -440,35 +470,55 @@ const ProfissionalWizard: React.FC<ProfissionalWizardProps> = ({
               )}
               
               <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Valor Pago ao Profissional (R$) *"
-                  type="number"
-                  value={formData.valorPago}
-                  onChange={(e) => handleInputChange('valorpago', parseFloat(e.target.value) || 0)}
-                  error={!!errors.valorPago}
-                  helperText={errors.valorPago}
-                  disabled={submitting}
-                  InputProps={{
-                    startAdornment: <Typography>R$</Typography>
+                <InputMask
+                  mask="999999.99"
+                  value={formData.valorPago.toString()}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/[^\d.,]/g, '').replace(',', '.')
+                    handleInputChange('valorPago', value ? parseFloat(value) : 0)
                   }}
-                />
+                  disabled={submitting}
+                >
+                  {(inputProps: any) => (
+                    <TextField
+                      {...inputProps}
+                      fullWidth
+                      label="Valor Pago ao Profissional (R$) *"
+                      error={!!errors.valorPago}
+                      helperText={errors.valorPago || 'Ex: 4000,00'}
+                      placeholder="4000,00"
+                      InputProps={{
+                        startAdornment: <Typography>R$</Typography>
+                      }}
+                    />
+                  )}
+                </InputMask>
               </Grid>
               
               <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Percentual de Impostos (%)"
-                  type="number"
-                  value={formData.percentualImpostos}
-                  onChange={(e) => handleInputChange('percentualImpostos', parseFloat(e.target.value) || 0)}
-                  error={!!errors.percentualImpostos}
-                  helperText={errors.percentualImpostos || 'Padrão: 13%'}
-                  disabled={submitting}
-                  InputProps={{
-                    endAdornment: <Typography>%</Typography>
+                <InputMask
+                  mask="99.99"
+                  value={formData.percentualImpostos.toString()}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/[^\d.,]/g, '').replace(',', '.')
+                    handleInputChange('percentualImpostos', value ? parseFloat(value) : 0)
                   }}
-                />
+                  disabled={submitting}
+                >
+                  {(inputProps: any) => (
+                    <TextField
+                      {...inputProps}
+                      fullWidth
+                      label="Percentual de Impostos (%)"
+                      error={!!errors.percentualImpostos}
+                      helperText={errors.percentualImpostos || 'Padrão: 13%'}
+                      placeholder="13,00"
+                      InputProps={{
+                        endAdornment: <Typography>%</Typography>
+                      }}
+                    />
+                  )}
+                </InputMask>
               </Grid>
             </Grid>
           </Box>

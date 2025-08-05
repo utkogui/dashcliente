@@ -32,7 +32,7 @@ const Sidebar = () => {
     <Box
       sx={{
         width: 280,
-        bgcolor: 'white',
+        bgcolor: '#0031BC',
         borderRight: 1,
         borderColor: 'divider',
         display: 'flex',
@@ -41,11 +41,8 @@ const Sidebar = () => {
       }}
     >
       <Box sx={{ p: 3, borderBottom: 1, borderColor: 'divider' }}>
-        <Typography variant="h5" component="h1" color="primary" fontWeight="bold">
-          Bodyshop Manager
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Controle de Profissionais
+        <Typography variant="h5" component="h1" color="white" fontWeight="bold">
+          Alocações Matilha
         </Typography>
       </Box>
 
@@ -60,16 +57,16 @@ const Sidebar = () => {
                 sx={{
                   mx: 1,
                   borderRadius: 1,
-                  bgcolor: isActive ? 'primary.50' : 'transparent',
-                  color: isActive ? 'primary.main' : 'text.primary',
+                  bgcolor: isActive ? 'rgba(255,255,255,0.2)' : 'transparent',
+                  color: isActive ? 'white' : 'rgba(255,255,255,0.8)',
                   '&:hover': {
-                    bgcolor: isActive ? 'primary.100' : 'action.hover',
+                    bgcolor: isActive ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)',
                   },
                 }}
               >
                 <ListItemIcon
                   sx={{
-                    color: isActive ? 'primary.main' : 'text.secondary',
+                    color: isActive ? 'white' : 'rgba(255,255,255,0.8)',
                   }}
                 >
                   <item.icon />
@@ -79,6 +76,7 @@ const Sidebar = () => {
                   sx={{
                     '& .MuiListItemText-primary': {
                       fontWeight: isActive ? 600 : 400,
+                      color: isActive ? 'white' : 'rgba(255,255,255,0.8)',
                     },
                   }}
                 />
@@ -88,10 +86,10 @@ const Sidebar = () => {
         })}
       </List>
 
-      <Divider />
+      <Divider sx={{ borderColor: 'rgba(255,255,255,0.2)' }} />
       <Box sx={{ p: 2, textAlign: 'center' }}>
-        <Typography variant="caption" color="text.secondary">
-          © 2024 Bodyshop Manager
+        <Typography variant="caption" color="rgba(255,255,255,0.6)">
+          © 2024 Matilha Tecnologia
         </Typography>
       </Box>
     </Box>
