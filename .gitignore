@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 
 /src/generated/prisma
+
+# Server compiled files
+server/index.js
