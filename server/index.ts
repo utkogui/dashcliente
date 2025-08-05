@@ -407,7 +407,4 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // Exportar para Vercel
-export default app
-
-// Para compatibilidade com CommonJS
-module.exports = app 
+export default app 
