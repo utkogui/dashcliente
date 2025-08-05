@@ -1,0 +1,69 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Profissional {
+  id            String     @id @default(cuid())
+  nome          String
+  email         String     @unique
+  telefone      String?
+  especialidade String
+  valorHora     Float
+  status        String     @default("ativo") // ativo, inativo, ferias
+  dataAdmissao  String
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  // Relacionamentos
+  contratos     Contrato[]
+
+  @@map("profissionais")
+}
+
+model Cliente {
+  id        String     @id @default(cuid())
+  nome      String
+  empresa   String
+  email     String     @unique
+  telefone  String?
+  endereco  String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  // Relacionamentos
+  contratos Contrato[]
+
+  @@map("clientes")
+}
+
+model Contrato {
+  id             String   @id @default(cuid())
+  profissionalId String
+  clienteId      String
+  dataInicio     String
+  dataFim        String
+  valorHora      Float
+  horasMensais   Int
+  status         String   @default("ativo") // ativo, encerrado, pendente
+  valorTotal     Float
+  valorRecebido  Float
+  valorPago      Float
+  margemLucro    Float
+  observacoes    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relacionamentos
+  profissional   Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
+  cliente        Cliente      @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  @@map("contratos")
+}
