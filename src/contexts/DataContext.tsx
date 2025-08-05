@@ -90,7 +90,7 @@ interface DataProviderProps {
 
 // Configuração da API
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? '/api' 
+  ? 'https://dashcliente.onrender.com/api'  // URL do backend no Render
   : 'http://localhost:3001/api'
 
 // Funções auxiliares para chamadas da API
