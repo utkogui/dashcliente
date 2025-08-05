@@ -394,61 +394,50 @@ const ProfissionalWizard: React.FC<ProfissionalWizardProps> = ({
             <Grid container spacing={2}>
               {formData.tipoContrato === 'hora' ? (
                 <Grid item xs={12} sm={6}>
-                  <InputMask
-                    mask="999999.99"
+                  <TextField
+                    fullWidth
+                    label="Valor por Hora (R$) *"
+                    type="number"
                     value={formData.valorHora?.toString() || ''}
                     onChange={(e) => {
-                      const value = e.target.value.replace(/[^\d.,]/g, '').replace(',', '.')
+                      const value = e.target.value
                       handleInputChange('valorHora', value ? parseFloat(value) : null)
                     }}
+                    error={!!errors.valorHora}
+                    helperText={errors.valorHora || 'Ex: 150,00'}
+                    placeholder="150,00"
                     disabled={submitting}
-                  >
-                    {(inputProps: any) => (
-                      <TextField
-                        {...inputProps}
-                        fullWidth
-                        label="Valor por Hora (R$) *"
-                        error={!!errors.valorHora}
-                        helperText={errors.valorHora || 'Ex: 150,00'}
-                        placeholder="150,00"
-                        InputProps={{
-                          startAdornment: <Typography>R$</Typography>
-                        }}
-                      />
-                    )}
-                  </InputMask>
+                    InputProps={{
+                      startAdornment: <Typography>R$</Typography>
+                    }}
+                  />
                 </Grid>
               ) : (
                 <>
                   <Grid item xs={12} sm={6}>
-                    <InputMask
-                      mask="999999.99"
+                    <TextField
+                      fullWidth
+                      label="Valor Fechado (R$) *"
+                      type="number"
                       value={formData.valorFechado?.toString() || ''}
                       onChange={(e) => {
-                        const value = e.target.value.replace(/[^\d.,]/g, '').replace(',', '.')
+                        const value = e.target.value
                         handleInputChange('valorFechado', value ? parseFloat(value) : null)
                       }}
+                      error={!!errors.valorFechado}
+                      helperText={errors.valorFechado || 'Ex: 5000,00'}
+                      placeholder="5000,00"
                       disabled={submitting}
-                    >
-                      {(inputProps: any) => (
-                        <TextField
-                          {...inputProps}
-                          fullWidth
-                          label="Valor Fechado (R$) *"
-                          error={!!errors.valorFechado}
-                          helperText={errors.valorFechado || 'Ex: 5000,00'}
-                          placeholder="5000,00"
-                          InputProps={{
-                            startAdornment: <Typography>R$</Typography>
-                          }}
-                        />
-                      )}
-                    </InputMask>
+                      InputProps={{
+                        startAdornment: <Typography>R$</Typography>
+                      }}
+                    />
                   </Grid>
                   <Grid item xs={12} sm={6}>
                     <FormControl fullWidth error={!!errors.periodoFechado} disabled={submitting}>
-                      <InputLabel>Período *</InputLabel>
+                      <InputLabel id="periodo-wizard-label">Período *</InputLabel>
                       <Select
+                        labelId="periodo-wizard-label"
                         value={formData.periodoFechado}
                         label="Período *"
                         onChange={(e) => handleInputChange('periodoFechado', e.target.value)}
@@ -470,29 +459,23 @@ const ProfissionalWizard: React.FC<ProfissionalWizardProps> = ({
               )}
               
               <Grid item xs={12} sm={6}>
-                <InputMask
-                  mask="999999.99"
+                <TextField
+                  fullWidth
+                  label="Valor Pago ao Profissional (R$) *"
+                  type="number"
                   value={formData.valorPago.toString()}
                   onChange={(e) => {
-                    const value = e.target.value.replace(/[^\d.,]/g, '').replace(',', '.')
+                    const value = e.target.value
                     handleInputChange('valorPago', value ? parseFloat(value) : 0)
                   }}
+                  error={!!errors.valorPago}
+                  helperText={errors.valorPago || 'Ex: 4000,00'}
+                  placeholder="4000,00"
                   disabled={submitting}
-                >
-                  {(inputProps: any) => (
-                    <TextField
-                      {...inputProps}
-                      fullWidth
-                      label="Valor Pago ao Profissional (R$) *"
-                      error={!!errors.valorPago}
-                      helperText={errors.valorPago || 'Ex: 4000,00'}
-                      placeholder="4000,00"
-                      InputProps={{
-                        startAdornment: <Typography>R$</Typography>
-                      }}
-                    />
-                  )}
-                </InputMask>
+                  InputProps={{
+                    startAdornment: <Typography>R$</Typography>
+                  }}
+                />
               </Grid>
               
               <Grid item xs={12} sm={6}>

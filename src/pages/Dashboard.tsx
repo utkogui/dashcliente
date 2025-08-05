@@ -29,9 +29,9 @@ const Dashboard = () => {
   const { profissionais, clientes, contratos, loading, error } = useData()
   const [modalOpen, setModalOpen] = useState(false)
   const [modalType, setModalType] = useState<'profissional' | 'cliente' | 'contrato'>('profissional')
-  const [modalData, setModalData] = useState<unknown>(null)
+  const [modalData, setModalData] = useState<any>(null)
 
-  const handleCardClick = (type: 'profissional' | 'cliente' | 'contrato', data: unknown) => {
+  const handleCardClick = (type: 'profissional' | 'cliente' | 'contrato', data: any) => {
     setModalType(type)
     setModalData(data)
     setModalOpen(true)
@@ -62,14 +62,30 @@ const Dashboard = () => {
   const contratosAtivos = contratos.filter(c => c.status === 'ativo')
   const contratosPendentes = contratos.filter(c => c.status === 'pendente')
   
-  const receitaTotal = contratos.reduce((acc, c) => acc + c.valorRecebido, 0)
-  const custoTotal = contratos.reduce((acc, c) => acc + c.valorPago, 0)
-  const lucroTotal = receitaTotal - custoTotal
-  const margemLucro = receitaTotal > 0 ? (lucroTotal / receitaTotal) * 100 : 0
+  const receitaTotal = contratos.reduce((acc, c) => acc + (c.valorContrato || 0), 0)
+  const impostosTotal = contratos.reduce((acc, c) => acc + (c.valorImpostos || 0), 0)
+  const receitaLiquida = receitaTotal - impostosTotal
+  
+  // Calcular custo total baseado nos profissionais dos contratos
+  const custoTotal = contratos.reduce((acc, c) => {
+    const custoContrato = c.profissionais?.reduce((profAcc, p) => {
+      if (p.valorHora && p.horasMensais) {
+        return profAcc + (p.valorHora * p.horasMensais)
+      } else if (p.valorFechado) {
+        return profAcc + p.valorFechado
+      }
+      return profAcc
+    }, 0) || 0
+    return acc + custoContrato
+  }, 0)
+  
+  const lucroTotal = receitaLiquida - custoTotal
+  const margemLucro = receitaLiquida > 0 ? (lucroTotal / receitaLiquida) * 100 : 0
 
   // Contratos próximos do vencimento (30 dias)
   const hoje = new Date()
   const contratosVencendo = contratosAtivos.filter(c => {
+    if (!c.dataFim) return false // Contratos indeterminados não vencem
     const dataFim = new Date(c.dataFim)
     const diasRestantes = Math.ceil((dataFim.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
     return diasRestantes <= 30 && diasRestantes > 0
@@ -200,6 +216,21 @@ const Dashboard = () => {
         Cards Clicáveis
       </Typography>
 
+      {/* Contratos */}
+      <Typography variant="h6" component="h3" color="text.primary" sx={{ mb: 2 }}>
+        Contratos Ativos ({contratosAtivos.length})
+      </Typography>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2, mb: 4 }}>
+        {contratosAtivos.slice(0, 4).map((contrato) => (
+          <DashboardCard
+            key={contrato.id}
+            type="contrato"
+            data={contrato}
+            onClick={() => handleCardClick('contrato', contrato)}
+          />
+        ))}
+      </Box>
+
       {/* Profissionais */}
       <Typography variant="h6" component="h3" color="text.primary" sx={{ mb: 2 }}>
         Profissionais ({profissionais.length})
@@ -230,21 +261,6 @@ const Dashboard = () => {
         ))}
       </Box>
 
-      {/* Contratos */}
-      <Typography variant="h6" component="h3" color="text.primary" sx={{ mb: 2 }}>
-        Contratos Ativos ({contratosAtivos.length})
-      </Typography>
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2, mb: 4 }}>
-        {contratosAtivos.slice(0, 4).map((contrato) => (
-          <DashboardCard
-            key={contrato.id}
-            type="contrato"
-            data={contrato}
-            onClick={() => handleCardClick('contrato', contrato)}
-          />
-        ))}
-      </Box>
-
       {/* Alertas */}
       {contratosVencendo.length > 0 && (
         <Alert severity="warning" sx={{ mb: 4 }}>
@@ -252,10 +268,10 @@ const Dashboard = () => {
           {contratosVencendo.length} contrato(s) vence(m) nos próximos 30 dias:
           <Box sx={{ mt: 1 }}>
             {contratosVencendo.slice(0, 3).map((contrato) => {
-              const profissional = profissionais.find(p => p.id === contrato.profissionalId)
+              const profissional = contrato.profissionais?.[0]?.profissional
               const cliente = clientes.find(c => c.id === contrato.clienteId)
-              const dataFim = new Date(contrato.dataFim)
-              const diasRestantes = Math.ceil((dataFim.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
+              const dataFim = contrato.dataFim ? new Date(contrato.dataFim) : null
+              const diasRestantes = dataFim ? Math.ceil((dataFim.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)) : 0
               
               return (
                 <Box key={contrato.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>

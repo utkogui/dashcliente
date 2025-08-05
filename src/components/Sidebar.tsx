@@ -14,7 +14,8 @@ import {
   People as PeopleIcon,
   Description as DescriptionIcon,
   Business as BusinessIcon,
-  TrendingUp as TrendingUpIcon,
+  Timeline as TimelineIcon,
+  Storage as StorageIcon,
 } from '@mui/icons-material'
 
 const menuItems = [
@@ -22,7 +23,8 @@ const menuItems = [
   { icon: PeopleIcon, label: 'Profissionais', path: '/profissionais' },
   { icon: DescriptionIcon, label: 'Contratos', path: '/contratos' },
   { icon: BusinessIcon, label: 'Clientes', path: '/clientes' },
-  { icon: TrendingUpIcon, label: 'Relatórios', path: '/relatorios' },
+  { icon: TimelineIcon, label: 'Timeline', path: '/timeline' },
+  { icon: StorageIcon, label: 'Banco de Dados', path: '/database' },
 ]
 
 const Sidebar = () => {

@@ -175,13 +175,6 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
           <Typography variant="body2">{data.email}</Typography>
         </Box>
 
-        {data.telefone && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-            <Phone fontSize="small" color="action" />
-            <Typography variant="body2">{data.telefone}</Typography>
-          </Box>
-        )}
-
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
           <Chip
             icon={data.tipoContrato === 'hora' ? <AttachMoney /> : <Receipt />}
@@ -203,28 +196,39 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
         )}
 
         <Typography variant="body2" color="success.main" fontWeight="bold">
-          Pago: {formatCurrency(data.valorPago)}
+          Recebe: {formatCurrency(data.valorPago)}
         </Typography>
+
+        {/* Calcular quanto nós recebemos vs quanto pagamos */}
+        {(() => {
+          // Para profissionais por hora, assumir 160h/mês (8h/dia * 20 dias)
+          // Para profissionais com valor fechado, usar o valor fechado
+          const valorQueRecebemos = data.tipoContrato === 'hora' 
+            ? (data.valorHora || 0) * 160 // 160h/mês
+            : (data.valorFechado || 0)
+          
+          const diferenca = valorQueRecebemos - data.valorPago
+          const percentualDiferenca = valorQueRecebemos > 0 ? (diferenca / valorQueRecebemos) * 100 : 0
+          
+          return (
+            <Typography variant="body2" color={diferenca >= 0 ? 'success.main' : 'error.main'} fontWeight="bold">
+              Nós Recebemos: {formatCurrency(valorQueRecebemos)} ({percentualDiferenca.toFixed(1)}% margem)
+            </Typography>
+          )
+        })()}
 
         <Collapse in={expanded} timeout="auto" unmountOnExit>
           <Divider sx={{ my: 2 }} />
           <Grid container spacing={1}>
             <Grid item xs={6}>
               <Typography variant="caption" color="text.secondary">
-                Data Admissão:
+                Data de Início:
               </Typography>
               <Typography variant="body2">
-                {new Date(data.dataAdmissao).toLocaleDateString('pt-BR')}
+                {new Date(data.dataInicio).toLocaleDateString('pt-BR')}
               </Typography>
             </Grid>
-            <Grid item xs={6}>
-              <Typography variant="caption" color="text.secondary">
-                Impostos:
-              </Typography>
-              <Typography variant="body2">
-                {formatPercentual(data.percentualImpostos)}
-              </Typography>
-            </Grid>
+
           </Grid>
         </Collapse>
       </CardContent>
@@ -283,13 +287,6 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
           <Email fontSize="small" color="action" />
           <Typography variant="body2">{data.email}</Typography>
         </Box>
-
-        {data.telefone && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-            <Phone fontSize="small" color="action" />
-            <Typography variant="body2">{data.telefone}</Typography>
-          </Box>
-        )}
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
           <Chip
@@ -369,7 +366,7 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <TrendingUp color="success" />
             <Typography variant="h6" component="h3" fontWeight="bold">
-              {data.profissional?.nome}
+              {data.nomeProjeto}
             </Typography>
           </Box>
           <Chip
@@ -395,33 +392,48 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
           <Schedule fontSize="small" color="action" />
           <Typography variant="body2">
-            {new Date(data.dataInicio).toLocaleDateString('pt-BR')} - {new Date(data.dataFim).toLocaleDateString('pt-BR')}
+            {new Date(data.dataInicio).toLocaleDateString('pt-BR')}
+            {data.dataFim && ` - ${new Date(data.dataFim).toLocaleDateString('pt-BR')}`}
+            {!data.dataFim && ' - Indeterminado'}
           </Typography>
         </Box>
 
         <Typography variant="body2" color="success.main" fontWeight="bold">
-          Recebido: {formatCurrency(data.valorRecebido)}
+          Valor do Contrato: {formatCurrency(data.valorContrato)}
         </Typography>
 
         <Typography variant="body2" color="info.main" fontWeight="bold">
-          Pago: {formatCurrency(data.valorPago)}
+          Impostos: {formatCurrency(data.valorImpostos)}
         </Typography>
 
-        <Typography variant="body2" color={data.margemLucro >= 0 ? 'success.main' : 'error.main'} fontWeight="bold">
-          Rentabilidade: {formatCurrency(data.margemLucro)}
+        {/* Calcular margem mensal */}
+        {(() => {
+          const valorLiquido = data.valorContrato - data.valorImpostos
+          const custoProfissionais = data.profissionais?.reduce((acc: number, p: any) => {
+            if (p.valorHora && p.horasMensais) {
+              return acc + (p.valorHora * p.horasMensais)
+            } else if (p.valorFechado) {
+              return acc + p.valorFechado
+            }
+            return acc
+          }, 0) || 0
+          const margemMensal = valorLiquido - custoProfissionais
+          const percentualMargem = valorLiquido > 0 ? (margemMensal / valorLiquido) * 100 : 0
+          
+          return (
+            <Typography variant="body2" color={margemMensal >= 0 ? 'success.main' : 'error.main'} fontWeight="bold">
+              Margem Mensal: {formatCurrency(margemMensal)} ({percentualMargem.toFixed(1)}%)
+            </Typography>
+          )
+        })()}
+
+        <Typography variant="body2" color="warning.main" fontWeight="bold">
+          Profissionais: {data.profissionais?.length || 0}
         </Typography>
 
         <Collapse in={expanded} timeout="auto" unmountOnExit>
           <Divider sx={{ my: 2 }} />
           <Grid container spacing={1}>
-            <Grid item xs={6}>
-              <Typography variant="caption" color="text.secondary">
-                Impostos:
-              </Typography>
-              <Typography variant="body2">
-                {formatCurrency(data.valorImpostos)} ({formatPercentual(data.percentualImpostos)})
-              </Typography>
-            </Grid>
             <Grid item xs={6}>
               <Typography variant="caption" color="text.secondary">
                 Tipo:
@@ -430,25 +442,14 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
                 {getTipoContratoText(data.tipoContrato)}
               </Typography>
             </Grid>
-            {data.tipoContrato === 'hora' ? (
-              <Grid item xs={6}>
-                <Typography variant="caption" color="text.secondary">
-                  Valor/Hora:
-                </Typography>
-                <Typography variant="body2">
-                  {formatCurrency(data.valorHora || 0)}
-                </Typography>
-              </Grid>
-            ) : (
-              <Grid item xs={6}>
-                <Typography variant="caption" color="text.secondary">
-                  Período:
-                </Typography>
-                <Typography variant="body2">
-                  {data.periodoFechado}
-                </Typography>
-              </Grid>
-            )}
+            <Grid item xs={6}>
+              <Typography variant="caption" color="text.secondary">
+                Profissionais:
+              </Typography>
+              <Typography variant="body2">
+                {data.profissionais?.map((p: any) => p.profissional.nome).join(', ') || 'Nenhum'}
+              </Typography>
+            </Grid>
             {data.observacoes && (
               <Grid item xs={12}>
                 <Typography variant="caption" color="text.secondary">

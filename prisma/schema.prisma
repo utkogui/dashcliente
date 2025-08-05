@@ -14,21 +14,19 @@ model Profissional {
   id                String     @id @default(cuid())
   nome              String
   email             String     @unique
-  telefone          String?
   especialidade     String
   valorHora         Float?     // Opcional agora (pode ser null para contratos fechados)
   status            String     @default("ativo") // ativo, inativo, ferias
-  dataAdmissao      String
+  dataInicio        String     // Data de início (renomeado de dataAdmissao)
   tipoContrato      String     @default("hora") // hora, fechado
   valorFechado      Float?     // Valor do contrato fechado
   periodoFechado    String?    // mensal, trimestral, semestral, anual
-  valorPago         Float      // Valor pago ao profissional
-  percentualImpostos Float     @default(13.0) // Percentual padrão de impostos
+  valorPago         Float      // Valor bruto pago ao profissional
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
 
   // Relacionamentos
-  contratos         Contrato[]
+  contratos         ContratoProfissional[]
 
   @@map("profissionais")
 }
@@ -54,29 +52,40 @@ model Cliente {
 
 model Contrato {
   id                 String   @id @default(cuid())
-  profissionalId     String
+  nomeProjeto        String   // Nome do projeto
   clienteId          String
   dataInicio         String
-  dataFim            String
+  dataFim            String?
   tipoContrato       String   @default("hora") // hora, fechado
-  valorHora          Float?   // Opcional (apenas para contratos por hora)
-  horasMensais       Int?     // Opcional (apenas para contratos por hora)
-  valorFechado       Float?   // Opcional (apenas para contratos fechados)
-  periodoFechado     String?  // Opcional (apenas para contratos fechados)
+  valorContrato      Float    // Valor total do contrato
+  valorImpostos      Float    // Valor dos impostos
   status             String   @default("ativo") // ativo, encerrado, pendente
-  valorTotal         Float
-  valorRecebido      Float
-  valorPago          Float
-  percentualImpostos Float    @default(13.0) // Percentual específico do contrato
-  valorImpostos      Float    // Valor calculado dos impostos
-  margemLucro        Float    // Rentabilidade (valorRecebido - valorImpostos - valorPago)
   observacoes        String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
   // Relacionamentos
-  profissional       Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
   cliente            Cliente      @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  profissionais      ContratoProfissional[]
 
   @@map("contratos")
+}
+
+model ContratoProfissional {
+  id             String   @id @default(cuid())
+  contratoId     String
+  profissionalId String
+  valorHora      Float?   // Para contratos por hora
+  horasMensais   Int?     // Para contratos por hora
+  valorFechado   Float?   // Para contratos fechados
+  periodoFechado String?  // mensal, trimestral, semestral, anual
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relacionamentos
+  contrato       Contrato     @relation(fields: [contratoId], references: [id], onDelete: Cascade)
+  profissional   Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
+
+  @@unique([contratoId, profissionalId])
+  @@map("contrato_profissionais")
 }

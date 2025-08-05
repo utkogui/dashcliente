@@ -17,34 +17,18 @@ import {
   CircularProgress,
 } from '@mui/material'
 import { useState, useEffect } from 'react'
-import { Search, Add, Edit, Delete, Person } from '@mui/icons-material'
+import { Search, Add, Delete, Person } from '@mui/icons-material'
 import { useData } from '../contexts/DataContext'
-import ProfissionalWizard from '../components/ProfissionalWizard'
 import { formatCurrency } from '../utils/formatters'
+import { useNavigate } from 'react-router-dom'
 
-// Tipos
-interface Profissional {
-  id: string
-  nome: string
-  email: string
-  telefone: string
-  especialidade: string
-  valorHora: number | null
-  status: 'ativo' | 'inativo' | 'ferias'
-  dataAdmissao: string
-  tipoContrato: 'hora' | 'fechado'
-  valorFechado: number | null
-  periodoFechado: string | null
-  valorPago: number
-  percentualImpostos: number
-}
+
 
 const Profissionais = () => {
-  const { profissionais, addProfissional, updateProfissional, deleteProfissional, loading, error } = useData()
+  const { profissionais, deleteProfissional, loading, error } = useData()
+  const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
   const [filteredProfissionais, setFilteredProfissionais] = useState(profissionais)
-  const [wizardOpen, setWizardOpen] = useState(false)
-  const [editingProfissional, setEditingProfissional] = useState<Profissional | null>(null)
 
   // Atualizar lista filtrada quando profissionais mudar
   useEffect(() => {
@@ -96,27 +80,8 @@ const Profissionais = () => {
     }
   }
 
-  const handleOpenWizard = (profissional?: Profissional) => {
-    setEditingProfissional(profissional || null)
-    setWizardOpen(true)
-  }
-
-  const handleCloseWizard = () => {
-    setWizardOpen(false)
-    setEditingProfissional(null)
-  }
-
-  const handleSubmitWizard = async (profissionalData: Omit<Profissional, 'id'>) => {
-    try {
-      if (editingProfissional) {
-        await updateProfissional(editingProfissional.id, profissionalData)
-      } else {
-        await addProfissional(profissionalData)
-      }
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Erro ao salvar profissional'
-      throw new Error(errorMessage)
-    }
+  const handleAddProfissional = () => {
+    navigate('/cadastro-profissional')
   }
 
   const handleDelete = async (id: string) => {
@@ -155,7 +120,7 @@ const Profissionais = () => {
         <Button
           variant="contained"
           startIcon={<Add />}
-          onClick={() => handleOpenWizard()}
+          onClick={handleAddProfissional}
         >
           Novo Profissional
         </Button>
@@ -185,7 +150,7 @@ const Profissionais = () => {
               <TableCell>Profissional</TableCell>
               <TableCell>Especialidade</TableCell>
               <TableCell>Email</TableCell>
-              <TableCell>Telefone</TableCell>
+
               <TableCell>Tipo Contrato</TableCell>
               <TableCell>Valor</TableCell>
               <TableCell>Valor Pago</TableCell>
@@ -219,7 +184,7 @@ const Profissionais = () => {
                   />
                 </TableCell>
                 <TableCell>{profissional.email}</TableCell>
-                <TableCell>{profissional.telefone || '-'}</TableCell>
+
                 <TableCell>
                   <Chip
                     label={getTipoContratoText(profissional.tipoContrato)}
@@ -256,17 +221,10 @@ const Profissionais = () => {
                 </TableCell>
                 <TableCell>
                   <Typography variant="body2">
-                    {new Date(profissional.dataAdmissao).toLocaleDateString('pt-BR')}
+                    {new Date(profissional.dataInicio).toLocaleDateString('pt-BR')}
                   </Typography>
                 </TableCell>
                 <TableCell>
-                  <IconButton
-                    size="small"
-                    color="primary"
-                    onClick={() => handleOpenWizard(profissional)}
-                  >
-                    <Edit />
-                  </IconButton>
                   <IconButton
                     size="small"
                     color="error"
@@ -281,13 +239,7 @@ const Profissionais = () => {
         </Table>
       </TableContainer>
 
-      {/* Wizard */}
-      <ProfissionalWizard
-        open={wizardOpen}
-        onClose={handleCloseWizard}
-        onSubmit={handleSubmitWizard}
-        editingProfissional={editingProfissional}
-      />
+
     </Box>
   )
 }
