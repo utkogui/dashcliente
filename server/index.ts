@@ -392,14 +392,19 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'API funcionando!' })
 })
 
-// Inicializar servidor
-app.listen(PORT, async () => {
-  console.log(`🚀 Servidor rodando na porta ${PORT}`)
-  console.log(`📊 API disponível em: http://localhost:${PORT}/api`)
-  
-  try {
-    await seedDatabase()
-  } catch (error) {
-    console.error('❌ Erro ao popular banco:', error)
-  }
-}) 
+// Inicializar servidor apenas se não estiver no Vercel
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, async () => {
+    console.log(`🚀 Servidor rodando na porta ${PORT}`)
+    console.log(`📊 API disponível em: http://localhost:${PORT}/api`)
+    
+    try {
+      await seedDatabase()
+    } catch (error) {
+      console.error('❌ Erro ao popular banco:', error)
+    }
+  })
+}
+
+// Exportar para Vercel
+export default app 
