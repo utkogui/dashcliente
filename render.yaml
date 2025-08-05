@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: dash-ftd-frontend
+    env: static
+    buildCommand: npm run build
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite
+        source: /api/*
+        destination: /api/index.js
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  - type: web
+    name: dash-ftd-api
+    env: node
+    buildCommand: npm install
+    startCommand: node server/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        value: file:./dev.db 
