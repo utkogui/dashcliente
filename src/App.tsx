@@ -7,6 +7,8 @@ import Dashboard from './pages/Dashboard'
 import Profissionais from './pages/Profissionais'
 import CadastroProfissional from './pages/CadastroProfissional'
 import Contratos from './pages/Contratos'
+import CadastroContrato from './pages/CadastroContrato'
+import DatabaseViewer from './pages/DatabaseViewer'
 import Clientes from './pages/Clientes'
 import Relatorios from './pages/Relatorios'
 
@@ -30,6 +32,8 @@ function App() {
               <Route path="/profissionais" element={<Profissionais />} />
               <Route path="/cadastro-profissional" element={<CadastroProfissional />} />
               <Route path="/contratos" element={<Contratos />} />
+              <Route path="/cadastro-contrato" element={<CadastroContrato />} />
+          <Route path="/database" element={<DatabaseViewer />} />
               <Route path="/clientes" element={<Clientes />} />
               <Route path="/relatorios" element={<Relatorios />} />
             </Routes>

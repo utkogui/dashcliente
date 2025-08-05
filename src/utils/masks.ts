@@ -24,8 +24,8 @@ export const masks = {
   // Hora: 99:99
   hora: '99:99',
   
-  // Valor monetário: R$ 999.999,99
-  valor: 'R$ 999.999,99',
+  // Valor monetário: 999.999,99 (sem R$ pois é adicionado via InputAdornment)
+  valor: '999.999,99',
   
   // Percentual: 99,99%
   percentual: '99,99%',

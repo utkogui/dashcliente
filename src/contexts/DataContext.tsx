@@ -20,8 +20,8 @@ interface Cliente {
   nome: string
   empresa: string
   email: string
-  telefone: string
-  endereco: string
+  telefone?: string
+  endereco?: string
   anoInicio: number
   segmento: string
   tamanho: string
@@ -29,23 +29,27 @@ interface Cliente {
 
 interface Contrato {
   id: string
-  profissionalId: string
+  nomeProjeto: string
   clienteId: string
   dataInicio: string
-  dataFim: string
+  dataFim: string | null
   tipoContrato: 'hora' | 'fechado'
+  valorContrato: number
+  valorImpostos: number
+  status: 'ativo' | 'encerrado' | 'pendente'
+  observacoes?: string
+  profissionais: ContratoProfissional[]
+}
+
+interface ContratoProfissional {
+  id: string
+  contratoId: string
+  profissionalId: string
   valorHora: number | null
   horasMensais: number | null
   valorFechado: number | null
   periodoFechado: string | null
-  status: 'ativo' | 'encerrado' | 'pendente'
-  valorTotal: number
-  valorRecebido: number
-  valorPago: number
-  percentualImpostos: number
-  valorImpostos: number
-  margemLucro: number
-  observacoes?: string
+  profissional: Profissional
 }
 
 interface DataContextType {
@@ -179,8 +183,10 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         method: 'DELETE'
       })
       setProfissionais(prev => prev.filter(p => p.id !== id))
-      // Também remove contratos relacionados
-      setContratos(prev => prev.filter(c => c.profissionalId !== id))
+      // Remove contratos que têm este profissional
+      setContratos(prev => prev.filter(c => 
+        !c.profissionais.some(p => p.profissionalId === id)
+      ))
     } catch (err: any) {
       console.error('Erro ao deletar profissional:', err)
       throw new Error(err.message || 'Erro ao deletar profissional')
@@ -222,7 +228,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         method: 'DELETE'
       })
       setClientes(prev => prev.filter(c => c.id !== id))
-      // Também remove contratos relacionados
+      // Remove contratos relacionados
       setContratos(prev => prev.filter(c => c.clienteId !== id))
     } catch (err: any) {
       console.error('Erro ao deletar cliente:', err)

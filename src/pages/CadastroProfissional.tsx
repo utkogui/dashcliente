@@ -21,8 +21,7 @@ import {
 import { ArrowBack, Save } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
 import { useData } from '../contexts/DataContext'
-import InputMask from 'react-input-mask'
-import { masks } from '../utils/masks'
+
 import { validateEmail, validateRequired } from '../utils/validations'
 
 const CadastroProfissional = () => {
@@ -257,54 +256,45 @@ const CadastroProfissional = () => {
 
             {formData.tipoContrato === 'hora' ? (
               <Grid item xs={12} md={6}>
-                <InputMask
-                  mask={masks.valor}
+                <TextField
+                  fullWidth
+                  label="Valor por Hora"
+                  type="number"
                   value={formData.valorHora}
                   onChange={(e) => handleInputChange('valorHora', e.target.value)}
+                  error={!!errors.valorHora}
+                  helperText={errors.valorHora || 'Ex: 100,00'}
+                  placeholder="100,00"
                   disabled={submitting}
-                >
-                  {(inputProps: any) => (
-                    <TextField
-                      {...inputProps}
-                      fullWidth
-                      label="Valor por Hora"
-                      error={!!errors.valorHora}
-                      helperText={errors.valorHora || 'Ex: R$ 100,00'}
-                      InputProps={{
-                        startAdornment: <InputAdornment position="start">R$</InputAdornment>,
-                      }}
-                    />
-                  )}
-                </InputMask>
+                  InputProps={{
+                    startAdornment: <InputAdornment position="start">R$</InputAdornment>,
+                  }}
+                />
               </Grid>
             ) : (
               <>
                 <Grid item xs={12} md={6}>
-                  <InputMask
-                    mask={masks.valor}
+                  <TextField
+                    fullWidth
+                    label="Valor Fechado"
+                    type="number"
                     value={formData.valorFechado}
                     onChange={(e) => handleInputChange('valorFechado', e.target.value)}
+                    error={!!errors.valorFechado}
+                    helperText={errors.valorFechado || 'Ex: 5000,00'}
+                    placeholder="5000,00"
                     disabled={submitting}
-                  >
-                    {(inputProps: any) => (
-                      <TextField
-                        {...inputProps}
-                        fullWidth
-                        label="Valor Fechado"
-                        error={!!errors.valorFechado}
-                        helperText={errors.valorFechado || 'Ex: R$ 5.000,00'}
-                        InputProps={{
-                          startAdornment: <InputAdornment position="start">R$</InputAdornment>,
-                        }}
-                      />
-                    )}
-                  </InputMask>
+                    InputProps={{
+                      startAdornment: <InputAdornment position="start">R$</InputAdornment>,
+                    }}
+                  />
                 </Grid>
 
                 <Grid item xs={12} md={6}>
                   <FormControl fullWidth>
-                    <InputLabel>Período</InputLabel>
+                    <InputLabel id="periodo-label">Período</InputLabel>
                     <Select
+                      labelId="periodo-label"
                       value={formData.periodoFechado}
                       onChange={(e) => handleInputChange('periodoFechado', e.target.value)}
                       disabled={submitting}
@@ -320,31 +310,27 @@ const CadastroProfissional = () => {
             )}
 
             <Grid item xs={12} md={6}>
-              <InputMask
-                mask={masks.valor}
+              <TextField
+                fullWidth
+                label="Valor Bruto Pago ao Profissional"
+                type="number"
                 value={formData.valorPago}
                 onChange={(e) => handleInputChange('valorPago', e.target.value)}
+                error={!!errors.valorPago}
+                helperText={errors.valorPago || 'Ex: 4500,00'}
+                placeholder="4500,00"
                 disabled={submitting}
-              >
-                {(inputProps: any) => (
-                  <TextField
-                    {...inputProps}
-                    fullWidth
-                    label="Valor Bruto Pago ao Profissional"
-                    error={!!errors.valorPago}
-                    helperText={errors.valorPago || 'Ex: R$ 4.500,00'}
-                    InputProps={{
-                      startAdornment: <InputAdornment position="start">R$</InputAdornment>,
-                    }}
-                  />
-                )}
-              </InputMask>
+                InputProps={{
+                  startAdornment: <InputAdornment position="start">R$</InputAdornment>,
+                }}
+              />
             </Grid>
 
             <Grid item xs={12} md={6}>
               <FormControl fullWidth>
-                <InputLabel>Status</InputLabel>
+                <InputLabel id="status-label">Status</InputLabel>
                 <Select
+                  labelId="status-label"
                   value={formData.status}
                   onChange={(e) => handleInputChange('status', e.target.value)}
                   disabled={submitting}
