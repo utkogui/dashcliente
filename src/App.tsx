@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import Dashboard from './pages/Dashboard'
 import Profissionais from './pages/Profissionais'
+import CadastroProfissional from './pages/CadastroProfissional'
 import Contratos from './pages/Contratos'
 import Clientes from './pages/Clientes'
 import Relatorios from './pages/Relatorios'
@@ -27,6 +28,7 @@ function App() {
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/profissionais" element={<Profissionais />} />
+              <Route path="/cadastro-profissional" element={<CadastroProfissional />} />
               <Route path="/contratos" element={<Contratos />} />
               <Route path="/clientes" element={<Clientes />} />
               <Route path="/relatorios" element={<Relatorios />} />

@@ -24,14 +24,12 @@ const seedDatabase = async () => {
       data: {
         nome: 'João Silva',
         email: 'joao.silva@email.com',
-        telefone: '(11) 99999-1111',
         especialidade: 'Desenvolvedor Full Stack',
         valorHora: 120,
         status: 'ativo',
-        dataAdmissao: '2023-01-15',
+        dataInicio: '2023-01-15',
         tipoContrato: 'hora',
-        valorPago: 11520,
-        percentualImpostos: 13.0
+        valorPago: 11520
       }
     })
 
@@ -39,14 +37,12 @@ const seedDatabase = async () => {
       data: {
         nome: 'Maria Santos',
         email: 'maria.santos@email.com',
-        telefone: '(11) 99999-2222',
         especialidade: 'UX/UI Designer',
         valorHora: 100,
         status: 'ativo',
-        dataAdmissao: '2023-03-20',
+        dataInicio: '2023-03-20',
         tipoContrato: 'hora',
-        valorPago: 7200,
-        percentualImpostos: 13.0
+        valorPago: 7200
       }
     })
 
@@ -54,14 +50,12 @@ const seedDatabase = async () => {
       data: {
         nome: 'Pedro Costa',
         email: 'pedro.costa@email.com',
-        telefone: '(11) 99999-3333',
         especialidade: 'DevOps Engineer',
         valorHora: 150,
         status: 'ativo',
-        dataAdmissao: '2023-02-10',
+        dataInicio: '2023-02-10',
         tipoContrato: 'hora',
-        valorPago: 12600,
-        percentualImpostos: 13.0
+        valorPago: 12600
       }
     })
 

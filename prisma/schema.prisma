@@ -14,16 +14,14 @@ model Profissional {
   id                String     @id @default(cuid())
   nome              String
   email             String     @unique
-  telefone          String?
   especialidade     String
   valorHora         Float?     // Opcional agora (pode ser null para contratos fechados)
   status            String     @default("ativo") // ativo, inativo, ferias
-  dataAdmissao      String
+  dataInicio        String     // Data de início (renomeado de dataAdmissao)
   tipoContrato      String     @default("hora") // hora, fechado
   valorFechado      Float?     // Valor do contrato fechado
   periodoFechado    String?    // mensal, trimestral, semestral, anual
-  valorPago         Float      // Valor pago ao profissional
-  percentualImpostos Float     @default(13.0) // Percentual padrão de impostos
+  valorPago         Float      // Valor bruto pago ao profissional
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
 

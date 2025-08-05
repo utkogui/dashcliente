@@ -5,16 +5,14 @@ interface Profissional {
   id: string
   nome: string
   email: string
-  telefone: string
   especialidade: string
   valorHora: number | null
   status: 'ativo' | 'inativo' | 'ferias'
-  dataAdmissao: string
+  dataInicio: string
   tipoContrato: 'hora' | 'fechado'
   valorFechado: number | null
   periodoFechado: string | null
   valorPago: number
-  percentualImpostos: number
 }
 
 interface Cliente {
