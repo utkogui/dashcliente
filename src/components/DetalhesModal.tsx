@@ -36,22 +36,20 @@ import {
   Assignment,
   Close,
 } from '@mui/icons-material'
-import { formatCurrency, formatPercentual } from '../utils/formatters'
+import { formatCurrency } from '../utils/formatters'
 
 interface ProfissionalData {
   id: string
   nome: string
   email: string
-  telefone: string
   especialidade: string
   valorHora: number | null
   status: 'ativo' | 'inativo' | 'ferias'
-  dataAdmissao: string
+  dataInicio: string
   tipoContrato: 'hora' | 'fechado'
   valorFechado: number | null
   periodoFechado: string | null
   valorPago: number
-  percentualImpostos: number
 }
 
 interface ClienteData {
@@ -59,8 +57,8 @@ interface ClienteData {
   nome: string
   empresa: string
   email: string
-  telefone: string
-  endereco: string
+  telefone?: string
+  endereco?: string
   anoInicio: number
   segmento: string
   tamanho: string
@@ -68,25 +66,25 @@ interface ClienteData {
 
 interface ContratoData {
   id: string
-  profissionalId: string
+  nomeProjeto: string
   clienteId: string
   dataInicio: string
-  dataFim: string
+  dataFim: string | null
   tipoContrato: 'hora' | 'fechado'
-  valorHora: number | null
-  horasMensais: number | null
-  valorFechado: number | null
-  periodoFechado: string | null
-  status: 'ativo' | 'encerrado' | 'pendente'
-  valorTotal: number
-  valorRecebido: number
-  valorPago: number
-  percentualImpostos: number
+  valorContrato: number
   valorImpostos: number
-  margemLucro: number
+  status: 'ativo' | 'encerrado' | 'pendente'
   observacoes?: string
-  profissional?: ProfissionalData
-  cliente?: ClienteData
+  profissionais: Array<{
+    id: string
+    profissionalId: string
+    valorHora: number | null
+    horasMensais: number | null
+    valorFechado: number | null
+    periodoFechado: string | null
+    profissional: ProfissionalData
+  }>
+  cliente: ClienteData
 }
 
 interface DetalhesModalProps {
@@ -215,8 +213,8 @@ const DetalhesModal: React.FC<DetalhesModalProps> = ({
                     <Schedule />
                   </ListItemIcon>
                   <ListItemText
-                    primary="Data de Admissão"
-                    secondary={new Date(prof.dataAdmissao).toLocaleDateString('pt-BR')}
+                    primary="Data de Início"
+                    secondary={new Date(prof.dataInicio).toLocaleDateString('pt-BR')}
                   />
                 </ListItem>
               </List>
@@ -285,15 +283,7 @@ const DetalhesModal: React.FC<DetalhesModalProps> = ({
                     secondary={formatCurrency(prof.valorPago)}
                   />
                 </ListItem>
-                <ListItem>
-                  <ListItemIcon>
-                    <Assignment />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary="Percentual de Impostos"
-                    secondary={formatPercentual(prof.percentualImpostos)}
-                  />
-                </ListItem>
+
               </List>
             </Paper>
           </Grid>
@@ -427,7 +417,7 @@ const DetalhesModal: React.FC<DetalhesModalProps> = ({
           <TrendingUp color="success" sx={{ fontSize: 40 }} />
           <Box>
             <Typography variant="h4" component="h2" fontWeight="bold">
-              {con.profissional?.nome}
+              {con.nomeProjeto}
             </Typography>
             <Typography variant="h6" color="text.secondary">
               {con.cliente?.empresa}
@@ -444,7 +434,7 @@ const DetalhesModal: React.FC<DetalhesModalProps> = ({
           <Grid item xs={12} md={6}>
             <Paper sx={{ p: 2 }}>
               <Typography variant="h6" gutterBottom>
-                Informações do Contrato
+                Informações do Projeto
               </Typography>
               <List dense>
                 <ListItem>
@@ -468,30 +458,22 @@ const DetalhesModal: React.FC<DetalhesModalProps> = ({
                   </ListItemIcon>
                   <ListItemText
                     primary="Período"
-                    secondary={`${new Date(con.dataInicio).toLocaleDateString('pt-BR')} - ${new Date(con.dataFim).toLocaleDateString('pt-BR')}`}
+                    secondary={
+                      con.dataFim 
+                        ? `${new Date(con.dataInicio).toLocaleDateString('pt-BR')} - ${new Date(con.dataFim).toLocaleDateString('pt-BR')}`
+                        : `${new Date(con.dataInicio).toLocaleDateString('pt-BR')} - Indeterminado`
+                    }
                   />
                 </ListItem>
-                {con.tipoContrato === 'hora' ? (
-                  <ListItem>
-                    <ListItemIcon>
-                      <AttachMoney />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary="Valor por Hora"
-                      secondary={formatCurrency(con.valorHora || 0)}
-                    />
-                  </ListItem>
-                ) : (
-                  <ListItem>
-                    <ListItemIcon>
-                      <Receipt />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary="Valor Fechado"
-                      secondary={`${formatCurrency(con.valorFechado || 0)} (${con.periodoFechado})`}
-                    />
-                  </ListItem>
-                )}
+                <ListItem>
+                  <ListItemIcon>
+                    <Assignment />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Profissionais"
+                    secondary={`${con.profissionais?.length || 0} profissional(is)`}
+                  />
+                </ListItem>
                 {con.observacoes && (
                   <ListItem>
                     <ListItemIcon>
@@ -512,62 +494,88 @@ const DetalhesModal: React.FC<DetalhesModalProps> = ({
               <Typography variant="h6" gutterBottom>
                 Informações Financeiras
               </Typography>
-              <TableContainer>
-                <Table size="small">
-                  <TableBody>
-                    <TableRow>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight="bold">
-                          Valor Recebido:
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="success.main" fontWeight="bold">
-                          {formatCurrency(con.valorRecebido)}
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight="bold">
-                          Valor Pago:
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="info.main" fontWeight="bold">
-                          {formatCurrency(con.valorPago)}
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight="bold">
-                          Impostos:
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="warning.main" fontWeight="bold">
-                          {formatCurrency(con.valorImpostos)} ({formatPercentual(con.percentualImpostos)})
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight="bold">
-                          Rentabilidade:
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color={con.margemLucro >= 0 ? 'success.main' : 'error.main'} fontWeight="bold">
-                          {formatCurrency(con.margemLucro)}
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </TableContainer>
+              <List dense>
+                <ListItem>
+                  <ListItemIcon>
+                    <AttachMoney />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Valor do Contrato"
+                    secondary={formatCurrency(con.valorContrato)}
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemIcon>
+                    <Receipt />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Impostos"
+                    secondary={formatCurrency(con.valorImpostos)}
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemIcon>
+                    <TrendingUp />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Valor Líquido"
+                    secondary={formatCurrency(con.valorContrato - con.valorImpostos)}
+                  />
+                </ListItem>
+              </List>
             </Paper>
           </Grid>
+
+          {/* Lista de Profissionais */}
+          {con.profissionais && con.profissionais.length > 0 && (
+            <Grid item xs={12}>
+              <Paper sx={{ p: 2 }}>
+                <Typography variant="h6" gutterBottom>
+                  Profissionais do Projeto
+                </Typography>
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Nome</TableCell>
+                        <TableCell>Especialidade</TableCell>
+                        <TableCell>Tipo</TableCell>
+                        <TableCell>Valor</TableCell>
+                        <TableCell>Período</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {con.profissionais.map((prof) => (
+                        <TableRow key={prof.id}>
+                          <TableCell>{prof.profissional.nome}</TableCell>
+                          <TableCell>{prof.profissional.especialidade}</TableCell>
+                          <TableCell>
+                            <Chip
+                              label={getTipoContratoText(prof.profissional.tipoContrato)}
+                              color={getTipoContratoColor(prof.profissional.tipoContrato)}
+                              size="small"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            {prof.profissional.tipoContrato === 'hora' 
+                              ? `${formatCurrency(prof.valorHora || 0)}/hora`
+                              : formatCurrency(prof.valorFechado || 0)
+                            }
+                          </TableCell>
+                          <TableCell>
+                            {prof.profissional.tipoContrato === 'hora' 
+                              ? `${prof.horasMensais || 0}h/mês`
+                              : prof.periodoFechado || 'N/A'
+                            }
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Paper>
+            </Grid>
+          )}
         </Grid>
       </Box>
     )

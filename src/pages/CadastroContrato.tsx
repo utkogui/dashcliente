@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Box,
   Typography,
@@ -26,16 +26,19 @@ import {
   Checkbox
 } from '@mui/material'
 import { ArrowBack, Save, Add, Delete } from '@mui/icons-material'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext'
 
 import { validateRequired } from '../utils/validations'
 
 const CadastroContrato = () => {
   const navigate = useNavigate()
-  const { addContrato, profissionais, clientes } = useData()
+  const [searchParams] = useSearchParams()
+  const { addContrato, updateContrato, contratos, profissionais, clientes } = useData()
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isEditing, setIsEditing] = useState(false)
+  const [contratoId, setContratoId] = useState<string | null>(null)
 
   const [formData, setFormData] = useState({
     nomeProjeto: '',
@@ -61,6 +64,46 @@ const CadastroContrato = () => {
   }>>([])
 
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // Carregar dados do contrato se estiver editando
+  useEffect(() => {
+    const id = searchParams.get('id')
+    if (id) {
+      const contrato = contratos.find(c => c.id === id)
+      if (contrato) {
+        setIsEditing(true)
+        setContratoId(id)
+        
+        // Preencher formulário com dados do contrato
+        setFormData({
+          nomeProjeto: contrato.nomeProjeto,
+          clienteId: contrato.clienteId,
+          dataInicio: contrato.dataInicio,
+          dataFim: contrato.dataFim || '',
+          tipoContrato: contrato.tipoContrato,
+          valorContrato: contrato.valorContrato.toString(),
+          valorContratoMensal: false, // Será calculado baseado no valor
+          percentualImpostos: contrato.valorImpostos > 0 ? 
+            ((contrato.valorImpostos / contrato.valorContrato) * 100).toFixed(2) : '',
+          valorImpostos: contrato.valorImpostos.toString(),
+          status: contrato.status,
+          observacoes: contrato.observacoes || '',
+          contratoIndeterminado: !contrato.dataFim
+        })
+
+        // Preencher profissionais selecionados
+        if (contrato.profissionais && contrato.profissionais.length > 0) {
+          setProfissionaisSelecionados(contrato.profissionais.map(p => ({
+            profissionalId: p.profissionalId,
+            valorHora: p.valorHora?.toString() || '',
+            horasMensais: p.horasMensais?.toString() || '',
+            valorFechado: p.valorFechado?.toString() || '',
+            periodoFechado: p.periodoFechado || 'mensal'
+          })))
+        }
+      }
+    }
+  }, [searchParams, contratos])
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => {
@@ -262,7 +305,11 @@ const CadastroContrato = () => {
         })
       }
 
-      await addContrato(contratoData)
+      if (isEditing && contratoId) {
+        await updateContrato(contratoId, contratoData)
+      } else {
+        await addContrato(contratoData)
+      }
       navigate('/contratos')
     } catch (err) {
       setError('Erro ao cadastrar contrato. Tente novamente.')
@@ -282,7 +329,7 @@ const CadastroContrato = () => {
           Voltar
         </Button>
         <Typography variant="h4" component="h1">
-          Cadastrar Contrato
+          {isEditing ? 'Editar Contrato' : 'Cadastrar Contrato'}
         </Typography>
       </Box>
 

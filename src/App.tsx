@@ -10,7 +10,7 @@ import Contratos from './pages/Contratos'
 import CadastroContrato from './pages/CadastroContrato'
 import DatabaseViewer from './pages/DatabaseViewer'
 import Clientes from './pages/Clientes'
-import Relatorios from './pages/Relatorios'
+import Timeline from './pages/Timeline'
 
 function App() {
   return (
@@ -35,7 +35,7 @@ function App() {
               <Route path="/cadastro-contrato" element={<CadastroContrato />} />
           <Route path="/database" element={<DatabaseViewer />} />
               <Route path="/clientes" element={<Clientes />} />
-              <Route path="/relatorios" element={<Relatorios />} />
+              <Route path="/timeline" element={<Timeline />} />
             </Routes>
           </Box>
         </Box>

@@ -196,8 +196,26 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
         )}
 
         <Typography variant="body2" color="success.main" fontWeight="bold">
-          Pago: {formatCurrency(data.valorPago)}
+          Recebe: {formatCurrency(data.valorPago)}
         </Typography>
+
+        {/* Calcular quanto nós recebemos vs quanto pagamos */}
+        {(() => {
+          // Para profissionais por hora, assumir 160h/mês (8h/dia * 20 dias)
+          // Para profissionais com valor fechado, usar o valor fechado
+          const valorQueRecebemos = data.tipoContrato === 'hora' 
+            ? (data.valorHora || 0) * 160 // 160h/mês
+            : (data.valorFechado || 0)
+          
+          const diferenca = valorQueRecebemos - data.valorPago
+          const percentualDiferenca = valorQueRecebemos > 0 ? (diferenca / valorQueRecebemos) * 100 : 0
+          
+          return (
+            <Typography variant="body2" color={diferenca >= 0 ? 'success.main' : 'error.main'} fontWeight="bold">
+              Nós Recebemos: {formatCurrency(valorQueRecebemos)} ({percentualDiferenca.toFixed(1)}% margem)
+            </Typography>
+          )
+        })()}
 
         <Collapse in={expanded} timeout="auto" unmountOnExit>
           <Divider sx={{ my: 2 }} />
@@ -387,6 +405,27 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
         <Typography variant="body2" color="info.main" fontWeight="bold">
           Impostos: {formatCurrency(data.valorImpostos)}
         </Typography>
+
+        {/* Calcular margem mensal */}
+        {(() => {
+          const valorLiquido = data.valorContrato - data.valorImpostos
+          const custoProfissionais = data.profissionais?.reduce((acc: number, p: any) => {
+            if (p.valorHora && p.horasMensais) {
+              return acc + (p.valorHora * p.horasMensais)
+            } else if (p.valorFechado) {
+              return acc + p.valorFechado
+            }
+            return acc
+          }, 0) || 0
+          const margemMensal = valorLiquido - custoProfissionais
+          const percentualMargem = valorLiquido > 0 ? (margemMensal / valorLiquido) * 100 : 0
+          
+          return (
+            <Typography variant="body2" color={margemMensal >= 0 ? 'success.main' : 'error.main'} fontWeight="bold">
+              Margem Mensal: {formatCurrency(margemMensal)} ({percentualMargem.toFixed(1)}%)
+            </Typography>
+          )
+        })()}
 
         <Typography variant="body2" color="warning.main" fontWeight="bold">
           Profissionais: {data.profissionais?.length || 0}

@@ -22,6 +22,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "cors": "^2.8.5",
     "date-fns": "^4.1.0",
+    "dhtmlx-gantt": "^9.0.14",
     "express": "^4.21.2",
     "lucide-react": "^0.536.0",
     "prisma": "^6.13.0",
