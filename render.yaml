@@ -15,7 +15,7 @@ services:
   - type: web
     name: dash-ftd-api
     runtime: node
-    buildCommand: npm install && npx prisma generate && npx tsc server/index.ts --outDir server --target es2020 --module commonjs --esModuleInterop
+    buildCommand: npm install && npx prisma generate && npx tsc --project tsconfig.server.json
     startCommand: node server/index.js
     envVars:
       - key: NODE_ENV
