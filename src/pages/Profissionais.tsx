@@ -11,40 +11,40 @@ import {
   Button,
   TextField,
   InputAdornment,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Chip,
   IconButton,
   Alert,
   CircularProgress,
 } from '@mui/material'
 import { useState, useEffect } from 'react'
-import { Search, Add, Edit, Delete } from '@mui/icons-material'
+import { Search, Add, Edit, Delete, Person } from '@mui/icons-material'
 import { useData } from '../contexts/DataContext'
+import ProfissionalWizard from '../components/ProfissionalWizard'
+import { formatCurrency } from '../utils/formatters'
+
+// Tipos
+interface Profissional {
+  id: string
+  nome: string
+  email: string
+  telefone: string
+  especialidade: string
+  valorHora: number | null
+  status: 'ativo' | 'inativo' | 'ferias'
+  dataAdmissao: string
+  tipoContrato: 'hora' | 'fechado'
+  valorFechado: number | null
+  periodoFechado: string | null
+  valorPago: number
+  percentualImpostos: number
+}
 
 const Profissionais = () => {
   const { profissionais, addProfissional, updateProfissional, deleteProfissional, loading, error } = useData()
   const [searchTerm, setSearchTerm] = useState('')
   const [filteredProfissionais, setFilteredProfissionais] = useState(profissionais)
-  const [open, setOpen] = useState(false)
-  const [editingProfissional, setEditingProfissional] = useState<any>(null)
-  const [formData, setFormData] = useState({
-    nome: '',
-    email: '',
-    telefone: '',
-    especialidade: '',
-    valorHora: '',
-    status: 'ativo',
-    dataAdmissao: ''
-  })
-  const [formError, setFormError] = useState('')
-  const [submitting, setSubmitting] = useState(false)
+  const [wizardOpen, setWizardOpen] = useState(false)
+  const [editingProfissional, setEditingProfissional] = useState<Profissional | null>(null)
 
   // Atualizar lista filtrada quando profissionais mudar
   useEffect(() => {
@@ -56,7 +56,8 @@ const Profissionais = () => {
     const filtered = profissionais.filter(
       p => p.nome.toLowerCase().includes(value.toLowerCase()) ||
            p.especialidade.toLowerCase().includes(value.toLowerCase()) ||
-           p.email.toLowerCase().includes(value.toLowerCase())
+           p.email.toLowerCase().includes(value.toLowerCase()) ||
+           p.tipoContrato.toLowerCase().includes(value.toLowerCase())
     )
     setFilteredProfissionais(filtered)
   }
@@ -79,94 +80,54 @@ const Profissionais = () => {
     }
   }
 
-  const handleOpen = (profissional?: any) => {
-    if (profissional) {
-      setEditingProfissional(profissional)
-      setFormData({
-        nome: profissional.nome,
-        email: profissional.email,
-        telefone: profissional.telefone,
-        especialidade: profissional.especialidade,
-        valorHora: profissional.valorHora.toString(),
-        status: profissional.status,
-        dataAdmissao: profissional.dataAdmissao
-      })
-    } else {
-      setEditingProfissional(null)
-      setFormData({
-        nome: '',
-        email: '',
-        telefone: '',
-        especialidade: '',
-        valorHora: '',
-        status: 'ativo',
-        dataAdmissao: ''
-      })
+  const getTipoContratoColor = (tipo: string) => {
+    switch (tipo) {
+      case 'hora': return 'primary'
+      case 'fechado': return 'secondary'
+      default: return 'default'
     }
-    setOpen(true)
-    setFormError('')
   }
 
-  const handleClose = () => {
-    setOpen(false)
+  const getTipoContratoText = (tipo: string) => {
+    switch (tipo) {
+      case 'hora': return 'Por Hora'
+      case 'fechado': return 'Valor Fechado'
+      default: return tipo
+    }
+  }
+
+  const handleOpenWizard = (profissional?: Profissional) => {
+    setEditingProfissional(profissional || null)
+    setWizardOpen(true)
+  }
+
+  const handleCloseWizard = () => {
+    setWizardOpen(false)
     setEditingProfissional(null)
-    setFormError('')
-    setSubmitting(false)
   }
 
-  const handleSubmit = async () => {
+  const handleSubmitWizard = async (profissionalData: Omit<Profissional, 'id'>) => {
     try {
-      setSubmitting(true)
-      setFormError('')
-
-      // Validação básica
-      if (!formData.nome || !formData.email || !formData.especialidade || !formData.valorHora) {
-        setFormError('Por favor, preencha todos os campos obrigatórios')
-        return
-      }
-
-      if (isNaN(Number(formData.valorHora)) || Number(formData.valorHora) <= 0) {
-        setFormError('Valor por hora deve ser um número positivo')
-        return
-      }
-
-      const profissionalData = {
-        nome: formData.nome,
-        email: formData.email,
-        telefone: formData.telefone,
-        especialidade: formData.especialidade,
-        valorHora: Number(formData.valorHora),
-        status: formData.status as 'ativo' | 'inativo' | 'ferias',
-        dataAdmissao: formData.dataAdmissao || new Date().toISOString().split('T')[0]
-      }
-
       if (editingProfissional) {
         await updateProfissional(editingProfissional.id, profissionalData)
       } else {
         await addProfissional(profissionalData)
       }
-
-      handleClose()
-    } catch (err: any) {
-      setFormError(err.message || 'Erro ao salvar profissional')
-    } finally {
-      setSubmitting(false)
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao salvar profissional'
+      throw new Error(errorMessage)
     }
   }
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir este profissional?')) {
+    if (window.confirm('Tem certeza que deseja excluir este profissional? Esta ação não pode ser desfeita.')) {
       try {
         await deleteProfissional(id)
-      } catch (err: any) {
-        alert(err.message || 'Erro ao deletar profissional')
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'Erro ao deletar profissional'
+        alert(errorMessage)
       }
     }
-  }
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
-    setFormError('')
   }
 
   if (loading) {
@@ -194,7 +155,7 @@ const Profissionais = () => {
         <Button
           variant="contained"
           startIcon={<Add />}
-          onClick={() => handleOpen()}
+          onClick={() => handleOpenWizard()}
         >
           Novo Profissional
         </Button>
@@ -203,7 +164,7 @@ const Profissionais = () => {
       {/* Filtro de Busca */}
       <TextField
         fullWidth
-        placeholder="Buscar por nome, especialidade ou email..."
+        placeholder="Buscar por nome, especialidade, email ou tipo de contrato..."
         value={searchTerm}
         onChange={(e) => handleSearch(e.target.value)}
         InputProps={{
@@ -221,11 +182,13 @@ const Profissionais = () => {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Nome</TableCell>
+              <TableCell>Profissional</TableCell>
               <TableCell>Especialidade</TableCell>
               <TableCell>Email</TableCell>
               <TableCell>Telefone</TableCell>
-              <TableCell>Valor/Hora</TableCell>
+              <TableCell>Tipo Contrato</TableCell>
+              <TableCell>Valor</TableCell>
+              <TableCell>Valor Pago</TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Data Admissão</TableCell>
               <TableCell>Ações</TableCell>
@@ -234,11 +197,56 @@ const Profissionais = () => {
           <TableBody>
             {filteredProfissionais.map((profissional) => (
               <TableRow key={profissional.id}>
-                <TableCell sx={{ fontWeight: 'bold' }}>{profissional.nome}</TableCell>
-                <TableCell>{profissional.especialidade}</TableCell>
+                <TableCell>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Person color="primary" />
+                    <Box>
+                      <Typography variant="body2" fontWeight="bold">
+                        {profissional.nome}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        ID: {profissional.id.substring(0, 8)}...
+                      </Typography>
+                    </Box>
+                  </Box>
+                </TableCell>
+                <TableCell>
+                  <Chip
+                    label={profissional.especialidade}
+                    color="primary"
+                    variant="outlined"
+                    size="small"
+                  />
+                </TableCell>
                 <TableCell>{profissional.email}</TableCell>
-                <TableCell>{profissional.telefone}</TableCell>
-                <TableCell>R$ {profissional.valorHora}</TableCell>
+                <TableCell>{profissional.telefone || '-'}</TableCell>
+                <TableCell>
+                  <Chip
+                    label={getTipoContratoText(profissional.tipoContrato)}
+                    color={getTipoContratoColor(profissional.tipoContrato)}
+                    size="small"
+                  />
+                </TableCell>
+                <TableCell>
+                  {profissional.tipoContrato === 'hora' ? (
+                    <Typography variant="body2" color="primary.main" fontWeight="bold">
+                      R$ {profissional.valorHora?.toFixed(2)}/h
+                    </Typography>
+                  ) : (
+                    <Typography variant="body2" color="secondary.main" fontWeight="bold">
+                      R$ {profissional.valorFechado?.toFixed(2)}
+                      <br />
+                      <Typography variant="caption" color="text.secondary">
+                        {profissional.periodoFechado}
+                      </Typography>
+                    </Typography>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <Typography variant="body2" color="success.main" fontWeight="bold">
+                    {formatCurrency(profissional.valorPago)}
+                  </Typography>
+                </TableCell>
                 <TableCell>
                   <Chip
                     label={getStatusText(profissional.status)}
@@ -246,12 +254,16 @@ const Profissionais = () => {
                     size="small"
                   />
                 </TableCell>
-                <TableCell>{new Date(profissional.dataAdmissao).toLocaleDateString('pt-BR')}</TableCell>
+                <TableCell>
+                  <Typography variant="body2">
+                    {new Date(profissional.dataAdmissao).toLocaleDateString('pt-BR')}
+                  </Typography>
+                </TableCell>
                 <TableCell>
                   <IconButton
                     size="small"
                     color="primary"
-                    onClick={() => handleOpen(profissional)}
+                    onClick={() => handleOpenWizard(profissional)}
                   >
                     <Edit />
                   </IconButton>
@@ -269,103 +281,13 @@ const Profissionais = () => {
         </Table>
       </TableContainer>
 
-      {/* Modal de Adicionar/Editar */}
-      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          {editingProfissional ? 'Editar Profissional' : 'Novo Profissional'}
-        </DialogTitle>
-        <DialogContent>
-          {formError && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {formError}
-            </Alert>
-          )}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
-            <TextField
-              label="Nome *"
-              placeholder="Nome completo"
-              value={formData.nome}
-              onChange={(e) => handleInputChange('nome', e.target.value)}
-              fullWidth
-              disabled={submitting}
-            />
-
-            <TextField
-              label="Email *"
-              type="email"
-              placeholder="email@exemplo.com"
-              value={formData.email}
-              onChange={(e) => handleInputChange('email', e.target.value)}
-              fullWidth
-              disabled={submitting}
-            />
-
-            <TextField
-              label="Telefone"
-              placeholder="(11) 99999-9999"
-              value={formData.telefone}
-              onChange={(e) => handleInputChange('telefone', e.target.value)}
-              fullWidth
-              disabled={submitting}
-            />
-
-            <TextField
-              label="Especialidade *"
-              placeholder="Ex: Desenvolvedor Full Stack"
-              value={formData.especialidade}
-              onChange={(e) => handleInputChange('especialidade', e.target.value)}
-              fullWidth
-              disabled={submitting}
-            />
-
-            <TextField
-              label="Valor por Hora *"
-              type="number"
-              placeholder="120"
-              value={formData.valorHora}
-              onChange={(e) => handleInputChange('valorHora', e.target.value)}
-              fullWidth
-              disabled={submitting}
-            />
-
-            <FormControl fullWidth disabled={submitting}>
-              <InputLabel>Status</InputLabel>
-              <Select
-                value={formData.status}
-                label="Status"
-                onChange={(e) => handleInputChange('status', e.target.value)}
-              >
-                <MenuItem value="ativo">Ativo</MenuItem>
-                <MenuItem value="ferias">Férias</MenuItem>
-                <MenuItem value="inativo">Inativo</MenuItem>
-              </Select>
-            </FormControl>
-
-            <TextField
-              label="Data de Admissão"
-              type="date"
-              value={formData.dataAdmissao}
-              onChange={(e) => handleInputChange('dataAdmissao', e.target.value)}
-              fullWidth
-              InputLabelProps={{ shrink: true }}
-              disabled={submitting}
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClose} disabled={submitting}>
-            Cancelar
-          </Button>
-          <Button 
-            variant="contained" 
-            onClick={handleSubmit}
-            disabled={submitting}
-            startIcon={submitting ? <CircularProgress size={16} /> : undefined}
-          >
-            {submitting ? 'Salvando...' : (editingProfissional ? 'Salvar' : 'Adicionar')}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Wizard */}
+      <ProfissionalWizard
+        open={wizardOpen}
+        onClose={handleCloseWizard}
+        onSubmit={handleSubmitWizard}
+        editingProfissional={editingProfissional}
+      />
     </Box>
   )
 }

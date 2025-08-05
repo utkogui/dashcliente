@@ -5,14 +5,13 @@ import {
   CardContent,
   Alert,
   AlertTitle,
-  Chip,
-  LinearProgress,
   CircularProgress,
 } from '@mui/material'
 import { TrendingUp, TrendingDown, People, Business, Assignment, Warning } from '@mui/icons-material'
 import { useData } from '../contexts/DataContext'
-import { format, addDays } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import { useState } from 'react'
+import DashboardCard from '../components/DashboardCard'
+import DetalhesModal from '../components/DetalhesModal'
 import {
   LineChart,
   Line,
@@ -28,6 +27,20 @@ import {
 
 const Dashboard = () => {
   const { profissionais, clientes, contratos, loading, error } = useData()
+  const [modalOpen, setModalOpen] = useState(false)
+  const [modalType, setModalType] = useState<'profissional' | 'cliente' | 'contrato'>('profissional')
+  const [modalData, setModalData] = useState<unknown>(null)
+
+  const handleCardClick = (type: 'profissional' | 'cliente' | 'contrato', data: unknown) => {
+    setModalType(type)
+    setModalData(data)
+    setModalOpen(true)
+  }
+
+  const handleCloseModal = () => {
+    setModalOpen(false)
+    setModalData(null)
+  }
 
   if (loading) {
     return (
@@ -48,7 +61,6 @@ const Dashboard = () => {
   // Cálculos das estatísticas
   const contratosAtivos = contratos.filter(c => c.status === 'ativo')
   const contratosPendentes = contratos.filter(c => c.status === 'pendente')
-  const contratosEncerrados = contratos.filter(c => c.status === 'encerrado')
   
   const receitaTotal = contratos.reduce((acc, c) => acc + c.valorRecebido, 0)
   const custoTotal = contratos.reduce((acc, c) => acc + c.valorPago, 0)
@@ -113,7 +125,7 @@ const Dashboard = () => {
                   {profissionais.filter(p => p.status === 'ativo').length} ativos
                 </Typography>
               </Box>
-              <People sx={{ fontSize: 40, color: 'primary.main' }} />
+              <People color="primary" sx={{ fontSize: 40 }} />
             </Box>
           </CardContent>
         </Card>
@@ -132,7 +144,26 @@ const Dashboard = () => {
                   {contratosAtivos.length} contratos ativos
                 </Typography>
               </Box>
-              <Business sx={{ fontSize: 40, color: 'success.main' }} />
+              <Business color="secondary" sx={{ fontSize: 40 }} />
+            </Box>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Box>
+                <Typography color="text.secondary" gutterBottom>
+                  Contratos Ativos
+                </Typography>
+                <Typography variant="h4" component="div">
+                  {contratosAtivos.length}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {contratosPendentes.length} pendentes
+                </Typography>
+              </Box>
+              <Assignment color="success" sx={{ fontSize: 40 }} />
             </Box>
           </CardContent>
         </Card>
@@ -144,58 +175,93 @@ const Dashboard = () => {
                 <Typography color="text.secondary" gutterBottom>
                   Receita Total
                 </Typography>
-                <Typography variant="h4" component="div" color="success.main">
+                <Typography variant="h4" component="div">
                   R$ {receitaTotal.toLocaleString('pt-BR')}
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <TrendingUp sx={{ fontSize: 16, color: 'success.main' }} />
-                  <Typography variant="body2" color="success.main">
-                    +{margemLucro.toFixed(1)}% margem
+                  {margemLucro >= 0 ? (
+                    <TrendingUp color="success" sx={{ fontSize: 16 }} />
+                  ) : (
+                    <TrendingDown color="error" sx={{ fontSize: 16 }} />
+                  )}
+                  <Typography variant="body2" color={margemLucro >= 0 ? 'success.main' : 'error.main'}>
+                    {margemLucro.toFixed(1)}% margem
                   </Typography>
                 </Box>
               </Box>
-              <TrendingUp sx={{ fontSize: 40, color: 'success.main' }} />
-            </Box>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Box>
-                <Typography color="text.secondary" gutterBottom>
-                  Contratos
-                </Typography>
-                <Typography variant="h4" component="div">
-                  {contratos.length}
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-                  <Chip label={`${contratosAtivos.length} ativos`} size="small" color="success" />
-                  <Chip label={`${contratosPendentes.length} pendentes`} size="small" color="warning" />
-                </Box>
-              </Box>
-              <Assignment sx={{ fontSize: 40, color: 'info.main' }} />
+              <TrendingUp color="primary" sx={{ fontSize: 40 }} />
             </Box>
           </CardContent>
         </Card>
       </Box>
 
+      {/* Cards Clicáveis */}
+      <Typography variant="h5" component="h2" color="text.primary" sx={{ mb: 3 }}>
+        Cards Clicáveis
+      </Typography>
+
+      {/* Profissionais */}
+      <Typography variant="h6" component="h3" color="text.primary" sx={{ mb: 2 }}>
+        Profissionais ({profissionais.length})
+      </Typography>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2, mb: 4 }}>
+        {profissionais.slice(0, 4).map((profissional) => (
+          <DashboardCard
+            key={profissional.id}
+            type="profissional"
+            data={profissional}
+            onClick={() => handleCardClick('profissional', profissional)}
+          />
+        ))}
+      </Box>
+
+      {/* Clientes */}
+      <Typography variant="h6" component="h3" color="text.primary" sx={{ mb: 2 }}>
+        Clientes ({clientes.length})
+      </Typography>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2, mb: 4 }}>
+        {clientes.slice(0, 4).map((cliente) => (
+          <DashboardCard
+            key={cliente.id}
+            type="cliente"
+            data={cliente}
+            onClick={() => handleCardClick('cliente', cliente)}
+          />
+        ))}
+      </Box>
+
+      {/* Contratos */}
+      <Typography variant="h6" component="h3" color="text.primary" sx={{ mb: 2 }}>
+        Contratos Ativos ({contratosAtivos.length})
+      </Typography>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2, mb: 4 }}>
+        {contratosAtivos.slice(0, 4).map((contrato) => (
+          <DashboardCard
+            key={contrato.id}
+            type="contrato"
+            data={contrato}
+            onClick={() => handleCardClick('contrato', contrato)}
+          />
+        ))}
+      </Box>
+
       {/* Alertas */}
       {contratosVencendo.length > 0 && (
-        <Alert severity="warning" sx={{ mb: 3 }}>
-          <AlertTitle>Atenção!</AlertTitle>
+        <Alert severity="warning" sx={{ mb: 4 }}>
+          <AlertTitle>Contratos Vencendo</AlertTitle>
           {contratosVencendo.length} contrato(s) vence(m) nos próximos 30 dias:
           <Box sx={{ mt: 1 }}>
-            {contratosVencendo.slice(0, 3).map(contrato => {
+            {contratosVencendo.slice(0, 3).map((contrato) => {
               const profissional = profissionais.find(p => p.id === contrato.profissionalId)
               const cliente = clientes.find(c => c.id === contrato.clienteId)
-              const diasRestantes = Math.ceil((new Date(contrato.dataFim).getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
+              const dataFim = new Date(contrato.dataFim)
+              const diasRestantes = Math.ceil((dataFim.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
               
               return (
-                <Box key={contrato.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                  <Warning sx={{ fontSize: 16 }} />
+                <Box key={contrato.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                  <Warning fontSize="small" />
                   <Typography variant="body2">
-                    {profissional?.nome} → {cliente?.empresa} (vence em {diasRestantes} dias)
+                    {profissional?.nome} - {cliente?.empresa} (vence em {diasRestantes} dias)
                   </Typography>
                 </Box>
               )
@@ -210,13 +276,8 @@ const Dashboard = () => {
       )}
 
       {/* Gráficos */}
-      <Box sx={{ 
-        display: 'grid', 
-        gridTemplateColumns: { xs: '1fr', lg: '2fr 1fr' },
-        gap: 3,
-        mb: 3
-      }}>
-        {/* Gráfico de Evolução */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
+        {/* Evolução Mensal */}
         <Card>
           <CardContent>
             <Typography variant="h6" gutterBottom>
@@ -227,7 +288,7 @@ const Dashboard = () => {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="mes" />
                 <YAxis />
-                <Tooltip formatter={(value) => `R$ ${value?.toLocaleString('pt-BR')}`} />
+                <Tooltip />
                 <Line type="monotone" dataKey="receita" stroke="#8884d8" name="Receita" />
                 <Line type="monotone" dataKey="custo" stroke="#82ca9d" name="Custo" />
               </LineChart>
@@ -235,7 +296,7 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Gráfico de Especialidades */}
+        {/* Distribuição por Especialidade */}
         <Card>
           <CardContent>
             <Typography variant="h6" gutterBottom>
@@ -248,7 +309,7 @@ const Dashboard = () => {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                   outerRadius={80}
                   fill="#8884d8"
                   dataKey="value"
@@ -264,47 +325,13 @@ const Dashboard = () => {
         </Card>
       </Box>
 
-      {/* Métricas de Performance */}
-      <Card>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
-            Métricas de Performance
-          </Typography>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' }, gap: 3 }}>
-            <Box>
-              <Typography variant="body2" color="text.secondary">
-                Taxa de Ocupação
-              </Typography>
-              <Typography variant="h5" color="primary">
-                {profissionais.length > 0 ? ((contratosAtivos.length / profissionais.length) * 100).toFixed(1) : 0}%
-              </Typography>
-              <LinearProgress 
-                variant="determinate" 
-                value={profissionais.length > 0 ? (contratosAtivos.length / profissionais.length) * 100 : 0}
-                sx={{ mt: 1 }}
-              />
-            </Box>
-            
-            <Box>
-              <Typography variant="body2" color="text.secondary">
-                Receita por Profissional
-              </Typography>
-              <Typography variant="h5" color="success.main">
-                R$ {profissionais.length > 0 ? (receitaTotal / profissionais.length).toLocaleString('pt-BR') : 0}
-              </Typography>
-            </Box>
-            
-            <Box>
-              <Typography variant="body2" color="text.secondary">
-                Contratos por Cliente
-              </Typography>
-              <Typography variant="h5" color="info.main">
-                {clientes.length > 0 ? (contratos.length / clientes.length).toFixed(1) : 0}
-              </Typography>
-            </Box>
-          </Box>
-        </CardContent>
-      </Card>
+      {/* Modal de Detalhes */}
+      <DetalhesModal
+        open={modalOpen}
+        onClose={handleCloseModal}
+        type={modalType}
+        data={modalData}
+      />
     </Box>
   )
 }

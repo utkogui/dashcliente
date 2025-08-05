@@ -28,7 +28,10 @@ const seedDatabase = async () => {
         especialidade: 'Desenvolvedor Full Stack',
         valorHora: 120,
         status: 'ativo',
-        dataAdmissao: '2023-01-15'
+        dataAdmissao: '2023-01-15',
+        tipoContrato: 'hora',
+        valorPago: 11520,
+        percentualImpostos: 13.0
       }
     })
 
@@ -40,7 +43,10 @@ const seedDatabase = async () => {
         especialidade: 'UX/UI Designer',
         valorHora: 100,
         status: 'ativo',
-        dataAdmissao: '2023-03-20'
+        dataAdmissao: '2023-03-20',
+        tipoContrato: 'hora',
+        valorPago: 7200,
+        percentualImpostos: 13.0
       }
     })
 
@@ -52,7 +58,10 @@ const seedDatabase = async () => {
         especialidade: 'DevOps Engineer',
         valorHora: 150,
         status: 'ativo',
-        dataAdmissao: '2023-02-10'
+        dataAdmissao: '2023-02-10',
+        tipoContrato: 'hora',
+        valorPago: 12600,
+        percentualImpostos: 13.0
       }
     })
 
@@ -63,7 +72,10 @@ const seedDatabase = async () => {
         empresa: 'TechCorp',
         email: 'carlos@techcorp.com',
         telefone: '(11) 88888-1111',
-        endereco: 'Rua das Flores, 123 - São Paulo/SP'
+        endereco: 'Rua das Flores, 123 - São Paulo/SP',
+        anoInicio: 2023,
+        segmento: 'Tecnologia',
+        tamanho: 'Média'
       }
     })
 
@@ -73,7 +85,10 @@ const seedDatabase = async () => {
         empresa: 'Inovação Ltda',
         email: 'ana@inovacao.com',
         telefone: '(11) 88888-2222',
-        endereco: 'Av. Paulista, 1000 - São Paulo/SP'
+        endereco: 'Av. Paulista, 1000 - São Paulo/SP',
+        anoInicio: 2024,
+        segmento: 'Tecnologia',
+        tamanho: 'Pequena'
       }
     })
 
@@ -83,7 +98,10 @@ const seedDatabase = async () => {
         empresa: 'StartupXYZ',
         email: 'roberto@startupxyz.com',
         telefone: '(11) 88888-3333',
-        endereco: 'Rua Augusta, 500 - São Paulo/SP'
+        endereco: 'Rua Augusta, 500 - São Paulo/SP',
+        anoInicio: 2023,
+        segmento: 'Tecnologia',
+        tamanho: 'Pequena'
       }
     })
 
@@ -94,13 +112,16 @@ const seedDatabase = async () => {
         clienteId: cli1.id,
         dataInicio: '2024-01-01',
         dataFim: '2024-12-31',
+        tipoContrato: 'hora',
         valorHora: 120,
         horasMensais: 160,
         status: 'ativo',
         valorTotal: 19200,
         valorRecebido: 15360,
         valorPago: 11520,
-        margemLucro: 3840,
+        percentualImpostos: 13.0,
+        valorImpostos: 1996.8,
+        margemLucro: 1843.2,
         observacoes: 'Desenvolvimento de sistema web'
       }
     })
@@ -111,13 +132,16 @@ const seedDatabase = async () => {
         clienteId: cli2.id,
         dataInicio: '2024-02-01',
         dataFim: '2024-11-30',
+        tipoContrato: 'hora',
         valorHora: 100,
         horasMensais: 120,
         status: 'ativo',
         valorTotal: 12000,
         valorRecebido: 9600,
         valorPago: 7200,
-        margemLucro: 2400,
+        percentualImpostos: 13.0,
+        valorImpostos: 1248.0,
+        margemLucro: 1152.0,
         observacoes: 'Design de interface mobile'
       }
     })
@@ -128,13 +152,16 @@ const seedDatabase = async () => {
         clienteId: cli3.id,
         dataInicio: '2024-03-01',
         dataFim: '2024-10-31',
+        tipoContrato: 'hora',
         valorHora: 150,
         horasMensais: 140,
         status: 'ativo',
         valorTotal: 21000,
         valorRecebido: 16800,
         valorPago: 12600,
-        margemLucro: 4200,
+        percentualImpostos: 13.0,
+        valorImpostos: 2184.0,
+        margemLucro: 2016.0,
         observacoes: 'Infraestrutura cloud'
       }
     })

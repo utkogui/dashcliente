@@ -1,4 +1,4 @@
-import { Box } from '@mui/material'
+import { Box, Typography } from '@mui/material'
 import { Routes, Route } from 'react-router-dom'
 import { DataProvider } from './contexts/DataContext'
 import Sidebar from './components/Sidebar'

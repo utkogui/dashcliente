@@ -23,31 +23,69 @@ import {
   IconButton,
   Alert,
   CircularProgress,
+  Grid,
 } from '@mui/material'
 import { useState, useEffect } from 'react'
-import { Search, Add, Edit, Delete, TrendingUp } from '@mui/icons-material'
+import { Search, Add, Edit, Delete, TrendingUp, AttachMoney, Receipt } from '@mui/icons-material'
 import { useData } from '../contexts/DataContext'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { formatCurrency, formatPercentual } from '../utils/formatters'
+
+// Tipos
+interface Contrato {
+  id: string
+  profissionalId: string
+  clienteId: string
+  dataInicio: string
+  dataFim: string
+  tipoContrato: 'hora' | 'fechado'
+  valorHora: number | null
+  horasMensais: number | null
+  valorFechado: number | null
+  periodoFechado: string | null
+  status: 'ativo' | 'encerrado' | 'pendente'
+  valorTotal: number
+  valorRecebido: number
+  valorPago: number
+  percentualImpostos: number
+  valorImpostos: number
+  margemLucro: number
+  observacoes?: string
+}
 
 const Contratos = () => {
   const { contratos, profissionais, clientes, addContrato, updateContrato, deleteContrato, loading, error } = useData()
   const [searchTerm, setSearchTerm] = useState('')
   const [filteredContratos, setFilteredContratos] = useState(contratos)
   const [open, setOpen] = useState(false)
-  const [editingContrato, setEditingContrato] = useState<any>(null)
+  const [editingContrato, setEditingContrato] = useState<Contrato | null>(null)
   const [formData, setFormData] = useState({
     profissionalId: '',
     clienteId: '',
     dataInicio: '',
     dataFim: '',
+    tipoContrato: 'hora' as 'hora' | 'fechado',
     valorHora: '',
     horasMensais: '',
-    status: 'ativo',
+    valorFechado: '',
+    periodoFechado: 'Mensal',
+    status: 'ativo' as 'ativo' | 'encerrado' | 'pendente',
+    valorRecebido: '',
+    valorPago: '',
+    percentualImpostos: '13.0',
     observacoes: ''
   })
   const [formError, setFormError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+
+  const periodosFechados = [
+    'Mensal',
+    'Trimestral',
+    'Semestral',
+    'Anual',
+    'Por Projeto'
+  ]
 
   // Atualizar lista filtrada quando contratos mudar
   useEffect(() => {
@@ -62,7 +100,8 @@ const Contratos = () => {
       return (
         profissional?.nome.toLowerCase().includes(value.toLowerCase()) ||
         cliente?.empresa.toLowerCase().includes(value.toLowerCase()) ||
-        c.observacoes?.toLowerCase().includes(value.toLowerCase())
+        c.observacoes?.toLowerCase().includes(value.toLowerCase()) ||
+        c.tipoContrato.toLowerCase().includes(value.toLowerCase())
       )
     })
     setFilteredContratos(filtered)
@@ -86,11 +125,27 @@ const Contratos = () => {
     }
   }
 
+  const getTipoContratoColor = (tipo: string) => {
+    switch (tipo) {
+      case 'hora': return 'primary'
+      case 'fechado': return 'secondary'
+      default: return 'default'
+    }
+  }
+
+  const getTipoContratoText = (tipo: string) => {
+    switch (tipo) {
+      case 'hora': return 'Por Hora'
+      case 'fechado': return 'Valor Fechado'
+      default: return tipo
+    }
+  }
+
   const calcularMargem = (recebido: number, pago: number) => {
     return recebido > 0 ? ((recebido - pago) / recebido) * 100 : 0
   }
 
-  const handleOpen = (contrato?: any) => {
+  const handleOpen = (contrato?: Contrato) => {
     if (contrato) {
       setEditingContrato(contrato)
       setFormData({
@@ -98,9 +153,15 @@ const Contratos = () => {
         clienteId: contrato.clienteId,
         dataInicio: contrato.dataInicio,
         dataFim: contrato.dataFim,
-        valorHora: contrato.valorHora.toString(),
-        horasMensais: contrato.horasMensais.toString(),
+        tipoContrato: contrato.tipoContrato,
+        valorHora: contrato.valorHora?.toString() || '',
+        horasMensais: contrato.horasMensais?.toString() || '',
+        valorFechado: contrato.valorFechado?.toString() || '',
+        periodoFechado: contrato.periodoFechado || 'Mensal',
         status: contrato.status,
+        valorRecebido: contrato.valorRecebido.toString(),
+        valorPago: contrato.valorPago.toString(),
+        percentualImpostos: contrato.percentualImpostos.toString(),
         observacoes: contrato.observacoes || ''
       })
     } else {
@@ -110,9 +171,15 @@ const Contratos = () => {
         clienteId: '',
         dataInicio: '',
         dataFim: '',
+        tipoContrato: 'hora',
         valorHora: '',
         horasMensais: '',
+        valorFechado: '',
+        periodoFechado: 'Mensal',
         status: 'ativo',
+        valorRecebido: '',
+        valorPago: '',
+        percentualImpostos: '13.0',
         observacoes: ''
       })
     }
@@ -134,29 +201,51 @@ const Contratos = () => {
 
       // Validação básica
       if (!formData.profissionalId || !formData.clienteId || !formData.dataInicio || 
-          !formData.dataFim || !formData.valorHora || !formData.horasMensais) {
+          !formData.dataFim || !formData.valorRecebido || !formData.valorPago) {
         setFormError('Por favor, preencha todos os campos obrigatórios')
         return
       }
 
-      if (isNaN(Number(formData.valorHora)) || Number(formData.valorHora) <= 0) {
-        setFormError('Valor por hora deve ser um número positivo')
-        return
+      // Validação específica por tipo de contrato
+      if (formData.tipoContrato === 'hora') {
+        if (!formData.valorHora || isNaN(Number(formData.valorHora)) || Number(formData.valorHora) <= 0) {
+          setFormError('Valor por hora deve ser um número positivo')
+          return
+        }
+        if (!formData.horasMensais || isNaN(Number(formData.horasMensais)) || Number(formData.horasMensais) <= 0) {
+          setFormError('Horas mensais deve ser um número positivo')
+          return
+        }
+      } else {
+        if (!formData.valorFechado || isNaN(Number(formData.valorFechado)) || Number(formData.valorFechado) <= 0) {
+          setFormError('Valor fechado deve ser um número positivo')
+          return
+        }
       }
 
-      if (isNaN(Number(formData.horasMensais)) || Number(formData.horasMensais) <= 0) {
-        setFormError('Horas mensais deve ser um número positivo')
-        return
-      }
+      const valorRecebido = Number(formData.valorRecebido)
+      const valorPago = Number(formData.valorPago)
+      const percentualImpostos = Number(formData.percentualImpostos)
+      const valorImpostos = (valorRecebido * percentualImpostos) / 100
+      const margemLucro = valorRecebido - valorImpostos - valorPago
 
       const contratoData = {
         profissionalId: formData.profissionalId,
         clienteId: formData.clienteId,
         dataInicio: formData.dataInicio,
         dataFim: formData.dataFim,
-        valorHora: Number(formData.valorHora),
-        horasMensais: Number(formData.horasMensais),
-        status: formData.status as 'ativo' | 'encerrado' | 'pendente',
+        tipoContrato: formData.tipoContrato,
+        valorHora: formData.tipoContrato === 'hora' ? Number(formData.valorHora) : null,
+        horasMensais: formData.tipoContrato === 'hora' ? Number(formData.horasMensais) : null,
+        valorFechado: formData.tipoContrato === 'fechado' ? Number(formData.valorFechado) : null,
+        periodoFechado: formData.tipoContrato === 'fechado' ? formData.periodoFechado : null,
+        status: formData.status,
+        valorTotal: valorRecebido,
+        valorRecebido: valorRecebido,
+        valorPago: valorPago,
+        percentualImpostos: percentualImpostos,
+        valorImpostos: valorImpostos,
+        margemLucro: margemLucro,
         observacoes: formData.observacoes
       }
 
@@ -167,19 +256,21 @@ const Contratos = () => {
       }
 
       handleClose()
-    } catch (err: any) {
-      setFormError(err.message || 'Erro ao salvar contrato')
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Erro ao salvar contrato'
+      setFormError(errorMessage)
     } finally {
       setSubmitting(false)
     }
   }
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir este contrato?')) {
+    if (window.confirm('Tem certeza que deseja excluir este contrato? Esta ação não pode ser desfeita.')) {
       try {
         await deleteContrato(id)
-      } catch (err: any) {
-        alert(err.message || 'Erro ao deletar contrato')
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'Erro ao deletar contrato'
+        alert(errorMessage)
       }
     }
   }
@@ -223,7 +314,7 @@ const Contratos = () => {
       {/* Filtro de Busca */}
       <TextField
         fullWidth
-        placeholder="Buscar por profissional, cliente ou observações..."
+        placeholder="Buscar por profissional, cliente, observações ou tipo de contrato..."
         value={searchTerm}
         onChange={(e) => handleSearch(e.target.value)}
         InputProps={{
@@ -244,12 +335,13 @@ const Contratos = () => {
               <TableCell>Profissional</TableCell>
               <TableCell>Cliente</TableCell>
               <TableCell>Período</TableCell>
-              <TableCell>Valor/Hora</TableCell>
-              <TableCell>Horas/Mês</TableCell>
+              <TableCell>Tipo</TableCell>
+              <TableCell>Valor</TableCell>
+              <TableCell>Recebido</TableCell>
+              <TableCell>Pago</TableCell>
+              <TableCell>Impostos</TableCell>
+              <TableCell>Rentabilidade</TableCell>
               <TableCell>Status</TableCell>
-              <TableCell>Receita</TableCell>
-              <TableCell>Custo</TableCell>
-              <TableCell>Margem</TableCell>
               <TableCell>Ações</TableCell>
             </TableRow>
           </TableHead>
@@ -257,62 +349,94 @@ const Contratos = () => {
             {filteredContratos.map((contrato) => {
               const profissional = profissionais.find(p => p.id === contrato.profissionalId)
               const cliente = clientes.find(c => c.id === contrato.clienteId)
-              const margem = calcularMargem(contrato.valorRecebido, contrato.valorPago)
               
               return (
                 <TableRow key={contrato.id}>
-                  <TableCell sx={{ fontWeight: 'bold' }}>{profissional?.nome}</TableCell>
-                  <TableCell>{cliente?.empresa}</TableCell>
                   <TableCell>
-                    <Box>
-                      <Typography variant="body2">
-                        {format(new Date(contrato.dataInicio), 'dd/MM/yyyy', { locale: ptBR })}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        até {format(new Date(contrato.dataFim), 'dd/MM/yyyy', { locale: ptBR })}
-                      </Typography>
-                    </Box>
+                    <Typography variant="body2" fontWeight="bold">
+                      {profissional?.nome}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {profissional?.especialidade}
+                    </Typography>
                   </TableCell>
-                  <TableCell>R$ {contrato.valorHora}</TableCell>
-                  <TableCell>{contrato.horasMensais}h</TableCell>
+                  <TableCell>
+                    <Typography variant="body2" fontWeight="bold">
+                      {cliente?.empresa}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {cliente?.nome}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2">
+                      {format(new Date(contrato.dataInicio), 'dd/MM/yyyy', { locale: ptBR })}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      até {format(new Date(contrato.dataFim), 'dd/MM/yyyy', { locale: ptBR })}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      icon={contrato.tipoContrato === 'hora' ? <AttachMoney /> : <Receipt />}
+                      label={getTipoContratoText(contrato.tipoContrato)}
+                      color={getTipoContratoColor(contrato.tipoContrato)}
+                      size="small"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    {contrato.tipoContrato === 'hora' ? (
+                      <Typography variant="body2" color="primary.main" fontWeight="bold">
+                        R$ {contrato.valorHora?.toFixed(2)}/h
+                        <br />
+                        <Typography variant="caption" color="text.secondary">
+                          {contrato.horasMensais}h/mês
+                        </Typography>
+                      </Typography>
+                    ) : (
+                      <Typography variant="body2" color="secondary.main" fontWeight="bold">
+                        {formatCurrency(contrato.valorFechado || 0)}
+                        <br />
+                        <Typography variant="caption" color="text.secondary">
+                          {contrato.periodoFechado}
+                        </Typography>
+                      </Typography>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" color="success.main" fontWeight="bold">
+                      {formatCurrency(contrato.valorRecebido)}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" color="info.main" fontWeight="bold">
+                      {formatCurrency(contrato.valorPago)}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" color="warning.main" fontWeight="bold">
+                      {formatCurrency(contrato.valorImpostos)}
+                      <br />
+                      <Typography variant="caption" color="text.secondary">
+                        {formatPercentual(contrato.percentualImpostos)}
+                      </Typography>
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" color={contrato.margemLucro >= 0 ? 'success.main' : 'error.main'} fontWeight="bold">
+                      {formatCurrency(contrato.margemLucro)}
+                      <br />
+                      <Typography variant="caption" color="text.secondary">
+                        {formatPercentual(calcularMargem(contrato.valorRecebido, contrato.valorPago))}
+                      </Typography>
+                    </Typography>
+                  </TableCell>
                   <TableCell>
                     <Chip
                       label={getStatusText(contrato.status)}
                       color={getStatusColor(contrato.status)}
                       size="small"
                     />
-                  </TableCell>
-                  <TableCell>
-                    <Box>
-                      <Typography variant="body2" color="success.main" fontWeight="bold">
-                        R$ {contrato.valorRecebido.toLocaleString('pt-BR')}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Total: R$ {contrato.valorTotal.toLocaleString('pt-BR')}
-                      </Typography>
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Box>
-                      <Typography variant="body2" color="error.main" fontWeight="bold">
-                        R$ {contrato.valorPago.toLocaleString('pt-BR')}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Custo/hora: R$ {profissional?.valorHora}
-                      </Typography>
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <TrendingUp sx={{ color: margem > 0 ? 'success.main' : 'error.main', fontSize: 16 }} />
-                      <Typography
-                        variant="body2"
-                        fontWeight="bold"
-                        color={margem > 0 ? 'success.main' : 'error.main'}
-                      >
-                        {margem.toFixed(1)}%
-                      </Typography>
-                    </Box>
                   </TableCell>
                   <TableCell>
                     <IconButton
@@ -349,98 +473,219 @@ const Contratos = () => {
             </Alert>
           )}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
-            <FormControl fullWidth disabled={submitting}>
-              <InputLabel>Profissional *</InputLabel>
-              <Select
-                value={formData.profissionalId}
-                label="Profissional *"
-                onChange={(e) => handleInputChange('profissionalId', e.target.value)}
-              >
-                {profissionais.map(p => (
-                  <MenuItem key={p.id} value={p.id}>{p.nome} - {p.especialidade}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth disabled={submitting}>
+                  <InputLabel>Profissional *</InputLabel>
+                  <Select
+                    value={formData.profissionalId}
+                    label="Profissional *"
+                    onChange={(e) => handleInputChange('profissionalId', e.target.value)}
+                  >
+                    {profissionais.map((prof) => (
+                      <MenuItem key={prof.id} value={prof.id}>
+                        {prof.nome} - {prof.especialidade}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth disabled={submitting}>
+                  <InputLabel>Cliente *</InputLabel>
+                  <Select
+                    value={formData.clienteId}
+                    label="Cliente *"
+                    onChange={(e) => handleInputChange('clienteId', e.target.value)}
+                  >
+                    {clientes.map((cli) => (
+                      <MenuItem key={cli.id} value={cli.id}>
+                        {cli.empresa} - {cli.nome}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+            </Grid>
 
-            <FormControl fullWidth disabled={submitting}>
-              <InputLabel>Cliente *</InputLabel>
-              <Select
-                value={formData.clienteId}
-                label="Cliente *"
-                onChange={(e) => handleInputChange('clienteId', e.target.value)}
-              >
-                {clientes.map(c => (
-                  <MenuItem key={c.id} value={c.id}>{c.empresa} - {c.nome}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Data de Início *"
+                  type="date"
+                  value={formData.dataInicio}
+                  onChange={(e) => handleInputChange('dataInicio', e.target.value)}
+                  disabled={submitting}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Data de Fim *"
+                  type="date"
+                  value={formData.dataFim}
+                  onChange={(e) => handleInputChange('dataFim', e.target.value)}
+                  disabled={submitting}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+            </Grid>
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-              <TextField
-                label="Data Início *"
-                type="date"
-                value={formData.dataInicio}
-                onChange={(e) => handleInputChange('dataInicio', e.target.value)}
-                fullWidth
-                InputLabelProps={{ shrink: true }}
-                disabled={submitting}
-              />
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth disabled={submitting}>
+                  <InputLabel>Tipo de Contrato *</InputLabel>
+                  <Select
+                    value={formData.tipoContrato}
+                    label="Tipo de Contrato *"
+                    onChange={(e) => handleInputChange('tipoContrato', e.target.value)}
+                  >
+                    <MenuItem value="hora">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <AttachMoney />
+                        Por Hora
+                      </Box>
+                    </MenuItem>
+                    <MenuItem value="fechado">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Receipt />
+                        Valor Fechado
+                      </Box>
+                    </MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth disabled={submitting}>
+                  <InputLabel>Status</InputLabel>
+                  <Select
+                    value={formData.status}
+                    label="Status"
+                    onChange={(e) => handleInputChange('status', e.target.value)}
+                  >
+                    <MenuItem value="ativo">Ativo</MenuItem>
+                    <MenuItem value="pendente">Pendente</MenuItem>
+                    <MenuItem value="encerrado">Encerrado</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+            </Grid>
 
-              <TextField
-                label="Data Fim *"
-                type="date"
-                value={formData.dataFim}
-                onChange={(e) => handleInputChange('dataFim', e.target.value)}
-                fullWidth
-                InputLabelProps={{ shrink: true }}
-                disabled={submitting}
-              />
-            </Box>
+            {formData.tipoContrato === 'hora' ? (
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Valor por Hora (R$) *"
+                    type="number"
+                    value={formData.valorHora}
+                    onChange={(e) => handleInputChange('valorHora', e.target.value)}
+                    disabled={submitting}
+                    InputProps={{
+                      startAdornment: <Typography>R$</Typography>
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Horas Mensais *"
+                    type="number"
+                    value={formData.horasMensais}
+                    onChange={(e) => handleInputChange('horasMensais', e.target.value)}
+                    disabled={submitting}
+                    InputProps={{
+                      endAdornment: <Typography>h/mês</Typography>
+                    }}
+                  />
+                </Grid>
+              </Grid>
+            ) : (
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Valor Fechado (R$) *"
+                    type="number"
+                    value={formData.valorFechado}
+                    onChange={(e) => handleInputChange('valorFechado', e.target.value)}
+                    disabled={submitting}
+                    InputProps={{
+                      startAdornment: <Typography>R$</Typography>
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <FormControl fullWidth disabled={submitting}>
+                    <InputLabel>Período *</InputLabel>
+                    <Select
+                      value={formData.periodoFechado}
+                      label="Período *"
+                      onChange={(e) => handleInputChange('periodoFechado', e.target.value)}
+                    >
+                      {periodosFechados.map((periodo) => (
+                        <MenuItem key={periodo} value={periodo}>
+                          {periodo}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+              </Grid>
+            )}
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-              <TextField
-                label="Valor por Hora *"
-                type="number"
-                placeholder="180"
-                value={formData.valorHora}
-                onChange={(e) => handleInputChange('valorHora', e.target.value)}
-                fullWidth
-                disabled={submitting}
-              />
-
-              <TextField
-                label="Horas Mensais *"
-                type="number"
-                placeholder="160"
-                value={formData.horasMensais}
-                onChange={(e) => handleInputChange('horasMensais', e.target.value)}
-                fullWidth
-                disabled={submitting}
-              />
-            </Box>
-
-            <FormControl fullWidth disabled={submitting}>
-              <InputLabel>Status</InputLabel>
-              <Select
-                value={formData.status}
-                label="Status"
-                onChange={(e) => handleInputChange('status', e.target.value)}
-              >
-                <MenuItem value="ativo">Ativo</MenuItem>
-                <MenuItem value="pendente">Pendente</MenuItem>
-                <MenuItem value="encerrado">Encerrado</MenuItem>
-              </Select>
-            </FormControl>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Valor Recebido (R$) *"
+                  type="number"
+                  value={formData.valorRecebido}
+                  onChange={(e) => handleInputChange('valorRecebido', e.target.value)}
+                  disabled={submitting}
+                  InputProps={{
+                    startAdornment: <Typography>R$</Typography>
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Valor Pago (R$) *"
+                  type="number"
+                  value={formData.valorPago}
+                  onChange={(e) => handleInputChange('valorPago', e.target.value)}
+                  disabled={submitting}
+                  InputProps={{
+                    startAdornment: <Typography>R$</Typography>
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Percentual Impostos (%)"
+                  type="number"
+                  value={formData.percentualImpostos}
+                  onChange={(e) => handleInputChange('percentualImpostos', e.target.value)}
+                  disabled={submitting}
+                  InputProps={{
+                    endAdornment: <Typography>%</Typography>
+                  }}
+                />
+              </Grid>
+            </Grid>
 
             <TextField
               label="Observações"
               multiline
               rows={3}
-              placeholder="Descrição do projeto ou observações..."
               value={formData.observacoes}
               onChange={(e) => handleInputChange('observacoes', e.target.value)}
-              fullWidth
               disabled={submitting}
+              fullWidth
             />
           </Box>
         </DialogContent>

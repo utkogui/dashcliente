@@ -7,9 +7,14 @@ interface Profissional {
   email: string
   telefone: string
   especialidade: string
-  valorHora: number
+  valorHora: number | null
   status: 'ativo' | 'inativo' | 'ferias'
   dataAdmissao: string
+  tipoContrato: 'hora' | 'fechado'
+  valorFechado: number | null
+  periodoFechado: string | null
+  valorPago: number
+  percentualImpostos: number
 }
 
 interface Cliente {
@@ -19,6 +24,9 @@ interface Cliente {
   email: string
   telefone: string
   endereco: string
+  anoInicio: number
+  segmento: string
+  tamanho: string
 }
 
 interface Contrato {
@@ -27,12 +35,17 @@ interface Contrato {
   clienteId: string
   dataInicio: string
   dataFim: string
-  valorHora: number
-  horasMensais: number
+  tipoContrato: 'hora' | 'fechado'
+  valorHora: number | null
+  horasMensais: number | null
+  valorFechado: number | null
+  periodoFechado: string | null
   status: 'ativo' | 'encerrado' | 'pendente'
   valorTotal: number
   valorRecebido: number
   valorPago: number
+  percentualImpostos: number
+  valorImpostos: number
   margemLucro: number
   observacoes?: string
 }
