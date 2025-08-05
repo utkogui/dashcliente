@@ -15,7 +15,7 @@ services:
   - type: web
     name: dash-ftd-api
     runtime: node
-    buildCommand: npm install && npx prisma generate && npx tsc --project tsconfig.server.json && mv server/index.js server/index.mjs
+    buildCommand: ./build-server.sh
     startCommand: node server/index.mjs
     envVars:
       - key: NODE_ENV
