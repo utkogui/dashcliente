@@ -25,9 +25,10 @@ import {
   ListItemSecondaryAction,
   Checkbox
 } from '@mui/material'
-import { ArrowBack, Save, Add, Delete } from '@mui/icons-material'
+import { ArrowBack, Save, Add, Delete, Lightbulb } from '@mui/icons-material'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext'
+import SugestaoProfissionais from '../components/SugestaoProfissionais'
 
 import { validateRequired } from '../utils/validations'
 
@@ -52,8 +53,11 @@ const CadastroContrato = () => {
     valorImpostos: '',
     status: 'ativo' as 'ativo' | 'encerrado' | 'pendente',
     observacoes: '',
-    contratoIndeterminado: false
+    contratoIndeterminado: false,
+    quantidadeProfissionais: '1'
   })
+
+  const [showSugestao, setShowSugestao] = useState(false)
 
   const [profissionaisSelecionados, setProfissionaisSelecionados] = useState<Array<{
     profissionalId: string
@@ -167,6 +171,10 @@ const CadastroContrato = () => {
 
   const handleRemoveProfissional = (index: number) => {
     setProfissionaisSelecionados(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const handleAplicarSugestao = (profissionaisSugeridos: any[]) => {
+    setProfissionaisSelecionados(profissionaisSugeridos)
   }
 
   const handleProfissionalChange = (index: number, field: string, value: string) => {
@@ -532,13 +540,34 @@ const CadastroContrato = () => {
                 <Typography variant="h6" color="primary.main">
                   Profissionais
                 </Typography>
-                <Button
-                  startIcon={<Add />}
-                  onClick={handleAddProfissional}
-                  disabled={submitting}
-                >
-                  Adicionar Profissional
-                </Button>
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                  <TextField
+                    label="Quantidade de Profissionais"
+                    type="number"
+                    value={formData.quantidadeProfissionais}
+                    onChange={(e) => handleInputChange('quantidadeProfissionais', e.target.value)}
+                    disabled={submitting}
+                    sx={{ width: 200 }}
+                    InputProps={{
+                      inputProps: { min: 1, max: 10 }
+                    }}
+                  />
+                  <Button
+                    startIcon={<Lightbulb />}
+                    variant="outlined"
+                    onClick={() => setShowSugestao(true)}
+                    disabled={submitting || !formData.valorContrato || !formData.quantidadeProfissionais}
+                  >
+                    Sugerir Profissionais
+                  </Button>
+                  <Button
+                    startIcon={<Add />}
+                    onClick={handleAddProfissional}
+                    disabled={submitting}
+                  >
+                    Adicionar Profissional
+                  </Button>
+                </Box>
               </Box>
 
               {errors.profissionais && (
@@ -724,6 +753,17 @@ const CadastroContrato = () => {
           </Alert>
         )}
       </Paper>
+
+      {/* Modal de Sugestão de Profissionais */}
+      <SugestaoProfissionais
+        open={showSugestao}
+        onClose={() => setShowSugestao(false)}
+        valorContrato={parseFloat(formData.valorContrato) || 0}
+        valorImpostos={parseFloat(formData.valorImpostos) || 0}
+        quantidadeProfissionais={parseInt(formData.quantidadeProfissionais) || 1}
+        isMensal={formData.valorContratoMensal}
+        onAplicarSugestao={handleAplicarSugestao}
+      />
     </Box>
   )
 }

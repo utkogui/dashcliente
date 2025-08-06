@@ -17,7 +17,7 @@ import {
   CircularProgress,
 } from '@mui/material'
 import { useState, useEffect } from 'react'
-import { Search, Add, Delete, Person } from '@mui/icons-material'
+import { Search, Add, Delete, Person, Edit } from '@mui/icons-material'
 import { useData } from '../contexts/DataContext'
 import { formatCurrency } from '../utils/formatters'
 import { useNavigate } from 'react-router-dom'
@@ -82,6 +82,10 @@ const Profissionais = () => {
 
   const handleAddProfissional = () => {
     navigate('/cadastro-profissional')
+  }
+
+  const handleEdit = (id: string) => {
+    navigate(`/editar-profissional/${id}`)
   }
 
   const handleDelete = async (id: string) => {
@@ -225,13 +229,22 @@ const Profissionais = () => {
                   </Typography>
                 </TableCell>
                 <TableCell>
-                  <IconButton
-                    size="small"
-                    color="error"
-                    onClick={() => handleDelete(profissional.id)}
-                  >
-                    <Delete />
-                  </IconButton>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <IconButton
+                      size="small"
+                      color="primary"
+                      onClick={() => handleEdit(profissional.id)}
+                    >
+                      <Edit />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={() => handleDelete(profissional.id)}
+                    >
+                      <Delete />
+                    </IconButton>
+                  </Box>
                 </TableCell>
               </TableRow>
             ))}

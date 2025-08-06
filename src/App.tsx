@@ -6,6 +6,7 @@ import Header from './components/Header'
 import Dashboard from './pages/Dashboard'
 import Profissionais from './pages/Profissionais'
 import CadastroProfissional from './pages/CadastroProfissional'
+import EditarProfissional from './pages/EditarProfissional'
 import Contratos from './pages/Contratos'
 import CadastroContrato from './pages/CadastroContrato'
 import DatabaseViewer from './pages/DatabaseViewer'
@@ -31,6 +32,7 @@ function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/profissionais" element={<Profissionais />} />
               <Route path="/cadastro-profissional" element={<CadastroProfissional />} />
+              <Route path="/editar-profissional/:id" element={<EditarProfissional />} />
               <Route path="/contratos" element={<Contratos />} />
               <Route path="/cadastro-contrato" element={<CadastroContrato />} />
           <Route path="/database" element={<DatabaseViewer />} />
