@@ -1,51 +1,36 @@
 import React, { useState, useEffect } from 'react'
 import {
-  Box,
   Typography,
-  TextField,
+  Form,
+  Input,
   Button,
-  FormControl,
-  InputLabel,
   Select,
-  MenuItem,
   Radio,
-  RadioGroup,
-  FormControlLabel,
-  FormLabel,
-  Paper,
-  Grid,
+  DatePicker,
+  Card,
   Alert,
-  CircularProgress,
-  InputAdornment
-} from '@mui/material'
-import { ArrowBack, Save } from '@mui/icons-material'
+  Spin,
+  Space,
+  Row,
+  Col,
+  Divider
+} from 'antd'
+import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext'
+import dayjs from 'dayjs'
 
-import { validateEmail, validateRequired } from '../utils/validations'
+const { Title, Text } = Typography
+const { Option } = Select
 
 const EditarProfissional = () => {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
   const { profissionais, updateProfissional } = useData()
+  const [form] = Form.useForm()
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-
-  const [formData, setFormData] = useState({
-    nome: '',
-    email: '',
-    especialidade: '',
-    dataInicio: '',
-    tipoContrato: 'hora' as 'hora' | 'fechado',
-    valorHora: '',
-    valorFechado: '',
-    periodoFechado: 'mensal',
-    valorPago: '',
-    status: 'ativo' as 'ativo' | 'inativo' | 'ferias'
-  })
-
-  const [errors, setErrors] = useState<Record<string, string>>({})
 
   const especialidades = [
     'Desenvolvedor Full Stack',
@@ -65,11 +50,11 @@ const EditarProfissional = () => {
     if (id && profissionais.length > 0) {
       const profissional = profissionais.find(p => p.id === id)
       if (profissional) {
-        setFormData({
+        form.setFieldsValue({
           nome: profissional.nome || '',
           email: profissional.email || '',
           especialidade: profissional.especialidade || '',
-          dataInicio: profissional.dataInicio || '',
+          dataInicio: profissional.dataInicio ? dayjs(profissional.dataInicio) : null,
           tipoContrato: profissional.tipoContrato || 'hora',
           valorHora: profissional.valorHora?.toString() || '',
           valorFechado: profissional.valorFechado?.toString() || '',
@@ -82,74 +67,24 @@ const EditarProfissional = () => {
       }
       setLoading(false)
     }
-  }, [id, profissionais])
+  }, [id, profissionais, form])
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }))
-    }
-  }
-
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {}
-
-    if (!validateRequired(formData.nome)) {
-      newErrors.nome = 'Nome é obrigatório'
-    }
-
-    if (!validateEmail(formData.email)) {
-      newErrors.email = 'Email inválido'
-    }
-
-    if (!validateRequired(formData.especialidade)) {
-      newErrors.especialidade = 'Especialidade é obrigatória'
-    }
-
-    if (!validateRequired(formData.dataInicio)) {
-      newErrors.dataInicio = 'Data de início é obrigatória'
-    }
-
-    if (formData.tipoContrato === 'hora') {
-      if (!formData.valorHora || parseFloat(formData.valorHora) <= 0) {
-        newErrors.valorHora = 'Valor por hora deve ser maior que zero'
-      }
-    } else {
-      if (!formData.valorFechado || parseFloat(formData.valorFechado) <= 0) {
-        newErrors.valorFechado = 'Valor fechado deve ser maior que zero'
-      }
-    }
-
-    if (!formData.valorPago || parseFloat(formData.valorPago) <= 0) {
-      newErrors.valorPago = 'Valor pago deve ser maior que zero'
-    }
-
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (values: any) => {
     setError(null)
-
-    if (!validateForm()) {
-      return
-    }
-
     setSubmitting(true)
 
     try {
       const profissionalData = {
-        nome: formData.nome,
-        email: formData.email,
-        especialidade: formData.especialidade,
-        dataInicio: formData.dataInicio,
-        tipoContrato: formData.tipoContrato,
-        valorHora: formData.tipoContrato === 'hora' ? parseFloat(formData.valorHora) : null,
-        valorFechado: formData.tipoContrato === 'fechado' ? parseFloat(formData.valorFechado) : null,
-        periodoFechado: formData.tipoContrato === 'fechado' ? formData.periodoFechado : null,
-        valorPago: parseFloat(formData.valorPago),
-        status: formData.status
+        nome: values.nome,
+        email: values.email,
+        especialidade: values.especialidade,
+        dataInicio: values.dataInicio?.format('YYYY-MM-DD') || '',
+        tipoContrato: values.tipoContrato,
+        valorHora: values.tipoContrato === 'hora' ? parseFloat(values.valorHora) : null,
+        valorFechado: values.tipoContrato === 'fechado' ? parseFloat(values.valorFechado) : null,
+        periodoFechado: values.tipoContrato === 'fechado' ? values.periodoFechado : null,
+        valorPago: values.tipoContrato === 'fechado' ? parseFloat(values.valorFechado) : null, // Para valor fechado, o valor pago é o mesmo do valor fechado
+        status: values.status
       }
 
       if (id) {
@@ -165,263 +100,260 @@ const EditarProfissional = () => {
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
-        <CircularProgress />
-      </Box>
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '50vh' 
+      }}>
+        <Spin size="large" />
+      </div>
     )
   }
 
   if (error && error === 'Profissional não encontrado') {
     return (
-      <Box sx={{ p: 3 }}>
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
+      <div style={{ padding: 24 }}>
+        <Alert 
+          message="Erro" 
+          description={error} 
+          type="error" 
+          showIcon 
+          style={{ marginBottom: 16 }}
+        />
         <Button
-          variant="outlined"
-          startIcon={<ArrowBack />}
+          icon={<ArrowLeftOutlined />}
           onClick={() => navigate('/profissionais')}
         >
           Voltar para Profissionais
         </Button>
-      </Box>
+      </div>
     )
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-        <Button
-          variant="outlined"
-          startIcon={<ArrowBack />}
-          onClick={() => navigate('/profissionais')}
-        >
-          Voltar
-        </Button>
-        <Typography variant="h4" component="h1" color="text.primary">
-          Editar Profissional
-        </Typography>
-      </Box>
+    <div style={{ padding: 24, background: '#f5f5f5', minHeight: '100vh' }}>
+      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        
+        {/* Header */}
+        <div>
+          <Space direction="vertical" size="small" style={{ width: '100%' }}>
+            <Space>
+              <Button
+                icon={<ArrowLeftOutlined />}
+                onClick={() => navigate('/profissionais')}
+              >
+                Voltar
+              </Button>
+              <Title level={2} style={{ margin: 0, marginBottom: 0 }}>
+                Editar Profissional
+              </Title>
+            </Space>
+            <Text type="secondary" style={{ marginLeft: 0 }}>
+              Atualize as informações do profissional
+            </Text>
+          </Space>
+        </div>
 
-      <Paper sx={{ p: 3 }}>
-        <form onSubmit={handleSubmit}>
-          <Grid container spacing={3}>
-            {/* Nome */}
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Nome Completo"
-                value={formData.nome}
-                onChange={(e) => handleInputChange('nome', e.target.value)}
-                error={!!errors.nome}
-                helperText={errors.nome}
-                disabled={submitting}
-                required
-              />
-            </Grid>
-
-            {/* Email */}
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
-                error={!!errors.email}
-                helperText={errors.email}
-                disabled={submitting}
-                required
-              />
-            </Grid>
-
-            {/* Especialidade */}
-            <Grid item xs={12} md={6}>
-              <FormControl fullWidth error={!!errors.especialidade}>
-                <InputLabel>Especialidade</InputLabel>
-                <Select
-                  value={formData.especialidade}
-                  onChange={(e) => handleInputChange('especialidade', e.target.value)}
-                  disabled={submitting}
+        {/* Formulário */}
+        <Card>
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={handleSubmit}
+            initialValues={{
+              tipoContrato: 'hora',
+              periodoFechado: 'mensal',
+              status: 'ativo'
+            }}
+          >
+            <Row gutter={[16, 16]}>
+              {/* Nome */}
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="nome"
+                  label="Nome Completo"
+                  rules={[{ required: true, message: 'Nome é obrigatório' }]}
                 >
-                  {especialidades.map((especialidade) => (
-                    <MenuItem key={especialidade} value={especialidade}>
-                      {especialidade}
-                    </MenuItem>
-                  ))}
-                </Select>
-                {errors.especialidade && (
-                  <Typography variant="caption" color="error">
-                    {errors.especialidade}
-                  </Typography>
-                )}
-              </FormControl>
-            </Grid>
+                  <Input placeholder="Digite o nome completo" />
+                </Form.Item>
+              </Col>
 
-            {/* Data de Início */}
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Data de Início"
-                type="date"
-                value={formData.dataInicio}
-                onChange={(e) => handleInputChange('dataInicio', e.target.value)}
-                error={!!errors.dataInicio}
-                helperText={errors.dataInicio}
-                disabled={submitting}
-                required
-                InputLabelProps={{
-                  shrink: true,
+              {/* Email */}
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="email"
+                  label="Email"
+                  rules={[
+                    { required: true, message: 'Email é obrigatório' },
+                    { type: 'email', message: 'Email inválido' }
+                  ]}
+                >
+                  <Input placeholder="Digite o email" />
+                </Form.Item>
+              </Col>
+
+              {/* Especialidade */}
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="especialidade"
+                  label="Especialidade"
+                  rules={[{ required: true, message: 'Especialidade é obrigatória' }]}
+                >
+                  <Select placeholder="Selecione a especialidade">
+                    {especialidades.map((especialidade) => (
+                      <Option key={especialidade} value={especialidade}>
+                        {especialidade}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </Col>
+
+              {/* Data de Início */}
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="dataInicio"
+                  label="Data de Início"
+                  rules={[{ required: true, message: 'Data de início é obrigatória' }]}
+                >
+                  <DatePicker 
+                    style={{ width: '100%' }} 
+                    placeholder="Selecione a data"
+                    format="DD/MM/YYYY"
+                    allowClear={false}
+                  />
+                </Form.Item>
+              </Col>
+
+              {/* Tipo de Contrato */}
+              <Col xs={24}>
+                <Form.Item
+                  name="tipoContrato"
+                  label="Tipo de Contrato"
+                  rules={[{ required: true, message: 'Tipo de contrato é obrigatório' }]}
+                >
+                  <Radio.Group>
+                    <Radio value="hora">Por Hora</Radio>
+                    <Radio value="fechado">Valor Fechado</Radio>
+                  </Radio.Group>
+                </Form.Item>
+              </Col>
+
+              {/* Campos condicionais baseados no tipo de contrato */}
+              <Form.Item noStyle shouldUpdate>
+                {({ getFieldValue }) => {
+                  const tipoContrato = getFieldValue('tipoContrato')
+                  
+                  if (tipoContrato === 'hora') {
+                    return (
+                      <Col xs={24} md={12}>
+                        <Form.Item
+                          name="valorHora"
+                          label="Valor por Hora"
+                          rules={[{ required: true, message: 'Valor por hora é obrigatório' }]}
+                        >
+                          <Input 
+                            type="number" 
+                            placeholder="0,00"
+                            prefix="R$"
+                            min={0}
+                            step={0.01}
+                          />
+                        </Form.Item>
+                      </Col>
+                    )
+                  }
+                  
+                  if (tipoContrato === 'fechado') {
+                    return (
+                      <>
+                        <Col xs={24} md={12}>
+                          <Form.Item
+                            name="valorFechado"
+                            label="Valor Fechado"
+                            rules={[{ required: true, message: 'Valor fechado é obrigatório' }]}
+                          >
+                            <Input 
+                              type="number" 
+                              placeholder="0,00"
+                              prefix="R$"
+                              min={0}
+                              step={0.01}
+                            />
+                          </Form.Item>
+                        </Col>
+                        <Col xs={24} md={12}>
+                          <Form.Item
+                            name="periodoFechado"
+                            label="Período"
+                            rules={[{ required: true, message: 'Período é obrigatório' }]}
+                          >
+                            <Select placeholder="Selecione o período">
+                              <Option value="mensal">Mensal</Option>
+                              <Option value="trimestral">Trimestral</Option>
+                              <Option value="semestral">Semestral</Option>
+                              <Option value="anual">Anual</Option>
+                            </Select>
+                          </Form.Item>
+                        </Col>
+                      </>
+                    )
+                  }
+                  
+                  return null
                 }}
-              />
-            </Grid>
+              </Form.Item>
 
-            {/* Tipo de Contrato */}
-            <Grid item xs={12}>
-              <FormControl component="fieldset">
-                <FormLabel component="legend">Tipo de Contrato</FormLabel>
-                <RadioGroup
-                  row
-                  value={formData.tipoContrato}
-                  onChange={(e) => handleInputChange('tipoContrato', e.target.value)}
+              {/* Status */}
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="status"
+                  label="Status"
+                  rules={[{ required: true, message: 'Status é obrigatório' }]}
                 >
-                  <FormControlLabel
-                    value="hora"
-                    control={<Radio />}
-                    label="Por Hora"
-                  />
-                  <FormControlLabel
-                    value="fechado"
-                    control={<Radio />}
-                    label="Valor Fechado"
-                  />
-                </RadioGroup>
-              </FormControl>
-            </Grid>
+                  <Select placeholder="Selecione o status">
+                    <Option value="ativo">Ativo</Option>
+                    <Option value="inativo">Inativo</Option>
+                    <Option value="ferias">Férias</Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
 
-            {/* Valor por Hora */}
-            {formData.tipoContrato === 'hora' && (
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Valor por Hora"
-                  type="number"
-                  value={formData.valorHora}
-                  onChange={(e) => handleInputChange('valorHora', e.target.value)}
-                  error={!!errors.valorHora}
-                  helperText={errors.valorHora}
-                  disabled={submitting}
-                  required
-                  InputProps={{
-                    startAdornment: <InputAdornment position="start">R$</InputAdornment>,
-                  }}
-                />
-              </Grid>
-            )}
-
-            {/* Valor Fechado */}
-            {formData.tipoContrato === 'fechado' && (
-              <>
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    fullWidth
-                    label="Valor Fechado"
-                    type="number"
-                    value={formData.valorFechado}
-                    onChange={(e) => handleInputChange('valorFechado', e.target.value)}
-                    error={!!errors.valorFechado}
-                    helperText={errors.valorFechado}
-                    disabled={submitting}
-                    required
-                    InputProps={{
-                      startAdornment: <InputAdornment position="start">R$</InputAdornment>,
-                    }}
-                  />
-                </Grid>
-
-                <Grid item xs={12} md={6}>
-                  <FormControl fullWidth>
-                    <InputLabel>Período</InputLabel>
-                    <Select
-                      value={formData.periodoFechado}
-                      onChange={(e) => handleInputChange('periodoFechado', e.target.value)}
-                      disabled={submitting}
-                    >
-                      <MenuItem value="mensal">Mensal</MenuItem>
-                      <MenuItem value="trimestral">Trimestral</MenuItem>
-                      <MenuItem value="semestral">Semestral</MenuItem>
-                      <MenuItem value="anual">Anual</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-              </>
-            )}
-
-            {/* Valor Pago */}
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Valor Pago ao Profissional"
-                type="number"
-                value={formData.valorPago}
-                onChange={(e) => handleInputChange('valorPago', e.target.value)}
-                error={!!errors.valorPago}
-                helperText={errors.valorPago}
-                disabled={submitting}
-                required
-                InputProps={{
-                  startAdornment: <InputAdornment position="start">R$</InputAdornment>,
-                }}
-              />
-            </Grid>
-
-            {/* Status */}
-            <Grid item xs={12} md={6}>
-              <FormControl fullWidth>
-                <InputLabel id="status-label">Status</InputLabel>
-                <Select
-                  labelId="status-label"
-                  value={formData.status}
-                  onChange={(e) => handleInputChange('status', e.target.value)}
-                  disabled={submitting}
-                >
-                  <MenuItem value="ativo">Ativo</MenuItem>
-                  <MenuItem value="inativo">Inativo</MenuItem>
-                  <MenuItem value="ferias">Férias</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
+            <Divider />
 
             {/* Botões */}
-            <Grid item xs={12}>
-              <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-                <Button
-                  variant="outlined"
-                  onClick={() => navigate('/profissionais')}
-                  disabled={submitting}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  type="submit"
-                  variant="contained"
-                  startIcon={submitting ? <CircularProgress size={20} /> : <Save />}
-                  disabled={submitting}
-                >
-                  {submitting ? 'Salvando...' : 'Salvar Alterações'}
-                </Button>
-              </Box>
-            </Grid>
-          </Grid>
-        </form>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <Button 
+                onClick={() => navigate('/profissionais')}
+                disabled={submitting}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="primary"
+                htmlType="submit"
+                icon={submitting ? <Spin size="small" /> : <SaveOutlined />}
+                loading={submitting}
+              >
+                {submitting ? 'Salvando...' : 'Salvar Alterações'}
+              </Button>
+            </div>
+          </Form>
 
-        {error && (
-          <Alert severity="error" sx={{ mt: 2 }}>
-            {error}
-          </Alert>
-        )}
-      </Paper>
-    </Box>
+          {error && (
+            <Alert 
+              message="Erro" 
+              description={error} 
+              type="error" 
+              showIcon 
+              style={{ marginTop: 16 }}
+            />
+          )}
+        </Card>
+      </Space>
+    </div>
   )
 }
 

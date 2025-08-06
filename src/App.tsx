@@ -33,6 +33,8 @@ function App() {
                   flexGrow: 1, 
                   overflow: 'auto', 
                   bgcolor: 'background.default',
+                  ml: '280px', // Margem à esquerda para compensar a sidebar fixa
+                  width: 'calc(100% - 280px)' // Largura ajustada
                 }}
               >
                 <Routes>

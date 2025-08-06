@@ -1,102 +1,133 @@
-import {
-  Box,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Typography,
-  Divider,
-} from '@mui/material'
+import React from 'react'
+import { Layout, Menu, Typography, Divider } from 'antd'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
-  Dashboard as DashboardIcon,
-  People as PeopleIcon,
-  Description as DescriptionIcon,
-  Business as BusinessIcon,
-  Visibility as VisibilityIcon,
-  Timeline as TimelineIcon,
-  Storage as StorageIcon,
-} from '@mui/icons-material'
+  DashboardOutlined,
+  UserOutlined,
+  FileTextOutlined,
+  TeamOutlined,
+  EyeOutlined,
+  BarChartOutlined,
+  DatabaseOutlined,
+} from '@ant-design/icons'
+
+const { Sider } = Layout
+const { Title, Text } = Typography
 
 const menuItems = [
-  { icon: DashboardIcon, label: 'Dashboard', path: '/' },
-  { icon: PeopleIcon, label: 'Profissionais', path: '/profissionais' },
-  { icon: DescriptionIcon, label: 'Contratos', path: '/contratos' },
-  { icon: BusinessIcon, label: 'Clientes', path: '/clientes' },
-  { icon: VisibilityIcon, label: 'Visão do Cliente', path: '/visao-cliente' },
-  { icon: TimelineIcon, label: 'Timeline', path: '/timeline' },
-  { icon: StorageIcon, label: 'Banco de Dados', path: '/database' },
+  { 
+    key: '/', 
+    icon: <DashboardOutlined />, 
+    label: 'Dashboard',
+    path: '/'
+  },
+  { 
+    key: '/profissionais', 
+    icon: <UserOutlined />, 
+    label: 'Profissionais',
+    path: '/profissionais'
+  },
+  { 
+    key: '/contratos', 
+    icon: <FileTextOutlined />, 
+    label: 'Contratos',
+    path: '/contratos'
+  },
+  { 
+    key: '/clientes', 
+    icon: <TeamOutlined />, 
+    label: 'Clientes',
+    path: '/clientes'
+  },
+  { 
+    key: '/visao-cliente', 
+    icon: <EyeOutlined />, 
+    label: 'Visão do Cliente',
+    path: '/visao-cliente'
+  },
+  { 
+    key: '/timeline', 
+    icon: <BarChartOutlined />, 
+    label: 'Timeline',
+    path: '/timeline'
+  },
+  { 
+    key: '/database', 
+    icon: <DatabaseOutlined />, 
+    label: 'Banco de Dados',
+    path: '/database'
+  },
 ]
 
 const Sidebar = () => {
   const location = useLocation()
 
+  const handleMenuClick = ({ key }: { key: string }) => {
+    const item = menuItems.find(item => item.key === key)
+    if (item) {
+      window.location.href = item.path
+    }
+  }
+
   return (
-    <Box
-      sx={{
-        width: 280,
-        bgcolor: '#0031BC',
-        borderRight: 1,
-        borderColor: 'divider',
+    <Sider
+      width={280}
+      style={{
+        background: '#0031BC',
+        borderRight: '1px solid #d9d9d9',
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
+        position: 'fixed',
+        left: 0,
+        top: 80,
+        bottom: 0,
+        zIndex: 999
       }}
     >
-      <Box sx={{ p: 3, borderBottom: 1, borderColor: 'divider' }}>
-        <Typography variant="h5" component="h1" color="white" fontWeight="bold">
+      <div style={{ padding: 24, borderBottom: '1px solid rgba(255,255,255,0.2)' }}>
+        <Title 
+          level={4} 
+          style={{ 
+            color: 'white', 
+            fontWeight: 'bold',
+            margin: 0
+          }}
+        >
           Alocações Matilha
-        </Typography>
-      </Box>
+        </Title>
+      </div>
 
-      <List sx={{ flexGrow: 1, pt: 1 }}>
-        {menuItems.map((item) => {
-          const isActive = location.pathname === item.path
-          return (
-            <ListItem key={item.path} disablePadding>
-              <ListItemButton
-                component={NavLink}
-                to={item.path}
-                sx={{
-                  mx: 1,
-                  borderRadius: 1,
-                  bgcolor: isActive ? 'rgba(255,255,255,0.2)' : 'transparent',
-                  color: isActive ? 'white' : 'rgba(255,255,255,0.8)',
-                  '&:hover': {
-                    bgcolor: isActive ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)',
-                  },
-                }}
-              >
-                <ListItemIcon
-                  sx={{
-                    color: isActive ? 'white' : 'rgba(255,255,255,0.8)',
-                  }}
-                >
-                  <item.icon />
-                </ListItemIcon>
-                <ListItemText
-                  primary={item.label}
-                  sx={{
-                    '& .MuiListItemText-primary': {
-                      fontWeight: isActive ? 600 : 400,
-                      color: isActive ? 'white' : 'rgba(255,255,255,0.8)',
-                    },
-                  }}
-                />
-              </ListItemButton>
-            </ListItem>
-          )
-        })}
-      </List>
+      <Menu
+        mode="inline"
+        selectedKeys={[location.pathname]}
+        style={{
+          background: '#0031BC',
+          border: 'none',
+          flex: 1,
+          paddingTop: 8
+        }}
+        onClick={handleMenuClick}
+        items={menuItems.map(item => ({
+          key: item.key,
+          icon: item.icon,
+          label: item.label,
+          style: {
+            color: location.pathname === item.path ? 'white' : 'rgba(255,255,255,0.8)',
+            fontWeight: location.pathname === item.path ? 600 : 400,
+            margin: '0 8px',
+            borderRadius: 6
+          }
+        }))}
+      />
 
-      <Divider sx={{ borderColor: 'rgba(255,255,255,0.2)' }} />
-      <Box sx={{ p: 2, textAlign: 'center' }}>
-        <Typography variant="caption" color="rgba(255,255,255,0.6)">
+      <Divider style={{ borderColor: 'rgba(255,255,255,0.2)', margin: 0 }} />
+      <div style={{ padding: 16, textAlign: 'center' }}>
+        <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>
           © 2024 Matilha Tecnologia
-        </Typography>
-      </Box>
-    </Box>
+        </Text>
+      </div>
+    </Sider>
   )
 }
 
