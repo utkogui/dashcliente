@@ -28,6 +28,7 @@ import { useData } from '../contexts/DataContext'
 import { useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { formatCurrency, calcularValoresAgregados } from '../utils/formatters'
 
 const { Title, Text } = Typography
 const { Search } = Input
@@ -144,10 +145,7 @@ const Contratos = () => {
       dataIndex: 'nomeProjeto',
       key: 'nomeProjeto',
       render: (text: string) => (
-        <Space>
-          <FileTextOutlined />
-          <Text strong>{text}</Text>
-        </Space>
+        <Text strong style={{ fontSize: 14 }}>{text}</Text>
       ),
       sorter: (a: any, b: any) => a.nomeProjeto.localeCompare(b.nomeProjeto),
       width: 200,
@@ -156,93 +154,156 @@ const Contratos = () => {
       title: 'Cliente',
       key: 'cliente',
       render: (record: any) => (
-        <Space direction="vertical" size="small" style={{ width: '100%' }}>
-          <Space>
-            <TeamOutlined />
-            <Text strong>{record.cliente?.empresa}</Text>
-          </Space>
-          <Text style={{ fontSize: '11px', color: '#666', marginLeft: 16 }}>
-            {record.cliente?.nome}
-          </Text>
-        </Space>
+        <Text style={{ fontSize: 13 }}>{record.cliente?.empresa}</Text>
       ),
       sorter: (a: any, b: any) => a.cliente?.empresa.localeCompare(b.cliente?.empresa),
-      width: 200,
+      width: 150,
     },
     {
-      title: 'Período',
-      key: 'periodo',
-      render: (record: any) => (
-        <Space direction="vertical" size="small">
-          <Space>
-            <CalendarOutlined />
-            <Text style={{ fontSize: '12px' }}>
-              {format(new Date(record.dataInicio), 'dd/MM/yyyy', { locale: ptBR })}
-            </Text>
-          </Space>
-          <Text style={{ fontSize: '11px', color: '#666' }}>
-            {record.dataFim ? `até ${format(new Date(record.dataFim), 'dd/MM/yyyy', { locale: ptBR })}` : 'Indeterminado'}
-          </Text>
-        </Space>
-      ),
-      sorter: (a: any, b: any) => new Date(a.dataInicio).getTime() - new Date(b.dataInicio).getTime(),
-      width: 140,
-    },
-    {
-      title: 'Tipo',
-      dataIndex: 'tipoContrato',
-      key: 'tipoContrato',
-      render: (text: string) => (
-        <Tag color={getTipoContratoColor(text)}>
-          {getTipoContratoText(text)}
-        </Tag>
-      ),
-      filters: [
-        { text: 'Por Hora', value: 'hora' },
-        { text: 'Valor Fechado', value: 'fechado' },
-      ],
-      onFilter: (value: string | number | boolean, record: any) => record.tipoContrato === value,
-      width: 120,
-    },
-    {
-      title: 'Valor',
-      key: 'valor',
+      title: 'Valor Total',
+      key: 'valorTotal',
       render: (record: any) => {
-        // Para contratos indeterminados, mostrar apenas valor mensal
-        const valorMensal = record.dataFim ? record.valorContrato : (record.valorContrato / 12)
-        const impostosMensais = record.dataFim ? record.valorImpostos : (record.valorImpostos / 12)
-        
         return (
-          <Space direction="vertical" size="small">
-            <Space>
-              <DollarOutlined />
-              <Text strong style={{ color: '#52c41a' }}>
-                R$ {valorMensal?.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) || '0'}
-              </Text>
-            </Space>
-            <Text style={{ fontSize: '11px', color: '#faad14', whiteSpace: 'nowrap', overflow: 'visible' }}>
-              Impostos: R$ {impostosMensais?.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) || '0'}
-            </Text>
-          </Space>
+          <Text strong style={{ color: '#1890ff', fontSize: 13 }}>
+            R$ {record.valorContrato?.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) || '0'}
+          </Text>
         )
       },
       sorter: (a: any, b: any) => (a.valorContrato || 0) - (b.valorContrato || 0),
-      width: 180,
+      width: 120,
+    },
+    {
+      title: 'Valor Mensal',
+      key: 'valorMensal',
+      render: (record: any) => {
+        const valorMensal = !record.dataFim ? (record.valorContrato / 12) : 
+          (record.valorContrato / Math.max(1, 
+            (new Date(record.dataFim).getFullYear() - new Date(record.dataInicio).getFullYear()) * 12 + 
+            (new Date(record.dataFim).getMonth() - new Date(record.dataInicio).getMonth())
+          ))
+        return (
+          <Text strong style={{ color: '#52c41a', fontSize: 13 }}>
+            R$ {valorMensal?.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) || '0'}
+          </Text>
+        )
+      },
+      sorter: (a: any, b: any) => {
+        const valorA = !a.dataFim ? (a.valorContrato / 12) : 
+          (a.valorContrato / Math.max(1, 
+            (new Date(a.dataFim).getFullYear() - new Date(a.dataInicio).getFullYear()) * 12 + 
+            (new Date(a.dataFim).getMonth() - new Date(a.dataInicio).getMonth())
+          ))
+        const valorB = !b.dataFim ? (b.valorContrato / 12) : 
+          (b.valorContrato / Math.max(1, 
+            (new Date(b.dataFim).getFullYear() - new Date(b.dataInicio).getFullYear()) * 12 + 
+            (new Date(b.dataFim).getMonth() - new Date(b.dataInicio).getMonth())
+          ))
+        return valorA - valorB
+      },
+      width: 120,
+    },
+    {
+      title: 'Custo Mensal',
+      key: 'custoMensal',
+      render: (record: any) => {
+        const custoMensal = record.profissionais?.reduce((total: number, prof: any) => {
+          if (prof.valorHora && prof.horasMensais) {
+            return total + (prof.valorHora * prof.horasMensais)
+          } else if (prof.valorFechado) {
+            if (record.dataFim) {
+              const dataInicio = new Date(record.dataInicio)
+              const dataFim = new Date(record.dataFim)
+              const mesesDuracao = Math.max(1, (dataFim.getFullYear() - dataInicio.getFullYear()) * 12 + 
+                (dataFim.getMonth() - dataInicio.getMonth()))
+              return total + (prof.valorFechado / mesesDuracao)
+            }
+            return total + (prof.valorFechado / 12)
+          }
+          return total
+        }, 0) || 0
+        return (
+          <Text strong style={{ color: '#faad14', fontSize: 13 }}>
+            R$ {custoMensal.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+          </Text>
+        )
+      },
+      sorter: (a: any, b: any) => {
+        const custoA = a.profissionais?.reduce((total: number, prof: any) => {
+          if (prof.valorHora && prof.horasMensais) {
+            return total + (prof.valorHora * prof.horasMensais)
+          } else if (prof.valorFechado) {
+            if (a.dataFim) {
+              const dataInicio = new Date(a.dataInicio)
+              const dataFim = new Date(a.dataFim)
+              const mesesDuracao = Math.max(1, (dataFim.getFullYear() - dataInicio.getFullYear()) * 12 + 
+                (dataFim.getMonth() - dataInicio.getMonth()))
+              return total + (prof.valorFechado / mesesDuracao)
+            }
+            return total + (prof.valorFechado / 12)
+          }
+          return total
+        }, 0) || 0
+        const custoB = b.profissionais?.reduce((total: number, prof: any) => {
+          if (prof.valorHora && prof.horasMensais) {
+            return total + (prof.valorHora * prof.horasMensais)
+          } else if (prof.valorFechado) {
+            if (b.dataFim) {
+              const dataInicio = new Date(b.dataInicio)
+              const dataFim = new Date(b.dataFim)
+              const mesesDuracao = Math.max(1, (dataFim.getFullYear() - dataInicio.getFullYear()) * 12 + 
+                (dataFim.getMonth() - dataInicio.getMonth()))
+              return total + (prof.valorFechado / mesesDuracao)
+            }
+            return total + (prof.valorFechado / 12)
+          }
+          return total
+        }, 0) || 0
+        return custoA - custoB
+      },
+      width: 120,
+    },
+    {
+      title: 'Impostos',
+      key: 'impostos',
+      render: (record: any) => {
+        const valorMensal = !record.dataFim ? (record.valorContrato / 12) : 
+          (record.valorContrato / Math.max(1, 
+            (new Date(record.dataFim).getFullYear() - new Date(record.dataInicio).getFullYear()) * 12 + 
+            (new Date(record.dataFim).getMonth() - new Date(record.dataInicio).getMonth())
+          ))
+        const impostosMensais = valorMensal * ((record.percentualImpostos || 13.0) / 100)
+        return (
+          <Text strong style={{ color: '#f5222d', fontSize: 13 }}>
+            R$ {impostosMensais.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+          </Text>
+        )
+      },
+      sorter: (a: any, b: any) => {
+        const valorA = !a.dataFim ? (a.valorContrato / 12) : 
+          (a.valorContrato / Math.max(1, 
+            (new Date(a.dataFim).getFullYear() - new Date(a.dataInicio).getFullYear()) * 12 + 
+            (new Date(a.dataFim).getMonth() - new Date(a.dataInicio).getMonth())
+          ))
+        const impostosA = valorA * ((a.percentualImpostos || 13.0) / 100)
+        const valorB = !b.dataFim ? (b.valorContrato / 12) : 
+          (b.valorContrato / Math.max(1, 
+            (new Date(b.dataFim).getFullYear() - new Date(b.dataInicio).getFullYear()) * 12 + 
+            (new Date(b.dataFim).getMonth() - new Date(b.dataInicio).getMonth())
+          ))
+        const impostosB = valorB * ((b.percentualImpostos || 13.0) / 100)
+        return impostosA - impostosB
+      },
+      width: 120,
     },
     {
       title: 'Profissionais',
       key: 'profissionais',
       render: (record: any) => (
-        <Space direction="vertical" size="small">
-          <Text strong style={{ color: '#1890ff' }}>
-            {record.profissionais?.length || 0} profissional(is)
-          </Text>
-          <Text style={{ fontSize: '11px', color: '#666' }}>
-            {record.profissionais?.map((p: any) => p.profissional.nome).join(', ') || 'Nenhum'}
-          </Text>
-        </Space>
+        <Text style={{ fontSize: 13 }}>
+          {record.profissionais?.length || 0} prof.
+        </Text>
       ),
-      width: 160,
+      width: 100,
     },
     {
       title: 'Status',
@@ -340,45 +401,45 @@ const Contratos = () => {
           </Text>
         </div>
 
-        {/* Estatísticas */}
+        {/* Estatísticas Simplificadas */}
         <Row gutter={[16, 16]}>
-          <Col xs={24} sm={12} md={6}>
+          <Col xs={24} sm={6}>
             <Card>
               <Statistic
-                title="Total"
-                value={contratos.length}
-                prefix={<FileTextOutlined />}
-                valueStyle={{ color: '#1890ff' }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
-              <Statistic
-                title="Ativos"
+                title="Contratos Ativos"
                 value={contratosAtivos.length}
-                prefix={<FileTextOutlined />}
                 valueStyle={{ color: '#52c41a' }}
               />
             </Card>
           </Col>
-          <Col xs={24} sm={12} md={6}>
+          <Col xs={24} sm={6}>
             <Card>
               <Statistic
-                title="Pendentes"
-                value={contratosPendentes.length}
-                prefix={<FileTextOutlined />}
-                valueStyle={{ color: '#faad14' }}
+                title="Total de Contratos"
+                value={contratos.length}
+                valueStyle={{ color: '#1890ff' }}
               />
             </Card>
           </Col>
-          <Col xs={24} sm={12} md={6}>
+          <Col xs={24} sm={6}>
             <Card>
               <Statistic
-                title="Encerrados"
-                value={contratosEncerrados.length}
-                prefix={<FileTextOutlined />}
-                valueStyle={{ color: '#f5222d' }}
+                title="Valor Total"
+                value={calcularValoresAgregados(contratosAtivos).valoresTotais}
+                prefix="R$"
+                valueStyle={{ color: '#faad14' }}
+                formatter={(value) => value?.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={6}>
+            <Card>
+              <Statistic
+                title="Valor Mensal"
+                value={calcularValoresAgregados(contratosAtivos).valoresMensais}
+                prefix="R$"
+                valueStyle={{ color: '#3f8600' }}
+                formatter={(value) => value?.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
               />
             </Card>
           </Col>
@@ -388,18 +449,15 @@ const Contratos = () => {
         <Card>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <Search
-              placeholder="Buscar por projeto, cliente, profissionais..."
+              placeholder="Buscar contratos..."
               allowClear
-              enterButton={<SearchOutlined />}
-              size="large"
-              style={{ width: 400 }}
+              style={{ width: 300 }}
               onSearch={handleSearch}
               onChange={(e) => handleSearch(e.target.value)}
             />
             <Button
               type="primary"
               icon={<PlusOutlined />}
-              size="large"
               onClick={() => navigate('/cadastro-contrato')}
             >
               Novo Contrato
@@ -411,11 +469,10 @@ const Contratos = () => {
             dataSource={filteredContratos}
             rowKey="id"
             pagination={{
-              showSizeChanger: true,
-              showQuickJumper: true,
-              showTotal: (total, range) => `${range[0]}-${range[1]} de ${total} contratos`,
-              pageSizeOptions: ['10', '20', '50', '100'],
-              defaultPageSize: 20,
+              showSizeChanger: false,
+              showQuickJumper: false,
+              showTotal: (total) => `${total} contratos`,
+              pageSize: 15,
             }}
             size="small"
           />

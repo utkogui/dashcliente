@@ -20,11 +20,14 @@ import {
   FallOutlined,
   WarningOutlined,
   EyeOutlined,
-  PlusOutlined
+  PlusOutlined,
+  DownloadOutlined
 } from '@ant-design/icons'
+import * as XLSX from 'xlsx'
 import { useData } from '../contexts/DataContext'
 import { useNavigate } from 'react-router-dom'
 import DetalhesModal from '../components/DetalhesModal'
+import { calcularValoresAgregados, getCardStyle, getStatusBadgeColor, calcularDiasRestantes } from '../utils/formatters'
 import {
   LineChart,
   Line,
@@ -49,6 +52,63 @@ const Dashboard = () => {
   const [showAllContratos, setShowAllContratos] = useState(false)
   const [showAllProfissionais, setShowAllProfissionais] = useState(false)
   const [showAllClientes, setShowAllClientes] = useState(false)
+
+  // Função para exportar dados para Excel
+  const exportToExcel = () => {
+    // Preparar dados dos profissionais
+    const profissionaisData = profissionais.map(p => ({
+      'Nome': p.nome,
+      'Email': p.email,
+      'Especialidade': p.especialidade,
+      'Tipo de Contrato': p.tipoContrato === 'hora' ? 'Por Hora' : 'Valor Fechado',
+      'Valor/Hora': p.tipoContrato === 'hora' ? p.valorHora : '-',
+      'Valor Fechado': p.tipoContrato === 'fechado' ? p.valorFechado : '-',
+      'Data de Início': p.dataInicio ? new Date(p.dataInicio).toLocaleDateString('pt-BR') : '-',
+      'Status': p.status
+    }))
+
+    // Preparar dados dos clientes
+    const clientesData = clientes.map(c => ({
+      'Empresa': c.empresa,
+      'Email': c.email,
+      'Telefone': c.telefone || '-',
+      'Endereço': c.endereco || '-',
+      'Contratos Ativos': contratos.filter(contrato => contrato.clienteId === c.id && contrato.status === 'ativo').length
+    }))
+
+    // Preparar dados dos contratos
+    const contratosData = contratos.map(c => {
+      const valorMensal = !c.dataFim ? (c.valorContrato / 12) : c.valorContrato
+      const impostosMensais = !c.dataFim ? (c.valorImpostos / 12) : c.valorImpostos
+      
+      return {
+        'Projeto': c.nomeProjeto,
+        'Cliente': clientes.find(cli => cli.id === c.clienteId)?.empresa || '-',
+        'Status': c.status,
+        'Data Início': c.dataInicio ? new Date(c.dataInicio).toLocaleDateString('pt-BR') : '-',
+        'Data Fim': c.dataFim ? new Date(c.dataFim).toLocaleDateString('pt-BR') : 'Indeterminado',
+        'Valor Contrato': c.valorContrato,
+        'Valor Mensal': valorMensal,
+        'Impostos': c.valorImpostos,
+        'Impostos Mensais': impostosMensais,
+        'Valor Líquido': c.valorContrato - c.valorImpostos,
+        'Profissionais': c.profissionais?.length || 0,
+        'Tipo': !c.dataFim ? 'Indeterminado' : 'Determinado'
+      }
+    })
+
+    // Criar workbook com múltiplas abas
+    const workbook = XLSX.utils.book_new()
+    
+    // Adicionar abas
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(profissionaisData), 'Profissionais')
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(clientesData), 'Clientes')
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(contratosData), 'Contratos')
+
+    // Gerar e baixar arquivo
+    const fileName = `dashboard_export_${new Date().toISOString().split('T')[0]}.xlsx`
+    XLSX.writeFile(workbook, fileName)
+  }
 
   const handleCardClick = (type: 'profissional' | 'cliente' | 'contrato', data: any) => {
     setModalType(type)
@@ -90,25 +150,16 @@ const Dashboard = () => {
   // Cálculos das estatísticas
   const contratosAtivos = contratos.filter(c => c.status === 'ativo')
   const contratosPendentes = contratos.filter(c => c.status === 'pendente')
+  const contratosEncerrados = contratos.filter(c => c.status === 'encerrado')
   
-  const receitaTotal = contratos.reduce((acc, c) => acc + (c.valorContrato || 0), 0)
-  const impostosTotal = contratos.reduce((acc, c) => acc + (c.valorImpostos || 0), 0)
-  const receitaLiquida = receitaTotal - impostosTotal
+  // Filtrar contratos ativos que não estão encerrados para cálculos
+  const contratosParaCalculo = contratos.filter(c => c.status === 'ativo')
   
-  // Calcular custo total baseado nos profissionais dos contratos
-  const custoTotal = contratos.reduce((acc, c) => {
-    const custoContrato = c.profissionais?.reduce((profAcc, p) => {
-      if (p.valorHora && p.horasMensais) {
-        return profAcc + (p.valorHora * p.horasMensais)
-      } else if (p.valorFechado) {
-        return profAcc + p.valorFechado
-      }
-      return profAcc
-    }, 0) || 0
-    return acc + custoContrato
-  }, 0)
+  // Calcular valores usando as funções utilitárias
+  const { valoresMensais, valoresTotais, custosTotais, impostosTotais } = calcularValoresAgregados(contratosParaCalculo)
   
-  const lucroTotal = receitaLiquida - custoTotal
+  const receitaLiquida = valoresMensais - impostosTotais
+  const lucroTotal = receitaLiquida - custosTotais
   const margemLucro = receitaLiquida > 0 ? (lucroTotal / receitaLiquida) * 100 : 0
 
   // Contratos próximos do vencimento (30 dias)
@@ -148,27 +199,47 @@ const Dashboard = () => {
     const isProfissional = type === 'profissional'
     const isCliente = type === 'cliente'
 
+    // Aplicar estilos especiais para contratos
+    const cardStyle = isContrato ? getCardStyle(data) : {}
+    const statusColor = isContrato ? getStatusBadgeColor(data) : undefined
+
     return (
       <Card
         key={data.id}
         hoverable
-        style={{ cursor: 'pointer' }}
+        style={{ cursor: 'pointer', ...cardStyle }}
         onClick={() => handleCardClick(type, data)}
         bodyStyle={{ padding: 16 }}
       >
         <Space direction="vertical" size="small" style={{ width: '100%' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div style={{ flex: 1 }}>
-              <Text strong style={{ fontSize: 16, display: 'block', marginBottom: 4 }}>
-                {isContrato ? data.nomeProjeto : isProfissional ? data.nome : data.empresa}
-              </Text>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 2, marginBottom: 4 }}>
+                <Text strong style={{ fontSize: 16 }}>
+                  {isContrato ? data.nomeProjeto : isProfissional ? data.nome : data.empresa}
+                </Text>
+                {isContrato && statusColor && (
+                  <div 
+                    style={{ 
+                      width: 8, 
+                      height: 8, 
+                      borderRadius: '50%', 
+                      backgroundColor: statusColor,
+                      boxShadow: `0 0 4px ${statusColor}40`,
+                      marginLeft: '10px'
+                    }} 
+                  />
+                )}
+              </div>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 {isContrato ? data.cliente?.empresa : isProfissional ? data.especialidade : data.contato}
               </Text>
             </div>
-            <Tag color={isContrato ? 'blue' : isProfissional ? 'green' : 'orange'}>
-              {isContrato ? data.status : isProfissional ? data.tipoContrato : 'Cliente'}
-            </Tag>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+              <Tag color={isContrato ? 'blue' : isProfissional ? 'green' : 'orange'}>
+                {isContrato ? data.status : isProfissional ? data.tipoContrato : 'Cliente'}
+              </Tag>
+            </div>
           </div>
           
           {isContrato && (
@@ -178,15 +249,12 @@ const Dashboard = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   <Text strong style={{ fontSize: 14 }}>
                     R$ {(() => {
-                      // Se não tem dataFim, é contrato indeterminado - mostrar valor mensal
-                      if (!data.dataFim) {
-                        return (data.valorContrato / 12)?.toLocaleString('pt-BR', { 
-                          minimumFractionDigits: 0, 
-                          maximumFractionDigits: 0 
-                        }) || '0'
-                      }
-                      // Se tem dataFim, mostrar valor total
-                      return data.valorContrato?.toLocaleString('pt-BR', { 
+                      const valorMensal = !data.dataFim ? (data.valorContrato / 12) : 
+                        (data.valorContrato / Math.max(1, 
+                          (new Date(data.dataFim).getFullYear() - new Date(data.dataInicio).getFullYear()) * 12 + 
+                          (new Date(data.dataFim).getMonth() - new Date(data.dataInicio).getMonth())
+                        ))
+                      return valorMensal?.toLocaleString('pt-BR', { 
                         minimumFractionDigits: 0, 
                         maximumFractionDigits: 0 
                       }) || '0'
@@ -196,9 +264,21 @@ const Dashboard = () => {
                     <Text type="secondary" style={{ fontSize: 12 }}>∞</Text>
                   )}
                 </div>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  {data.profissionais?.length || 0} prof.
-                </Text>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {data.profissionais?.length || 0} prof.
+                  </Text>
+                  {data.dataFim && (
+                    <Text type="secondary" style={{ fontSize: 10 }}>
+                      {(() => {
+                        const diasRestantes = calcularDiasRestantes(data)
+                        if (diasRestantes === null) return ''
+                        if (diasRestantes > 0) return `${diasRestantes} dias`
+                        return 'Vencido'
+                      })()}
+                    </Text>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -230,13 +310,23 @@ const Dashboard = () => {
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
         
         {/* Header */}
-        <div>
-          <Title level={2} style={{ margin: 0, marginBottom: 8 }}>
-            Dashboard
-          </Title>
-          <Text type="secondary">
-            Visão geral dos seus profissionais, clientes e contratos
-          </Text>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <Title level={2} style={{ margin: 0, marginBottom: 8 }}>
+              Dashboard
+            </Title>
+            <Text type="secondary">
+              Visão geral dos seus profissionais, clientes e contratos
+            </Text>
+          </div>
+          <Button
+            type="primary"
+            icon={<DownloadOutlined />}
+            onClick={exportToExcel}
+            size="large"
+          >
+            Exportar Excel
+          </Button>
         </div>
 
         {/* Cards de Estatísticas */}
@@ -289,8 +379,34 @@ const Dashboard = () => {
           <Col xs={24} sm={12} lg={6}>
             <Card>
               <Statistic
-                title="Receita Total"
-                value={receitaTotal}
+                title="Contratos Encerrados"
+                value={contratosEncerrados.length}
+                prefix={<FileTextOutlined />}
+                valueStyle={{ color: '#9ca3af' }}
+              />
+            </Card>
+          </Col>
+          
+          <Col xs={24} sm={12} lg={6}>
+            <Card>
+              <Statistic
+                title="Valor Total"
+                value={valoresTotais}
+                precision={0}
+                valueStyle={{ color: '#1890ff' }}
+                prefix={<DollarOutlined />}
+              />
+            </Card>
+          </Col>
+        </Row>
+
+        {/* Novas estatísticas detalhadas */}
+        <Row gutter={[16, 16]}>
+          <Col xs={24} sm={12} lg={6}>
+            <Card>
+              <Statistic
+                title="Valor Mensal"
+                value={valoresMensais}
                 precision={0}
                 valueStyle={{ color: '#3f8600' }}
                 prefix={<DollarOutlined />}
@@ -309,6 +425,42 @@ const Dashboard = () => {
                     </Text>
                   </div>
                 }
+              />
+            </Card>
+          </Col>
+          
+          <Col xs={24} sm={12} lg={6}>
+            <Card>
+              <Statistic
+                title="Custo Total"
+                value={custosTotais}
+                precision={0}
+                valueStyle={{ color: '#faad14' }}
+                prefix={<DollarOutlined />}
+              />
+            </Card>
+          </Col>
+          
+          <Col xs={24} sm={12} lg={6}>
+            <Card>
+              <Statistic
+                title="Impostos Totais"
+                value={impostosTotais}
+                precision={0}
+                valueStyle={{ color: '#f5222d' }}
+                prefix={<DollarOutlined />}
+              />
+            </Card>
+          </Col>
+          
+          <Col xs={24} sm={12} lg={6}>
+            <Card>
+              <Statistic
+                title="Lucro Total"
+                value={lucroTotal}
+                precision={0}
+                valueStyle={{ color: lucroTotal >= 0 ? '#52c41a' : '#cf1322' }}
+                prefix={<DollarOutlined />}
               />
             </Card>
           </Col>
@@ -342,6 +494,22 @@ const Dashboard = () => {
                 </Col>
               ))}
             </Row>
+            
+            {/* Contratos Encerrados */}
+            {contratosEncerrados.length > 0 && (
+              <>
+                <Title level={4} style={{ margin: '24px 0 16px 0', color: '#9ca3af' }}>
+                  Contratos Encerrados ({contratosEncerrados.length})
+                </Title>
+                <Row gutter={[16, 16]}>
+                  {(showAllContratos ? contratosEncerrados : contratosEncerrados.slice(0, 2)).map((contrato) => (
+                    <Col xs={24} sm={12} md={8} lg={6} key={contrato.id}>
+                      {renderCard('contrato', contrato)}
+                    </Col>
+                  ))}
+                </Row>
+              </>
+            )}
             
             {contratosAtivos.length > 4 && (
               <div style={{ textAlign: 'center', marginTop: 16 }}>

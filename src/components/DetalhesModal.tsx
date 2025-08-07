@@ -26,8 +26,10 @@ import {
   FileTextOutlined,
   UnorderedListOutlined,
   CloseOutlined,
+  DownloadOutlined,
 } from '@ant-design/icons'
 import { formatCurrency } from '../utils/formatters'
+import * as XLSX from 'xlsx'
 
 const { Title, Text } = Typography
 
@@ -93,6 +95,64 @@ const DetalhesModal: React.FC<DetalhesModalProps> = ({
   type,
   data,
 }) => {
+  // Função para exportar detalhes do contrato para Excel
+  const exportContratoToExcel = () => {
+    if (!data || type !== 'contrato') return
+    
+    const contrato = data as ContratoData
+    
+    // Dados do contrato
+    const contratoData = [{
+      'Projeto': contrato.nomeProjeto,
+      'Cliente': contrato.cliente.empresa,
+      'Status': getStatusText(contrato.status),
+      'Data Início': new Date(contrato.dataInicio).toLocaleDateString('pt-BR'),
+      'Data Fim': contrato.dataFim ? new Date(contrato.dataFim).toLocaleDateString('pt-BR') : 'Indeterminado',
+      'Valor Contrato': contrato.valorContrato,
+      'Impostos': contrato.valorImpostos,
+      'Valor Líquido': contrato.valorContrato - contrato.valorImpostos,
+      'Observações': contrato.observacoes || '-'
+    }]
+
+    // Dados dos profissionais
+    const profissionaisData = contrato.profissionais.map(p => ({
+      'Nome': p.profissional.nome,
+      'Email': p.profissional.email,
+      'Especialidade': p.profissional.especialidade,
+      'Tipo de Contrato': getTipoContratoText(p.profissional.tipoContrato),
+      'Valor/Hora': p.profissional.tipoContrato === 'hora' ? p.valorHora : '-',
+      'Horas Mensais': p.profissional.tipoContrato === 'hora' ? p.horasMensais : '-',
+      'Valor Fechado': p.profissional.tipoContrato === 'fechado' ? p.valorFechado : '-',
+      'Período': p.profissional.tipoContrato === 'fechado' ? p.periodoFechado : '-',
+      'Valor Mensal': p.profissional.tipoContrato === 'hora' ? 
+        (p.valorHora || 0) * (p.horasMensais || 0) : 
+        (p.valorFechado || 0)
+    }))
+
+    // Dados do cliente
+    const clienteData = [{
+      'Empresa': contrato.cliente.empresa,
+      'Nome': contrato.cliente.nome,
+      'Email': contrato.cliente.email,
+      'Telefone': contrato.cliente.telefone || '-',
+      'Endereço': contrato.cliente.endereco || '-',
+      'Ano de Início': contrato.cliente.anoInicio,
+      'Segmento': contrato.cliente.segmento,
+      'Tamanho': contrato.cliente.tamanho
+    }]
+
+    // Criar workbook
+    const workbook = XLSX.utils.book_new()
+    
+    // Adicionar abas
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(contratoData), 'Contrato')
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(profissionaisData), 'Profissionais')
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(clienteData), 'Cliente')
+
+    // Gerar e baixar arquivo
+    const fileName = `contrato_${contrato.nomeProjeto.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`
+    XLSX.writeFile(workbook, fileName)
+  }
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'ativo':
@@ -513,7 +573,17 @@ const DetalhesModal: React.FC<DetalhesModalProps> = ({
       footer={[
         <Button key="close" onClick={onClose}>
           Fechar
-        </Button>
+        </Button>,
+        ...(type === 'contrato' ? [
+          <Button 
+            key="export" 
+            type="primary" 
+            icon={<DownloadOutlined />}
+            onClick={exportContratoToExcel}
+          >
+            Exportar Excel
+          </Button>
+        ] : [])
       ]}
       width={800}
       style={{ top: 20 }}

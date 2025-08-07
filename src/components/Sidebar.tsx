@@ -113,10 +113,12 @@ const Sidebar = () => {
           icon: item.icon,
           label: item.label,
           style: {
-            color: location.pathname === item.path ? 'white' : 'rgba(255,255,255,0.8)',
+            color: location.pathname === item.path ? '#1a1a1a' : 'rgba(255,255,255,0.8)',
             fontWeight: location.pathname === item.path ? 600 : 400,
             margin: '0 8px',
-            borderRadius: 6
+            borderRadius: 6,
+            backgroundColor: location.pathname === item.path ? 'rgba(255,255,255,0.9)' : 'transparent',
+            padding: '8px 12px'
           }
         }))}
       />

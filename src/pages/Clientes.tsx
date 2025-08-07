@@ -31,6 +31,7 @@ import {
   EnvironmentOutlined
 } from '@ant-design/icons'
 import { useData } from '../contexts/DataContext'
+import { formatCurrency, calcularValoresAgregados } from '../utils/formatters'
 import dayjs from 'dayjs'
 
 const { Title, Text } = Typography
@@ -82,6 +83,11 @@ const Clientes = () => {
     return contratos
       .filter(c => c.clienteId === clienteId)
       .reduce((acc, c) => acc + (c.valorContrato || 0), 0)
+  }
+
+  const getValoresCliente = (clienteId: string) => {
+    const contratosCliente = contratos.filter(c => c.clienteId === clienteId && c.status === 'ativo')
+    return calcularValoresAgregados(contratosCliente)
   }
 
   const handleOpen = (cliente?: any) => {
@@ -168,15 +174,7 @@ const Clientes = () => {
       title: 'Empresa',
       key: 'empresa',
       render: (record: any) => (
-        <Space direction="vertical" size="small" style={{ width: '100%' }}>
-          <Space>
-            <BankOutlined />
-            <Text strong>{record.empresa}</Text>
-          </Space>
-          <Text style={{ fontSize: '11px', color: '#666', marginLeft: 16 }}>
-            {record.nome}
-          </Text>
-        </Space>
+        <Text strong style={{ fontSize: 14 }}>{record.empresa}</Text>
       ),
       sorter: (a: any, b: any) => a.empresa.localeCompare(b.empresa),
       width: 200,
@@ -185,83 +183,22 @@ const Clientes = () => {
       title: 'Contato',
       dataIndex: 'nome',
       key: 'nome',
-      render: (text: string) => <Text strong>{text}</Text>,
+      render: (text: string) => <Text style={{ fontSize: 13 }}>{text}</Text>,
       width: 150,
     },
     {
       title: 'Email',
       dataIndex: 'email',
       key: 'email',
-      render: (text: string) => (
-        <Space>
-          <MailOutlined />
-          <Text copyable style={{ fontSize: '12px' }}>{text}</Text>
-        </Space>
-      ),
+      render: (text: string) => <Text style={{ fontSize: 13 }}>{text}</Text>,
       width: 180,
-    },
-    {
-      title: 'Telefone',
-      dataIndex: 'telefone',
-      key: 'telefone',
-      render: (text: string) => (
-        text ? (
-          <Space>
-            <PhoneOutlined />
-            <Text style={{ fontSize: '12px' }}>{text}</Text>
-          </Space>
-        ) : (
-          <Text type="secondary" style={{ fontSize: '12px' }}>-</Text>
-        )
-      ),
-      width: 140,
     },
     {
       title: 'Segmento',
       dataIndex: 'segmento',
       key: 'segmento',
       render: (text: string) => <Tag color="blue">{text}</Tag>,
-      filters: segmentos.map(segmento => ({ text: segmento, value: segmento })),
-      onFilter: (value: string | number | boolean, record: any) => record.segmento === value,
       width: 120,
-    },
-    {
-      title: 'Tamanho',
-      dataIndex: 'tamanho',
-      key: 'tamanho',
-      render: (text: string) => {
-        const color = text === 'Grande' ? 'red' : text === 'Média' ? 'orange' : 'green'
-        return <Tag color={color}>{text}</Tag>
-      },
-      filters: tamanhos.map(tamanho => ({ text: tamanho, value: tamanho })),
-      onFilter: (value: string | number | boolean, record: any) => record.tamanho === value,
-      width: 100,
-    },
-    {
-      title: 'Ano Início',
-      dataIndex: 'anoInicio',
-      key: 'anoInicio',
-      render: (text: number) => <Text style={{ fontSize: '12px' }}>{text}</Text>,
-      sorter: (a: any, b: any) => a.anoInicio - b.anoInicio,
-      width: 100,
-    },
-    {
-      title: 'Endereço',
-      dataIndex: 'endereco',
-      key: 'endereco',
-      render: (text: string) => (
-        text ? (
-          <Space>
-            <EnvironmentOutlined />
-            <Text style={{ fontSize: '11px', maxWidth: 150 }} ellipsis>
-              {text}
-            </Text>
-          </Space>
-        ) : (
-          <Text type="secondary" style={{ fontSize: '11px' }}>-</Text>
-        )
-      ),
-      width: 150,
     },
     {
       title: 'Contratos',
@@ -269,29 +206,68 @@ const Clientes = () => {
       render: (record: any) => {
         const contratosAtivos = getContratosAtivos(record.id)
         return (
-          <Tag color={contratosAtivos > 0 ? 'success' : 'default'}>
+          <Text style={{ fontSize: 13 }}>
             {contratosAtivos} ativo(s)
-          </Tag>
+          </Text>
         )
       },
       sorter: (a: any, b: any) => getContratosAtivos(a.id) - getContratosAtivos(b.id),
-      width: 120,
+      width: 100,
     },
     {
       title: 'Valor Total',
       key: 'valorTotal',
       render: (record: any) => {
-        const valorTotal = getValorTotalContratos(record.id)
+        const { valoresTotais } = getValoresCliente(record.id)
         return (
-          <Space>
-            <DollarOutlined />
-            <Text strong style={{ color: '#52c41a' }}>
-              R$ {valorTotal.toLocaleString('pt-BR')}
-            </Text>
-          </Space>
+          <Text strong style={{ color: '#1890ff', fontSize: 13 }}>
+            R$ {valoresTotais.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+          </Text>
         )
       },
-      sorter: (a: any, b: any) => getValorTotalContratos(a.id) - getValorTotalContratos(b.id),
+      sorter: (a: any, b: any) => getValoresCliente(a.id).valoresTotais - getValoresCliente(b.id).valoresTotais,
+      width: 140,
+    },
+    {
+      title: 'Valor Mensal',
+      key: 'valorMensal',
+      render: (record: any) => {
+        const { valoresMensais } = getValoresCliente(record.id)
+        return (
+          <Text strong style={{ color: '#52c41a', fontSize: 13 }}>
+            R$ {valoresMensais.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+          </Text>
+        )
+      },
+      sorter: (a: any, b: any) => getValoresCliente(a.id).valoresMensais - getValoresCliente(b.id).valoresMensais,
+      width: 140,
+    },
+    {
+      title: 'Custo Total',
+      key: 'custoTotal',
+      render: (record: any) => {
+        const { custosTotais } = getValoresCliente(record.id)
+        return (
+          <Text strong style={{ color: '#faad14', fontSize: 13 }}>
+            R$ {custosTotais.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+          </Text>
+        )
+      },
+      sorter: (a: any, b: any) => getValoresCliente(a.id).custosTotais - getValoresCliente(b.id).custosTotais,
+      width: 140,
+    },
+    {
+      title: 'Impostos',
+      key: 'impostos',
+      render: (record: any) => {
+        const { impostosTotais } = getValoresCliente(record.id)
+        return (
+          <Text strong style={{ color: '#f5222d', fontSize: 13 }}>
+            R$ {impostosTotais.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+          </Text>
+        )
+      },
+      sorter: (a: any, b: any) => getValoresCliente(a.id).impostosTotais - getValoresCliente(b.id).impostosTotais,
       width: 140,
     },
     {
@@ -372,47 +348,45 @@ const Clientes = () => {
           </Text>
         </div>
 
-        {/* Estatísticas */}
+        {/* Estatísticas Simplificadas */}
         <Row gutter={[16, 16]}>
-          <Col xs={24} sm={12} md={6}>
+          <Col xs={24} sm={6}>
             <Card>
               <Statistic
-                title="Total"
+                title="Total de Clientes"
                 value={clientes.length}
-                prefix={<TeamOutlined />}
                 valueStyle={{ color: '#1890ff' }}
               />
             </Card>
           </Col>
-          <Col xs={24} sm={12} md={6}>
+          <Col xs={24} sm={6}>
             <Card>
               <Statistic
-                title="Com Contratos"
-                value={clientesComContratos.length}
-                prefix={<TeamOutlined />}
+                title="Clientes Ativos"
+                value={clientes.filter(c => getContratosAtivos(c.id) > 0).length}
                 valueStyle={{ color: '#52c41a' }}
               />
             </Card>
           </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
-              <Statistic
-                title="Sem Contratos"
-                value={clientesSemContratos.length}
-                prefix={<TeamOutlined />}
-                valueStyle={{ color: '#faad14' }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
+          <Col xs={24} sm={6}>
             <Card>
               <Statistic
                 title="Valor Total"
-                value={contratos.reduce((acc, c) => acc + (c.valorContrato || 0), 0)}
-                precision={0}
+                value={calcularValoresAgregados(contratos.filter(c => c.status === 'ativo')).valoresTotais}
+                prefix="R$"
+                valueStyle={{ color: '#faad14' }}
+                formatter={(value) => value?.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={6}>
+            <Card>
+              <Statistic
+                title="Valor Mensal"
+                value={calcularValoresAgregados(contratos.filter(c => c.status === 'ativo')).valoresMensais}
+                prefix="R$"
                 valueStyle={{ color: '#3f8600' }}
-                prefix={<DollarOutlined />}
-                suffix="R$"
+                formatter={(value) => value?.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
               />
             </Card>
           </Col>
@@ -422,18 +396,15 @@ const Clientes = () => {
         <Card>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <Search
-              placeholder="Buscar por nome, empresa, email ou segmento..."
+              placeholder="Buscar clientes..."
               allowClear
-              enterButton={<SearchOutlined />}
-              size="large"
-              style={{ width: 400 }}
+              style={{ width: 300 }}
               onSearch={handleSearch}
               onChange={(e) => handleSearch(e.target.value)}
             />
             <Button
               type="primary"
               icon={<PlusOutlined />}
-              size="large"
               onClick={() => handleOpen()}
             >
               Novo Cliente
@@ -445,11 +416,10 @@ const Clientes = () => {
             dataSource={filteredClientes}
             rowKey="id"
             pagination={{
-              showSizeChanger: true,
-              showQuickJumper: true,
-              showTotal: (total, range) => `${range[0]}-${range[1]} de ${total} clientes`,
-              pageSizeOptions: ['10', '20', '50', '100'],
-              defaultPageSize: 20,
+              showSizeChanger: false,
+              showQuickJumper: false,
+              showTotal: (total) => `${total} clientes`,
+              pageSize: 15,
             }}
             size="small"
           />

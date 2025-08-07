@@ -59,6 +59,7 @@ model Contrato {
   tipoContrato       String   @default("hora") // hora, fechado
   valorContrato      Float    // Valor total do contrato
   valorImpostos      Float    // Valor dos impostos
+  percentualImpostos Float    @default(13.0) // Percentual de impostos
   status             String   @default("ativo") // ativo, encerrado, pendente
   observacoes        String?
   createdAt          DateTime @default(now())

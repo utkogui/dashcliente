@@ -48,6 +48,78 @@ const CadastroContrato = () => {
     periodoFechado: string
   }>>([])
 
+  // Função para calcular resumo em tempo real
+  const calcularResumo = () => {
+    try {
+      const formValues = form.getFieldsValue()
+      
+      // Calcular valor do contrato
+      let valorContrato = 0
+      if (formValues.tipoContrato === 'hora') {
+        const quantidadeHoras = parseFloat(formValues.quantidadeHoras) || 0
+        const valorHora = parseFloat(formValues.valorHora) || 0
+        valorContrato = quantidadeHoras * valorHora
+        if (formValues.valorContratoMensal && formValues.contratoIndeterminado) {
+          valorContrato = valorContrato * 12
+        }
+      } else {
+        valorContrato = parseFloat(formValues.valorContrato) || 0
+        if (formValues.valorContratoMensal && formValues.contratoIndeterminado) {
+          valorContrato = valorContrato * 12
+        }
+      }
+
+      // Calcular impostos
+      const percentualImpostos = parseFloat(formValues.percentualImpostos) || 0
+      const valorImpostos = valorContrato * (percentualImpostos / 100)
+
+      // Calcular custo dos profissionais
+      const custoProfissionais = profissionaisSelecionados.reduce((total, prof) => {
+        const profissional = profissionais.find(p => p.id === prof.profissionalId)
+        if (!profissional) return total
+
+        if (profissional.tipoContrato === 'hora') {
+          const valorHora = parseFloat(prof.valorHora) || 0
+          const horasMensais = parseFloat(prof.horasMensais) || 0
+          const custoMensal = valorHora * horasMensais
+          
+          // Se contrato é mensal e indeterminado, multiplicar por 12
+          if (formValues.valorContratoMensal && formValues.contratoIndeterminado) {
+            return total + (custoMensal * 12)
+          }
+          return total + custoMensal
+        } else {
+          const valorFechado = parseFloat(prof.valorFechado) || 0
+          return total + valorFechado
+        }
+      }, 0)
+
+      // Calcular margem
+      const valorLiquido = valorContrato - valorImpostos
+      const margem = valorLiquido - custoProfissionais
+      const percentualMargem = valorLiquido > 0 ? (margem / valorLiquido) * 100 : 0
+
+      return {
+        valorContrato: valorContrato || 0,
+        valorImpostos: valorImpostos || 0,
+        valorLiquido: valorLiquido || 0,
+        custoProfissionais: custoProfissionais || 0,
+        margem: margem || 0,
+        percentualMargem: percentualMargem || 0
+      }
+    } catch (error) {
+      console.error('Erro ao calcular resumo:', error)
+      return {
+        valorContrato: 0,
+        valorImpostos: 0,
+        valorLiquido: 0,
+        custoProfissionais: 0,
+        margem: 0,
+        percentualMargem: 0
+      }
+    }
+  }
+
   // Carregar dados do contrato se estiver editando
   useEffect(() => {
     const id = searchParams.get('id')
@@ -88,6 +160,8 @@ const CadastroContrato = () => {
       }
     }
   }, [searchParams, contratos, form])
+
+
 
   const handleAddProfissional = () => {
     setProfissionaisSelecionados(prev => [...prev, {
@@ -232,6 +306,7 @@ const CadastroContrato = () => {
         tipoContrato: values.tipoContrato,
         valorContrato: valorContratoFinal,
         valorImpostos: parseFloat(values.valorImpostos),
+        percentualImpostos: parseFloat(values.percentualImpostos) || 13.0,
         status: values.status,
         observacoes: values.observacoes || null,
         profissionais: profissionaisSelecionados.map(prof => {
@@ -283,20 +358,23 @@ const CadastroContrato = () => {
           </Text>
         </div>
 
-        {/* Formulário */}
-        <Card>
-          <Form
-            form={form}
-            layout="vertical"
-            onFinish={handleSubmit}
-            initialValues={{
-              tipoContrato: 'hora',
-              status: 'ativo',
-              contratoIndeterminado: false,
-              valorContratoMensal: false,
-              quantidadeProfissionais: '1'
-            }}
-          >
+        {/* Layout de duas colunas */}
+        <Row gutter={24}>
+          {/* Coluna Esquerda - Formulário */}
+          <Col xs={24} lg={16}>
+            <Card>
+              <Form
+                form={form}
+                layout="vertical"
+                onFinish={handleSubmit}
+                initialValues={{
+                  tipoContrato: 'hora',
+                  status: 'ativo',
+                  contratoIndeterminado: false,
+                  valorContratoMensal: false,
+                  quantidadeProfissionais: '1'
+                }}
+              >
             {/* Dados do Projeto */}
             <Title level={4} style={{ marginBottom: 16, color: '#1890ff' }}>
               Dados do Projeto
@@ -449,31 +527,35 @@ const CadastroContrato = () => {
                   )
                 } else {
                   return (
-                    <Row gutter={[16, 16]}>
-                      <Col xs={24} md={12}>
-                        <Form.Item
-                          name="valorContrato"
-                          label="Valor do Contrato"
-                          rules={[{ required: true, message: 'Valor do contrato é obrigatório' }]}
-                        >
-                          <Input 
-                            type="number" 
-                            placeholder="50000,00"
-                            prefix="R$"
-                            min={0}
-                            step={0.01}
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={12}>
-                        <Form.Item
-                          name="valorContratoMensal"
-                          valuePropName="checked"
-                        >
-                          <Checkbox>Valor é mensal</Checkbox>
-                        </Form.Item>
-                      </Col>
-                    </Row>
+                    <>
+                      <Row gutter={[16, 16]}>
+                        <Col xs={24}>
+                          <Form.Item
+                            name="valorContrato"
+                            label="Valor do Contrato"
+                            rules={[{ required: true, message: 'Valor do contrato é obrigatório' }]}
+                          >
+                            <Input 
+                              type="number" 
+                              placeholder="50000,00"
+                              prefix="R$"
+                              min={0}
+                              step={0.01}
+                            />
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                      <Row gutter={[16, 16]}>
+                        <Col xs={24}>
+                          <Form.Item
+                            name="valorContratoMensal"
+                            valuePropName="checked"
+                          >
+                            <Checkbox>Valor é mensal</Checkbox>
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                    </>
                   )
                 }
               }}
@@ -519,17 +601,50 @@ const CadastroContrato = () => {
                 </Form.Item>
               </Col>
 
-              <Col xs={24} md={16}>
+              <Col xs={24} md={4}>
+                <Form.Item label=" " style={{ marginBottom: 0 }}>
+                  <Button
+                    type="primary"
+                    onClick={() => {
+                      const formValues = form.getFieldsValue()
+                      const percentualImpostos = parseFloat(formValues.percentualImpostos) || 0
+                      let valorContrato = 0
+                      
+                      if (formValues.tipoContrato === 'hora') {
+                        const quantidadeHoras = parseFloat(formValues.quantidadeHoras) || 0
+                        const valorHora = parseFloat(formValues.valorHora) || 0
+                        valorContrato = quantidadeHoras * valorHora
+                        if (formValues.valorContratoMensal && formValues.contratoIndeterminado) {
+                          valorContrato = valorContrato * 12
+                        }
+                      } else {
+                        valorContrato = parseFloat(formValues.valorContrato) || 0
+                        if (formValues.valorContratoMensal && formValues.contratoIndeterminado) {
+                          valorContrato = valorContrato * 12
+                        }
+                      }
+                      
+                      const valorImpostos = valorContrato * (percentualImpostos / 100)
+                      form.setFieldValue('valorImpostos', valorImpostos.toFixed(2))
+                    }}
+                    style={{ width: '100%', height: '32px' }}
+                  >
+                    OK
+                  </Button>
+                </Form.Item>
+              </Col>
+
+              <Col xs={24} md={12}>
                 <Form.Item
                   name="valorImpostos"
-                  label="Valor dos Impostos (Calculado)"
+                  label="Valor dos Impostos"
                   rules={[{ required: true, message: 'Valor dos impostos é obrigatório' }]}
                 >
                   <Input 
                     type="number"
                     prefix="R$"
                     disabled
-                    placeholder="Calculado automaticamente"
+                    placeholder="Clique em OK para calcular"
                   />
                 </Form.Item>
               </Col>
@@ -567,36 +682,72 @@ const CadastroContrato = () => {
 
             <List
               dataSource={profissionaisSelecionados}
-              renderItem={(prof, index) => (
-                <List.Item
-                  style={{ 
-                    border: '1px solid #d9d9d9', 
-                    borderRadius: 6, 
-                    marginBottom: 8,
-                    padding: 16
-                  }}
-                  actions={[
-                    <Button
-                      type="text"
-                      icon={<DeleteOutlined />}
-                      onClick={() => handleRemoveProfissional(index)}
-                      disabled={submitting}
-                      danger
-                    />
-                  ]}
-                >
-                  <div style={{ width: '100%' }}>
-                    <Row gutter={[16, 16]}>
-                      <Col xs={24} md={6}>
-                        <Form.Item
-                          label="Profissional"
-                          style={{ marginBottom: 8 }}
-                        >
+              renderItem={(prof, index) => {
+                const profissionalSelecionado = profissionais.find(p => p.id === prof.profissionalId)
+                const tipoContratoProfissional = profissionalSelecionado?.tipoContrato || 'hora'
+                const valorMensal = tipoContratoProfissional === 'hora' && prof.valorHora && prof.horasMensais ? 
+                  (parseFloat(prof.valorHora) * parseFloat(prof.horasMensais)) : 
+                  (prof.valorFechado ? parseFloat(prof.valorFechado) : 0)
+
+                return (
+                  <List.Item
+                    style={{ 
+                      border: '1px solid #d9d9d9', 
+                      borderRadius: 6, 
+                      marginBottom: 8,
+                      padding: 16
+                    }}
+                    actions={[
+                      <Button
+                        type="text"
+                        icon={<DeleteOutlined />}
+                        onClick={() => handleRemoveProfissional(index)}
+                        disabled={submitting}
+                        danger
+                      />
+                    ]}
+                  >
+                    <div style={{ width: '100%' }}>
+                      <Row gutter={[16, 16]} align="middle">
+                        <Col xs={24} md={8}>
+                          <div>
+                            <Text strong style={{ fontSize: 14 }}>
+                              {profissionalSelecionado?.nome || 'Selecione um profissional'}
+                            </Text>
+                            <br />
+                            <Text type="secondary" style={{ fontSize: 12 }}>
+                              {profissionalSelecionado?.especialidade || ''}
+                            </Text>
+                          </div>
+                        </Col>
+
+                        <Col xs={24} md={4}>
+                          <div>
+                            <Text type="secondary" style={{ fontSize: 12 }}>Tipo</Text>
+                            <br />
+                            <Tag color={tipoContratoProfissional === 'hora' ? 'blue' : 'green'}>
+                              {tipoContratoProfissional === 'hora' ? 'Por Hora' : 'Valor Fechado'}
+                            </Tag>
+                          </div>
+                        </Col>
+
+                        <Col xs={24} md={4}>
+                          <div>
+                            <Text type="secondary" style={{ fontSize: 12 }}>Valor Mensal</Text>
+                            <br />
+                            <Text strong style={{ fontSize: 14, color: '#1890ff' }}>
+                              R$ {valorMensal.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                            </Text>
+                          </div>
+                        </Col>
+
+                        <Col xs={24} md={8}>
                           <Select
                             placeholder="Selecione o profissional"
                             value={prof.profissionalId}
                             onChange={(value) => handleProfissionalChange(index, 'profissionalId', value)}
                             disabled={submitting}
+                            style={{ width: '100%' }}
                           >
                             {profissionais.map((p) => (
                               <Option key={p.id} value={p.id}>
@@ -604,124 +755,12 @@ const CadastroContrato = () => {
                               </Option>
                             ))}
                           </Select>
-                        </Form.Item>
-                      </Col>
-
-                      {(() => {
-                        const profissionalSelecionado = profissionais.find(p => p.id === prof.profissionalId)
-                        const tipoContratoProfissional = profissionalSelecionado?.tipoContrato || 'hora'
-                        
-                        if (tipoContratoProfissional === 'hora') {
-                          return (
-                            <>
-                              <Col xs={24} md={4}>
-                                <Form.Item
-                                  label="Valor/Hora"
-                                  style={{ marginBottom: 8 }}
-                                >
-                                  <Input
-                                    type="number"
-                                    value={prof.valorHora}
-                                    onChange={(e) => handleProfissionalChange(index, 'valorHora', e.target.value)}
-                                    placeholder="150,00"
-                                    prefix="R$"
-                                    min={0}
-                                    step={0.01}
-                                    disabled={submitting}
-                                  />
-                                </Form.Item>
-                              </Col>
-                              <Col xs={24} md={4}>
-                                <Form.Item
-                                  label="Horas/Mês"
-                                  style={{ marginBottom: 8 }}
-                                >
-                                  <Input
-                                    type="number"
-                                    value={prof.horasMensais}
-                                    onChange={(e) => handleProfissionalChange(index, 'horasMensais', e.target.value)}
-                                    placeholder="160"
-                                    min={0}
-                                    disabled={submitting}
-                                  />
-                                </Form.Item>
-                              </Col>
-                              <Col xs={24} md={4}>
-                                <Form.Item
-                                  label="Valor Mensal"
-                                  style={{ marginBottom: 8 }}
-                                >
-                                  <Input
-                                    type="number"
-                                    value={prof.valorHora && prof.horasMensais ? 
-                                      (parseFloat(prof.valorHora) * parseFloat(prof.horasMensais)).toFixed(2) : ''}
-                                    prefix="R$"
-                                    disabled
-                                    placeholder="Calculado automaticamente"
-                                  />
-                                </Form.Item>
-                              </Col>
-                            </>
-                          )
-                        } else {
-                          return (
-                            <>
-                              <Col xs={24} md={4}>
-                                <Form.Item
-                                  label="Período"
-                                  style={{ marginBottom: 8 }}
-                                >
-                                  <Select
-                                    value={prof.periodoFechado}
-                                    onChange={(value) => handleProfissionalChange(index, 'periodoFechado', value)}
-                                    disabled={submitting}
-                                  >
-                                    <Option value="mensal">Mensal</Option>
-                                    <Option value="trimestral">Trimestral</Option>
-                                    <Option value="semestral">Semestral</Option>
-                                    <Option value="anual">Anual</Option>
-                                  </Select>
-                                </Form.Item>
-                              </Col>
-                              <Col xs={24} md={4}>
-                                <Form.Item
-                                  label="Valor Fechado"
-                                  style={{ marginBottom: 8 }}
-                                >
-                                  <Input
-                                    type="number"
-                                    value={prof.valorFechado}
-                                    onChange={(e) => handleProfissionalChange(index, 'valorFechado', e.target.value)}
-                                    placeholder="5000,00"
-                                    prefix="R$"
-                                    min={0}
-                                    step={0.01}
-                                    disabled={submitting}
-                                  />
-                                </Form.Item>
-                              </Col>
-                              <Col xs={24} md={4}>
-                                <Form.Item
-                                  label="Custo Total"
-                                  style={{ marginBottom: 8 }}
-                                >
-                                  <Input
-                                    type="number"
-                                    value={prof.valorFechado || ''}
-                                    prefix="R$"
-                                    disabled
-                                    placeholder="Mesmo valor"
-                                  />
-                                </Form.Item>
-                              </Col>
-                            </>
-                          )
-                        }
-                      })()}
-                    </Row>
-                  </div>
-                </List.Item>
-              )}
+                        </Col>
+                      </Row>
+                    </div>
+                  </List.Item>
+                )
+              }}
             />
 
             <Divider />
@@ -786,6 +825,93 @@ const CadastroContrato = () => {
             />
           )}
         </Card>
+          </Col>
+
+          {/* Coluna Direita - Resumo Financeiro */}
+          <Col xs={24} lg={8}>
+            <Card 
+              title="Resumo Financeiro" 
+              style={{ position: 'sticky', top: 24 }}
+              headStyle={{ backgroundColor: '#f0f8ff', borderBottom: '2px solid #1890ff' }}
+            >
+              <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => {
+                const relevantFields = [
+                  'tipoContrato', 'quantidadeHoras', 'valorHora', 'valorContrato', 
+                  'valorContratoMensal', 'contratoIndeterminado', 'percentualImpostos', 'valorImpostos'
+                ]
+                return relevantFields.some(field => prevValues[field] !== currentValues[field])
+              }}>
+                {() => {
+                  const resumo = calcularResumo()
+                  return (
+                    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                      {/* Valor do Contrato */}
+                      <div style={{ textAlign: 'center', padding: 16, backgroundColor: '#f6ffed', borderRadius: 8 }}>
+                        <Text type="secondary" style={{ fontSize: 12 }}>Valor do Contrato</Text>
+                        <div style={{ fontSize: 20, fontWeight: 'bold', color: '#52c41a', marginTop: 4 }}>
+                          R$ {resumo.valorContrato.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        </div>
+                      </div>
+
+                      {/* Impostos */}
+                      <div style={{ textAlign: 'center', padding: 16, backgroundColor: '#fff2e8', borderRadius: 8 }}>
+                        <Text type="secondary" style={{ fontSize: 12 }}>Impostos</Text>
+                        <div style={{ fontSize: 18, fontWeight: 'bold', color: '#fa8c16', marginTop: 4 }}>
+                          R$ {resumo.valorImpostos.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        </div>
+                      </div>
+
+                      {/* Valor Líquido */}
+                      <div style={{ textAlign: 'center', padding: 16, backgroundColor: '#e6f7ff', borderRadius: 8 }}>
+                        <Text type="secondary" style={{ fontSize: 12 }}>Valor Líquido</Text>
+                        <div style={{ fontSize: 18, fontWeight: 'bold', color: '#1890ff', marginTop: 4 }}>
+                          R$ {resumo.valorLiquido.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        </div>
+                      </div>
+
+                      {/* Custo dos Profissionais */}
+                      <div style={{ textAlign: 'center', padding: 16, backgroundColor: '#f0f0f0', borderRadius: 8 }}>
+                        <Text type="secondary" style={{ fontSize: 12 }}>Custo Profissionais</Text>
+                        <div style={{ fontSize: 18, fontWeight: 'bold', color: '#666', marginTop: 4 }}>
+                          R$ {resumo.custoProfissionais.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        </div>
+                      </div>
+
+                      {/* Margem */}
+                      <div style={{ textAlign: 'center', padding: 16, backgroundColor: resumo.margem >= 0 ? '#f6ffed' : '#fff2f0', borderRadius: 8, border: resumo.margem >= 0 ? '2px solid #52c41a' : '2px solid #ff4d4f' }}>
+                        <Text type="secondary" style={{ fontSize: 12 }}>Margem Final</Text>
+                        <div style={{ 
+                          fontSize: 24, 
+                          fontWeight: 'bold', 
+                          color: resumo.margem >= 0 ? '#52c41a' : '#ff4d4f', 
+                          marginTop: 4 
+                        }}>
+                          R$ {resumo.margem.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        </div>
+                        <div style={{ 
+                          fontSize: 14, 
+                          color: resumo.margem >= 0 ? '#52c41a' : '#ff4d4f',
+                          marginTop: 4
+                        }}>
+                          ({resumo.percentualMargem.toFixed(1)}% do valor líquido)
+                        </div>
+                      </div>
+
+                      {/* Informações Adicionais */}
+                      <div style={{ padding: 12, backgroundColor: '#fafafa', borderRadius: 8 }}>
+                        <Text type="secondary" style={{ fontSize: 11 }}>
+                          • Profissionais: {profissionaisSelecionados.length}<br/>
+                          • Contrato: {form.getFieldValue('contratoIndeterminado') ? 'Indeterminado' : 'Determinado'}<br/>
+                          • Tipo: {form.getFieldValue('tipoContrato') === 'hora' ? 'Por Horas' : 'Valor Fechado'}
+                        </Text>
+                      </div>
+                    </Space>
+                  )
+                }}
+              </Form.Item>
+            </Card>
+          </Col>
+        </Row>
       </Space>
 
       {/* Modal de Sugestão de Profissionais */}
