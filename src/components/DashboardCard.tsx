@@ -25,7 +25,7 @@ import {
   Email,
   Phone,
 } from '@mui/icons-material'
-import { formatCurrency, formatPercentual } from '../utils/formatters'
+import { formatCurrency, formatPercentual, calcularValorMensal, calcularCustoMensal, calcularImpostosMensais, calcularMargemMensal, getCardStyle, getStatusBadgeColor, calcularDiasRestantes } from '../utils/formatters'
 
 interface DashboardCardProps {
   type: 'profissional' | 'cliente' | 'contrato'
@@ -345,22 +345,27 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
     </Card>
   )
 
-  const renderContratoCard = () => (
-    <Card
-      sx={{
-        cursor: onClick ? 'pointer' : 'default',
-        transition: 'all 0.3s ease',
-        '&:hover': {
-          transform: 'translateY(-4px)',
-          boxShadow: 4,
-          backgroundColor: 'action.hover'
-        },
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column'
-      }}
-      onClick={handleCardClick}
-    >
+  const renderContratoCard = () => {
+    const cardStyle = getCardStyle(data)
+    const statusColor = getStatusBadgeColor(data)
+    
+    return (
+      <Card
+        sx={{
+          cursor: onClick ? 'pointer' : 'default',
+          transition: 'all 0.3s ease',
+          '&:hover': {
+            transform: 'translateY(-4px)',
+            boxShadow: 4,
+            backgroundColor: 'action.hover'
+          },
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          ...cardStyle
+        }}
+        onClick={handleCardClick}
+      >
       <CardContent sx={{ flexGrow: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -398,27 +403,27 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
           </Typography>
         </Box>
 
-        <Typography variant="body2" color="success.main" fontWeight="bold">
-          Valor do Contrato: {formatCurrency(data.valorContrato)}
+        <Typography variant="body2" color="info.main" fontWeight="bold">
+          Valor Total: {formatCurrency(data.valorContrato)}
         </Typography>
 
-        <Typography variant="body2" color="info.main" fontWeight="bold">
-          Impostos: {formatCurrency(data.valorImpostos)}
+        <Typography variant="body2" color="success.main" fontWeight="bold">
+          Valor Mensal: {formatCurrency(calcularValorMensal(data))}
+        </Typography>
+
+        <Typography variant="body2" color="warning.main" fontWeight="bold">
+          Custo Mensal: {formatCurrency(calcularCustoMensal(data))}
+        </Typography>
+
+        <Typography variant="body2" color="error.main" fontWeight="bold">
+          Impostos Mensais: {formatCurrency(calcularImpostosMensais(data))}
         </Typography>
 
         {/* Calcular margem mensal */}
         {(() => {
-          const valorLiquido = data.valorContrato - data.valorImpostos
-          const custoProfissionais = data.profissionais?.reduce((acc: number, p: any) => {
-            if (p.valorHora && p.horasMensais) {
-              return acc + (p.valorHora * p.horasMensais)
-            } else if (p.valorFechado) {
-              return acc + p.valorFechado
-            }
-            return acc
-          }, 0) || 0
-          const margemMensal = valorLiquido - custoProfissionais
-          const percentualMargem = valorLiquido > 0 ? (margemMensal / valorLiquido) * 100 : 0
+          const margemMensal = calcularMargemMensal(data)
+          const percentualMargem = calcularValorMensal(data) > 0 ? 
+            (margemMensal / (calcularValorMensal(data) - calcularImpostosMensais(data))) * 100 : 0
           
           return (
             <Typography variant="body2" color={margemMensal >= 0 ? 'success.main' : 'error.main'} fontWeight="bold">
@@ -430,6 +435,29 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
         <Typography variant="body2" color="warning.main" fontWeight="bold">
           Profissionais: {data.profissionais?.length || 0}
         </Typography>
+
+        {/* Informações sobre dias restantes */}
+        {data.dataFim && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+            <div 
+              style={{ 
+                width: 8, 
+                height: 8, 
+                borderRadius: '50%', 
+                backgroundColor: statusColor,
+                boxShadow: `0 0 4px ${statusColor}40`
+              }} 
+            />
+            <Typography variant="body2" color="text.secondary">
+              {(() => {
+                const diasRestantes = calcularDiasRestantes(data)
+                if (diasRestantes === null) return ''
+                if (diasRestantes > 0) return `${diasRestantes} dias restantes`
+                return 'Vencido'
+              })()}
+            </Typography>
+          </Box>
+        )}
 
         <Collapse in={expanded} timeout="auto" unmountOnExit>
           <Divider sx={{ my: 2 }} />

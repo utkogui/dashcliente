@@ -1,17 +1,33 @@
-import {
-  Box,
-  Typography,
-  Card,
-  CardContent,
-  Alert,
-  AlertTitle,
-  CircularProgress,
-} from '@mui/material'
-import { TrendingUp, TrendingDown, People, Business, Assignment, Warning } from '@mui/icons-material'
+import React, { useState } from 'react'
+import { 
+  Row, 
+  Col, 
+  Card, 
+  Statistic, 
+  Typography, 
+  Space, 
+  Button, 
+  Alert, 
+  Spin,
+  Tag
+} from 'antd'
+import { 
+  UserOutlined, 
+  TeamOutlined, 
+  FileTextOutlined, 
+  DollarOutlined,
+  RiseOutlined,
+  FallOutlined,
+  WarningOutlined,
+  EyeOutlined,
+  PlusOutlined,
+  DownloadOutlined
+} from '@ant-design/icons'
+import * as XLSX from 'xlsx'
 import { useData } from '../contexts/DataContext'
-import { useState } from 'react'
-import DashboardCard from '../components/DashboardCard'
+import { useNavigate } from 'react-router-dom'
 import DetalhesModal from '../components/DetalhesModal'
+import { calcularValoresAgregados, getCardStyle, getStatusBadgeColor, calcularDiasRestantes } from '../utils/formatters'
 import {
   LineChart,
   Line,
@@ -25,11 +41,74 @@ import {
   Cell,
 } from 'recharts'
 
+const { Title, Text } = Typography
+
 const Dashboard = () => {
   const { profissionais, clientes, contratos, loading, error } = useData()
+  const navigate = useNavigate()
   const [modalOpen, setModalOpen] = useState(false)
   const [modalType, setModalType] = useState<'profissional' | 'cliente' | 'contrato'>('profissional')
   const [modalData, setModalData] = useState<any>(null)
+  const [showAllContratos, setShowAllContratos] = useState(false)
+  const [showAllProfissionais, setShowAllProfissionais] = useState(false)
+  const [showAllClientes, setShowAllClientes] = useState(false)
+
+  // Função para exportar dados para Excel
+  const exportToExcel = () => {
+    // Preparar dados dos profissionais
+    const profissionaisData = profissionais.map(p => ({
+      'Nome': p.nome,
+      'Email': p.email,
+      'Especialidade': p.especialidade,
+      'Tipo de Contrato': p.tipoContrato === 'hora' ? 'Por Hora' : 'Valor Fechado',
+      'Valor/Hora': p.tipoContrato === 'hora' ? p.valorHora : '-',
+      'Valor Fechado': p.tipoContrato === 'fechado' ? p.valorFechado : '-',
+      'Data de Início': p.dataInicio ? new Date(p.dataInicio).toLocaleDateString('pt-BR') : '-',
+      'Status': p.status
+    }))
+
+    // Preparar dados dos clientes
+    const clientesData = clientes.map(c => ({
+      'Empresa': c.empresa,
+      'Email': c.email,
+      'Telefone': c.telefone || '-',
+      'Endereço': c.endereco || '-',
+      'Contratos Ativos': contratos.filter(contrato => contrato.clienteId === c.id && contrato.status === 'ativo').length
+    }))
+
+    // Preparar dados dos contratos
+    const contratosData = contratos.map(c => {
+      const valorMensal = !c.dataFim ? (c.valorContrato / 12) : c.valorContrato
+      const impostosMensais = !c.dataFim ? (c.valorImpostos / 12) : c.valorImpostos
+      
+      return {
+        'Projeto': c.nomeProjeto,
+        'Cliente': clientes.find(cli => cli.id === c.clienteId)?.empresa || '-',
+        'Status': c.status,
+        'Data Início': c.dataInicio ? new Date(c.dataInicio).toLocaleDateString('pt-BR') : '-',
+        'Data Fim': c.dataFim ? new Date(c.dataFim).toLocaleDateString('pt-BR') : 'Indeterminado',
+        'Valor Contrato': c.valorContrato,
+        'Valor Mensal': valorMensal,
+        'Impostos': c.valorImpostos,
+        'Impostos Mensais': impostosMensais,
+        'Valor Líquido': c.valorContrato - c.valorImpostos,
+        'Profissionais': c.profissionais?.length || 0,
+        'Tipo': !c.dataFim ? 'Indeterminado' : 'Determinado'
+      }
+    })
+
+    // Criar workbook com múltiplas abas
+    const workbook = XLSX.utils.book_new()
+    
+    // Adicionar abas
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(profissionaisData), 'Profissionais')
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(clientesData), 'Clientes')
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(contratosData), 'Contratos')
+
+    // Gerar e baixar arquivo
+    const fileName = `dashboard_export_${new Date().toISOString().split('T')[0]}.xlsx`
+    XLSX.writeFile(workbook, fileName)
+  }
 
   const handleCardClick = (type: 'profissional' | 'cliente' | 'contrato', data: any) => {
     setModalType(type)
@@ -44,48 +123,49 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
-        <CircularProgress />
-      </Box>
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '50vh' 
+      }}>
+        <Spin size="large" />
+      </div>
     )
   }
 
   if (error) {
     return (
-      <Box sx={{ p: 3 }}>
-        <Alert severity="error">{error}</Alert>
-      </Box>
+      <div style={{ padding: 24 }}>
+        <Alert 
+          message="Erro" 
+          description={error} 
+          type="error" 
+          showIcon 
+        />
+      </div>
     )
   }
 
   // Cálculos das estatísticas
   const contratosAtivos = contratos.filter(c => c.status === 'ativo')
   const contratosPendentes = contratos.filter(c => c.status === 'pendente')
+  const contratosEncerrados = contratos.filter(c => c.status === 'encerrado')
   
-  const receitaTotal = contratos.reduce((acc, c) => acc + (c.valorContrato || 0), 0)
-  const impostosTotal = contratos.reduce((acc, c) => acc + (c.valorImpostos || 0), 0)
-  const receitaLiquida = receitaTotal - impostosTotal
+  // Filtrar contratos ativos que não estão encerrados para cálculos
+  const contratosParaCalculo = contratos.filter(c => c.status === 'ativo')
   
-  // Calcular custo total baseado nos profissionais dos contratos
-  const custoTotal = contratos.reduce((acc, c) => {
-    const custoContrato = c.profissionais?.reduce((profAcc, p) => {
-      if (p.valorHora && p.horasMensais) {
-        return profAcc + (p.valorHora * p.horasMensais)
-      } else if (p.valorFechado) {
-        return profAcc + p.valorFechado
-      }
-      return profAcc
-    }, 0) || 0
-    return acc + custoContrato
-  }, 0)
+  // Calcular valores usando as funções utilitárias
+  const { valoresMensais, valoresTotais, custosTotais, impostosTotais } = calcularValoresAgregados(contratosParaCalculo)
   
-  const lucroTotal = receitaLiquida - custoTotal
+  const receitaLiquida = valoresMensais - impostosTotais
+  const lucroTotal = receitaLiquida - custosTotais
   const margemLucro = receitaLiquida > 0 ? (lucroTotal / receitaLiquida) * 100 : 0
 
   // Contratos próximos do vencimento (30 dias)
   const hoje = new Date()
   const contratosVencendo = contratosAtivos.filter(c => {
-    if (!c.dataFim) return false // Contratos indeterminados não vencem
+    if (!c.dataFim) return false
     const dataFim = new Date(c.dataFim)
     const diasRestantes = Math.ceil((dataFim.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
     return diasRestantes <= 30 && diasRestantes > 0
@@ -112,234 +192,490 @@ const Dashboard = () => {
     value
   }))
 
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8']
+  const COLORS = ['#1890ff', '#52c41a', '#faad14', '#f5222d', '#722ed1']
+
+  const renderCard = (type: 'profissional' | 'cliente' | 'contrato', data: any) => {
+    const isContrato = type === 'contrato'
+    const isProfissional = type === 'profissional'
+    const isCliente = type === 'cliente'
+
+    // Aplicar estilos especiais para contratos
+    const cardStyle = isContrato ? getCardStyle(data) : {}
+    const statusColor = isContrato ? getStatusBadgeColor(data) : undefined
+
+    return (
+      <Card
+        key={data.id}
+        hoverable
+        style={{ cursor: 'pointer', ...cardStyle }}
+        onClick={() => handleCardClick(type, data)}
+        bodyStyle={{ padding: 16 }}
+      >
+        <Space direction="vertical" size="small" style={{ width: '100%' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 2, marginBottom: 4 }}>
+                <Text strong style={{ fontSize: 16 }}>
+                  {isContrato ? data.nomeProjeto : isProfissional ? data.nome : data.empresa}
+                </Text>
+                {isContrato && statusColor && (
+                  <div 
+                    style={{ 
+                      width: 8, 
+                      height: 8, 
+                      borderRadius: '50%', 
+                      backgroundColor: statusColor,
+                      boxShadow: `0 0 4px ${statusColor}40`,
+                      marginLeft: '10px'
+                    }} 
+                  />
+                )}
+              </div>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {isContrato ? data.cliente?.empresa : isProfissional ? data.especialidade : data.contato}
+              </Text>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+              <Tag color={isContrato ? 'blue' : isProfissional ? 'green' : 'orange'}>
+                {isContrato ? data.status : isProfissional ? data.tipoContrato : 'Cliente'}
+              </Tag>
+            </div>
+          </div>
+          
+          {isContrato && (
+            <div>
+              <Text type="secondary" style={{ fontSize: 12 }}>Valor Mensal</Text>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Text strong style={{ fontSize: 14 }}>
+                    R$ {(() => {
+                      const valorMensal = !data.dataFim ? (data.valorContrato / 12) : 
+                        (data.valorContrato / Math.max(1, 
+                          (new Date(data.dataFim).getFullYear() - new Date(data.dataInicio).getFullYear()) * 12 + 
+                          (new Date(data.dataFim).getMonth() - new Date(data.dataInicio).getMonth())
+                        ))
+                      return valorMensal?.toLocaleString('pt-BR', { 
+                        minimumFractionDigits: 0, 
+                        maximumFractionDigits: 0 
+                      }) || '0'
+                    })()}
+                  </Text>
+                  {!data.dataFim && (
+                    <Text type="secondary" style={{ fontSize: 12 }}>∞</Text>
+                  )}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {data.profissionais?.length || 0} prof.
+                  </Text>
+                  {data.dataFim && (
+                    <Text type="secondary" style={{ fontSize: 10 }}>
+                      {(() => {
+                        const diasRestantes = calcularDiasRestantes(data)
+                        if (diasRestantes === null) return ''
+                        if (diasRestantes > 0) return `${diasRestantes} dias`
+                        return 'Vencido'
+                      })()}
+                    </Text>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isProfissional && (
+            <div>
+              <Text type="secondary" style={{ fontSize: 12 }}>Valor/Hora</Text>
+              <Text strong style={{ fontSize: 14 }}>
+                R$ {data.valorHora?.toLocaleString('pt-BR') || data.valorFechado?.toLocaleString('pt-BR') || '0'}
+              </Text>
+            </div>
+          )}
+
+          {isCliente && (
+            <div>
+              <Text type="secondary" style={{ fontSize: 12 }}>Contratos Ativos</Text>
+              <Text strong style={{ fontSize: 14 }}>
+                {contratos.filter(c => c.clienteId === data.id && c.status === 'ativo').length}
+              </Text>
+            </div>
+          )}
+        </Space>
+      </Card>
+    )
+  }
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" component="h1" color="text.primary" sx={{ mb: 3 }}>
-        Dashboard
-      </Typography>
+    <div style={{ padding: 24, background: '#f5f5f5', minHeight: '100vh' }}>
+      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <Title level={2} style={{ margin: 0, marginBottom: 8 }}>
+              Dashboard
+            </Title>
+            <Text type="secondary">
+              Visão geral dos seus profissionais, clientes e contratos
+            </Text>
+          </div>
+          <Button
+            type="primary"
+            icon={<DownloadOutlined />}
+            onClick={exportToExcel}
+            size="large"
+          >
+            Exportar Excel
+          </Button>
+        </div>
 
-      {/* Cards de Estatísticas */}
-      <Box sx={{ 
-        display: 'grid', 
-        gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' },
-        gap: 3,
-        mb: 4
-      }}>
-        <Card>
-          <CardContent>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Box>
-                <Typography color="text.secondary" gutterBottom>
-                  Profissionais
-                </Typography>
-                <Typography variant="h4" component="div">
-                  {profissionais.length}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {profissionais.filter(p => p.status === 'ativo').length} ativos
-                </Typography>
-              </Box>
-              <People color="primary" sx={{ fontSize: 40 }} />
-            </Box>
-          </CardContent>
-        </Card>
+        {/* Cards de Estatísticas */}
+        <Row gutter={[16, 16]}>
+          <Col xs={24} sm={12} lg={6}>
+            <Card>
+              <Statistic
+                title="Profissionais"
+                value={profissionais.length}
+                prefix={<UserOutlined />}
+                suffix={
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {profissionais.filter(p => p.status === 'ativo').length} ativos
+                  </Text>
+                }
+              />
+            </Card>
+          </Col>
+          
+          <Col xs={24} sm={12} lg={6}>
+            <Card>
+              <Statistic
+                title="Clientes"
+                value={clientes.length}
+                prefix={<TeamOutlined />}
+                suffix={
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {contratosAtivos.length} contratos ativos
+                  </Text>
+                }
+              />
+            </Card>
+          </Col>
+          
+          <Col xs={24} sm={12} lg={6}>
+            <Card>
+              <Statistic
+                title="Contratos Ativos"
+                value={contratosAtivos.length}
+                prefix={<FileTextOutlined />}
+                suffix={
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {contratosPendentes.length} pendentes
+                  </Text>
+                }
+              />
+            </Card>
+          </Col>
+          
+          <Col xs={24} sm={12} lg={6}>
+            <Card>
+              <Statistic
+                title="Contratos Encerrados"
+                value={contratosEncerrados.length}
+                prefix={<FileTextOutlined />}
+                valueStyle={{ color: '#9ca3af' }}
+              />
+            </Card>
+          </Col>
+          
+          <Col xs={24} sm={12} lg={6}>
+            <Card>
+              <Statistic
+                title="Valor Total"
+                value={valoresTotais}
+                precision={0}
+                valueStyle={{ color: '#1890ff' }}
+                prefix={<DollarOutlined />}
+              />
+            </Card>
+          </Col>
+        </Row>
 
-        <Card>
-          <CardContent>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Box>
-                <Typography color="text.secondary" gutterBottom>
-                  Clientes
-                </Typography>
-                <Typography variant="h4" component="div">
-                  {clientes.length}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {contratosAtivos.length} contratos ativos
-                </Typography>
-              </Box>
-              <Business color="secondary" sx={{ fontSize: 40 }} />
-            </Box>
-          </CardContent>
-        </Card>
+        {/* Novas estatísticas detalhadas */}
+        <Row gutter={[16, 16]}>
+          <Col xs={24} sm={12} lg={6}>
+            <Card>
+              <Statistic
+                title="Valor Mensal"
+                value={valoresMensais}
+                precision={0}
+                valueStyle={{ color: '#3f8600' }}
+                prefix={<DollarOutlined />}
+                suffix={
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    {margemLucro >= 0 ? (
+                      <RiseOutlined style={{ color: '#3f8600' }} />
+                    ) : (
+                      <FallOutlined style={{ color: '#cf1322' }} />
+                    )}
+                    <Text 
+                      type={margemLucro >= 0 ? 'success' : 'danger'} 
+                      style={{ fontSize: 12 }}
+                    >
+                      {margemLucro.toFixed(1)}% margem
+                    </Text>
+                  </div>
+                }
+              />
+            </Card>
+          </Col>
+          
+          <Col xs={24} sm={12} lg={6}>
+            <Card>
+              <Statistic
+                title="Custo Total"
+                value={custosTotais}
+                precision={0}
+                valueStyle={{ color: '#faad14' }}
+                prefix={<DollarOutlined />}
+              />
+            </Card>
+          </Col>
+          
+          <Col xs={24} sm={12} lg={6}>
+            <Card>
+              <Statistic
+                title="Impostos Totais"
+                value={impostosTotais}
+                precision={0}
+                valueStyle={{ color: '#f5222d' }}
+                prefix={<DollarOutlined />}
+              />
+            </Card>
+          </Col>
+          
+          <Col xs={24} sm={12} lg={6}>
+            <Card>
+              <Statistic
+                title="Lucro Total"
+                value={lucroTotal}
+                precision={0}
+                valueStyle={{ color: lucroTotal >= 0 ? '#52c41a' : '#cf1322' }}
+                prefix={<DollarOutlined />}
+              />
+            </Card>
+          </Col>
+        </Row>
 
-        <Card>
-          <CardContent>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Box>
-                <Typography color="text.secondary" gutterBottom>
-                  Contratos Ativos
-                </Typography>
-                <Typography variant="h4" component="div">
-                  {contratosAtivos.length}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {contratosPendentes.length} pendentes
-                </Typography>
-              </Box>
-              <Assignment color="success" sx={{ fontSize: 40 }} />
-            </Box>
-          </CardContent>
-        </Card>
+        {/* Cards Clicáveis */}
+        <div>
+          <Title level={3} style={{ marginBottom: 16 }}>
+            Cards Clicáveis
+          </Title>
 
-        <Card>
-          <CardContent>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Box>
-                <Typography color="text.secondary" gutterBottom>
-                  Receita Total
-                </Typography>
-                <Typography variant="h4" component="div">
-                  R$ {receitaTotal.toLocaleString('pt-BR')}
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  {margemLucro >= 0 ? (
-                    <TrendingUp color="success" sx={{ fontSize: 16 }} />
-                  ) : (
-                    <TrendingDown color="error" sx={{ fontSize: 16 }} />
-                  )}
-                  <Typography variant="body2" color={margemLucro >= 0 ? 'success.main' : 'error.main'}>
-                    {margemLucro.toFixed(1)}% margem
-                  </Typography>
-                </Box>
-              </Box>
-              <TrendingUp color="primary" sx={{ fontSize: 40 }} />
-            </Box>
-          </CardContent>
-        </Card>
-      </Box>
-
-      {/* Cards Clicáveis */}
-      <Typography variant="h5" component="h2" color="text.primary" sx={{ mb: 3 }}>
-        Cards Clicáveis
-      </Typography>
-
-      {/* Contratos */}
-      <Typography variant="h6" component="h3" color="text.primary" sx={{ mb: 2 }}>
-        Contratos Ativos ({contratosAtivos.length})
-      </Typography>
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2, mb: 4 }}>
-        {contratosAtivos.slice(0, 4).map((contrato) => (
-          <DashboardCard
-            key={contrato.id}
-            type="contrato"
-            data={contrato}
-            onClick={() => handleCardClick('contrato', contrato)}
-          />
-        ))}
-      </Box>
-
-      {/* Profissionais */}
-      <Typography variant="h6" component="h3" color="text.primary" sx={{ mb: 2 }}>
-        Profissionais ({profissionais.length})
-      </Typography>
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2, mb: 4 }}>
-        {profissionais.slice(0, 4).map((profissional) => (
-          <DashboardCard
-            key={profissional.id}
-            type="profissional"
-            data={profissional}
-            onClick={() => handleCardClick('profissional', profissional)}
-          />
-        ))}
-      </Box>
-
-      {/* Clientes */}
-      <Typography variant="h6" component="h3" color="text.primary" sx={{ mb: 2 }}>
-        Clientes ({clientes.length})
-      </Typography>
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 2, mb: 4 }}>
-        {clientes.slice(0, 4).map((cliente) => (
-          <DashboardCard
-            key={cliente.id}
-            type="cliente"
-            data={cliente}
-            onClick={() => handleCardClick('cliente', cliente)}
-          />
-        ))}
-      </Box>
-
-      {/* Alertas */}
-      {contratosVencendo.length > 0 && (
-        <Alert severity="warning" sx={{ mb: 4 }}>
-          <AlertTitle>Contratos Vencendo</AlertTitle>
-          {contratosVencendo.length} contrato(s) vence(m) nos próximos 30 dias:
-          <Box sx={{ mt: 1 }}>
-            {contratosVencendo.slice(0, 3).map((contrato) => {
-              const profissional = contrato.profissionais?.[0]?.profissional
-              const cliente = clientes.find(c => c.id === contrato.clienteId)
-              const dataFim = contrato.dataFim ? new Date(contrato.dataFim) : null
-              const diasRestantes = dataFim ? Math.ceil((dataFim.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)) : 0
-              
-              return (
-                <Box key={contrato.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
-                  <Warning fontSize="small" />
-                  <Typography variant="body2">
-                    {profissional?.nome} - {cliente?.empresa} (vence em {diasRestantes} dias)
-                  </Typography>
-                </Box>
-              )
-            })}
-            {contratosVencendo.length > 3 && (
-              <Typography variant="body2" color="text.secondary">
-                ... e mais {contratosVencendo.length - 3} contrato(s)
-              </Typography>
-            )}
-          </Box>
-        </Alert>
-      )}
-
-      {/* Gráficos */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
-        {/* Evolução Mensal */}
-        <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Evolução Mensal
-            </Typography>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={dadosEvolucao}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="mes" />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="receita" stroke="#8884d8" name="Receita" />
-                <Line type="monotone" dataKey="custo" stroke="#82ca9d" name="Custo" />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Distribuição por Especialidade */}
-        <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Distribuição por Especialidade
-            </Typography>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={dadosPie}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {dadosPie.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+          {/* Contratos */}
+          <Card style={{ marginBottom: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <Title level={4} style={{ margin: 0 }}>
+                Contratos Ativos ({contratosAtivos.length})
+              </Title>
+              <Button 
+                type="primary" 
+                icon={<PlusOutlined />}
+                onClick={() => navigate('/cadastro-contrato')}
+              >
+                Novo Contrato
+              </Button>
+            </div>
+            
+            <Row gutter={[16, 16]}>
+              {(showAllContratos ? contratosAtivos : contratosAtivos.slice(0, 4)).map((contrato) => (
+                <Col xs={24} sm={12} md={8} lg={6} key={contrato.id}>
+                  {renderCard('contrato', contrato)}
+                </Col>
+              ))}
+            </Row>
+            
+            {/* Contratos Encerrados */}
+            {contratosEncerrados.length > 0 && (
+              <>
+                <Title level={4} style={{ margin: '24px 0 16px 0', color: '#9ca3af' }}>
+                  Contratos Encerrados ({contratosEncerrados.length})
+                </Title>
+                <Row gutter={[16, 16]}>
+                  {(showAllContratos ? contratosEncerrados : contratosEncerrados.slice(0, 2)).map((contrato) => (
+                    <Col xs={24} sm={12} md={8} lg={6} key={contrato.id}>
+                      {renderCard('contrato', contrato)}
+                    </Col>
                   ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </Box>
+                </Row>
+              </>
+            )}
+            
+            {contratosAtivos.length > 4 && (
+              <div style={{ textAlign: 'center', marginTop: 16 }}>
+                <Button 
+                  type="link" 
+                  icon={<EyeOutlined />}
+                  onClick={() => setShowAllContratos(!showAllContratos)}
+                >
+                  {showAllContratos ? 'Ver Menos' : `Ver Mais (${contratosAtivos.length - 4})`}
+                </Button>
+              </div>
+            )}
+          </Card>
+
+          {/* Profissionais */}
+          <Card style={{ marginBottom: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <Title level={4} style={{ margin: 0 }}>
+                Profissionais ({profissionais.length})
+              </Title>
+              <Button 
+                type="primary" 
+                icon={<PlusOutlined />}
+                onClick={() => navigate('/cadastro-profissional')}
+              >
+                Novo Profissional
+              </Button>
+            </div>
+            
+            <Row gutter={[16, 16]}>
+              {(showAllProfissionais ? profissionais : profissionais.slice(0, 4)).map((profissional) => (
+                <Col xs={24} sm={12} md={8} lg={6} key={profissional.id}>
+                  {renderCard('profissional', profissional)}
+                </Col>
+              ))}
+            </Row>
+            
+            {profissionais.length > 4 && (
+              <div style={{ textAlign: 'center', marginTop: 16 }}>
+                <Button 
+                  type="link" 
+                  icon={<EyeOutlined />}
+                  onClick={() => setShowAllProfissionais(!showAllProfissionais)}
+                >
+                  {showAllProfissionais ? 'Ver Menos' : `Ver Mais (${profissionais.length - 4})`}
+                </Button>
+              </div>
+            )}
+          </Card>
+
+          {/* Clientes */}
+          <Card style={{ marginBottom: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <Title level={4} style={{ margin: 0 }}>
+                Clientes ({clientes.length})
+              </Title>
+              <Button 
+                type="primary" 
+                icon={<PlusOutlined />}
+                onClick={() => navigate('/clientes')}
+              >
+                Novo Cliente
+              </Button>
+            </div>
+            
+            <Row gutter={[16, 16]}>
+              {(showAllClientes ? clientes : clientes.slice(0, 4)).map((cliente) => (
+                <Col xs={24} sm={12} md={8} lg={6} key={cliente.id}>
+                  {renderCard('cliente', cliente)}
+                </Col>
+              ))}
+            </Row>
+            
+            {clientes.length > 4 && (
+              <div style={{ textAlign: 'center', marginTop: 16 }}>
+                <Button 
+                  type="link" 
+                  icon={<EyeOutlined />}
+                  onClick={() => setShowAllClientes(!showAllClientes)}
+                >
+                  {showAllClientes ? 'Ver Menos' : `Ver Mais (${clientes.length - 4})`}
+                </Button>
+              </div>
+            )}
+          </Card>
+        </div>
+
+        {/* Alertas */}
+        {contratosVencendo.length > 0 && (
+          <Alert
+            message="Contratos Vencendo"
+            description={
+              <div>
+                <Text>{contratosVencendo.length} contrato(s) vence(m) nos próximos 30 dias:</Text>
+                <div style={{ marginTop: 8 }}>
+                  {contratosVencendo.slice(0, 3).map((contrato) => {
+                    const profissional = contrato.profissionais?.[0]?.profissional
+                    const cliente = clientes.find(c => c.id === contrato.clienteId)
+                    const dataFim = contrato.dataFim ? new Date(contrato.dataFim) : null
+                    const diasRestantes = dataFim ? Math.ceil((dataFim.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)) : 0
+                    
+                    return (
+                      <div key={contrato.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                        <WarningOutlined style={{ color: '#faad14' }} />
+                        <Text>
+                          {profissional?.nome} - {cliente?.empresa} (vence em {diasRestantes} dias)
+                        </Text>
+                      </div>
+                    )
+                  })}
+                  {contratosVencendo.length > 3 && (
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      ... e mais {contratosVencendo.length - 3} contrato(s)
+                    </Text>
+                  )}
+                </div>
+              </div>
+            }
+            type="warning"
+            showIcon
+            style={{ marginBottom: 24 }}
+          />
+        )}
+
+        {/* Gráficos */}
+        <Row gutter={[16, 16]}>
+          <Col xs={24} lg={12}>
+            <Card title="Evolução Mensal">
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={dadosEvolucao}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="mes" />
+                  <YAxis />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="receita" stroke="#1890ff" name="Receita" />
+                  <Line type="monotone" dataKey="custo" stroke="#52c41a" name="Custo" />
+                </LineChart>
+              </ResponsiveContainer>
+            </Card>
+          </Col>
+          
+          <Col xs={24} lg={12}>
+            <Card title="Distribuição por Especialidade">
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={dadosPie}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {dadosPie.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </Card>
+          </Col>
+        </Row>
+      </Space>
 
       {/* Modal de Detalhes */}
       <DetalhesModal
@@ -348,7 +684,7 @@ const Dashboard = () => {
         type={modalType}
         data={modalData}
       />
-    </Box>
+    </div>
   )
 }
 

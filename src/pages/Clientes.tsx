@@ -1,54 +1,49 @@
+import React, { useState, useEffect } from 'react'
 import {
-  Box,
   Typography,
   Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
   Button,
-  TextField,
-  InputAdornment,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Chip,
-  IconButton,
+  Input,
+  Tag,
+  Space,
+  Card,
   Alert,
-  CircularProgress,
-  FormControl,
-  InputLabel,
+  Spin,
+  Popconfirm,
+  Row,
+  Col,
+  Statistic,
+  Modal,
+  Form,
   Select,
-  MenuItem,
-} from '@mui/material'
-import { useState, useEffect } from 'react'
-import { Search, Add, Edit, Delete, Business } from '@mui/icons-material'
-import InputMask from 'react-input-mask'
+  DatePicker
+} from 'antd'
+import { 
+  SearchOutlined, 
+  PlusOutlined, 
+  DeleteOutlined, 
+  TeamOutlined, 
+  EditOutlined,
+  DollarOutlined,
+  BankOutlined,
+  MailOutlined,
+  PhoneOutlined,
+  EnvironmentOutlined
+} from '@ant-design/icons'
 import { useData } from '../contexts/DataContext'
-import { validateEmail, validateTelefone, validateRequired, validateAnoInicio, formatTelefone } from '../utils/validations'
-import { formatEndereco } from '../utils/formatters'
-import { masks, validateMask } from '../utils/masks'
+import { formatCurrency, calcularValoresAgregados } from '../utils/formatters'
+import dayjs from 'dayjs'
+
+const { Title, Text } = Typography
+const { Search } = Input
+const { Option } = Select
 
 const Clientes = () => {
   const { clientes, contratos, addCliente, updateCliente, deleteCliente, loading, error } = useData()
-  const [searchTerm, setSearchTerm] = useState('')
   const [filteredClientes, setFilteredClientes] = useState(clientes)
-  const [open, setOpen] = useState(false)
+  const [modalVisible, setModalVisible] = useState(false)
   const [editingCliente, setEditingCliente] = useState<any>(null)
-  const [formData, setFormData] = useState({
-    nome: '',
-    empresa: '',
-    email: '',
-    telefone: '',
-    endereco: '',
-    anoInicio: new Date().getFullYear(),
-    segmento: '',
-    tamanho: 'Média'
-  })
-  const [formError, setFormError] = useState('')
+  const [form] = Form.useForm()
   const [submitting, setSubmitting] = useState(false)
 
   // Opções para os dropdowns
@@ -71,7 +66,6 @@ const Clientes = () => {
   }, [clientes])
 
   const handleSearch = (value: string) => {
-    setSearchTerm(value)
     const filtered = clientes.filter(
       c => c.nome.toLowerCase().includes(value.toLowerCase()) ||
            c.empresa.toLowerCase().includes(value.toLowerCase()) ||
@@ -88,96 +82,63 @@ const Clientes = () => {
   const getValorTotalContratos = (clienteId: string) => {
     return contratos
       .filter(c => c.clienteId === clienteId)
-      .reduce((acc, c) => acc + c.valorRecebido, 0)
+      .reduce((acc, c) => acc + (c.valorContrato || 0), 0)
+  }
+
+  const getValoresCliente = (clienteId: string) => {
+    const contratosCliente = contratos.filter(c => c.clienteId === clienteId && c.status === 'ativo')
+    return calcularValoresAgregados(contratosCliente)
   }
 
   const handleOpen = (cliente?: any) => {
     if (cliente) {
       setEditingCliente(cliente)
-      setFormData({
+      form.setFieldsValue({
         nome: cliente.nome,
         empresa: cliente.empresa,
         email: cliente.email,
         telefone: cliente.telefone || '',
         endereco: cliente.endereco || '',
-        anoInicio: cliente.anoInicio || new Date().getFullYear(),
+        anoInicio: cliente.anoInicio ? dayjs().year(cliente.anoInicio) : dayjs(),
         segmento: cliente.segmento || '',
         tamanho: cliente.tamanho || 'Média'
       })
     } else {
       setEditingCliente(null)
-      setFormData({
+      form.setFieldsValue({
         nome: '',
         empresa: '',
         email: '',
         telefone: '',
         endereco: '',
-        anoInicio: new Date().getFullYear(),
+        anoInicio: dayjs(),
         segmento: '',
         tamanho: 'Média'
       })
     }
-    setOpen(true)
-    setFormError('')
+    setModalVisible(true)
   }
 
   const handleClose = () => {
-    setOpen(false)
+    setModalVisible(false)
     setEditingCliente(null)
-    setFormError('')
+    form.resetFields()
     setSubmitting(false)
   }
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (values: any) => {
     try {
       setSubmitting(true)
-      setFormError('')
-
-      // Validação básica
-      if (!validateRequired(formData.nome)) {
-        setFormError('Nome do contato é obrigatório')
-        return
-      }
-
-      if (!validateRequired(formData.empresa)) {
-        setFormError('Nome da empresa é obrigatório')
-        return
-      }
-
-      if (!validateRequired(formData.email)) {
-        setFormError('Email é obrigatório')
-        return
-      }
-
-      if (!validateEmail(formData.email)) {
-        setFormError('Email inválido')
-        return
-      }
-
-      if (!validateRequired(formData.segmento)) {
-        setFormError('Segmento de atuação é obrigatório')
-        return
-      }
-
-          if (formData.telefone && !validateMask.telefone(formData.telefone)) {
-      setFormError('Telefone inválido (mínimo 10 dígitos)')
-      return
-    }
-
-      if (!validateAnoInicio(formData.anoInicio)) {
-        setFormError('Ano de início deve estar entre 2000 e ' + (new Date().getFullYear() + 1))
-        return
-      }
 
       const clienteData = {
-        nome: formData.nome,
-        empresa: formData.empresa,
-        email: formData.email,
-        telefone: formData.telefone,
-        endereco: formData.endereco,
-        anoInicio: formData.anoInicio,
-        segmento: formData.segmento,
-        tamanho: formData.tamanho
+        nome: values.nome,
+        empresa: values.empresa,
+        email: values.email,
+        telefone: values.telefone,
+        endereco: values.endereco,
+        anoInicio: values.anoInicio.year(),
+        segmento: values.segmento,
+        tamanho: values.tamanho
       }
 
       if (editingCliente) {
@@ -188,7 +149,7 @@ const Clientes = () => {
 
       handleClose()
     } catch (err: any) {
-      setFormError(err.message || 'Erro ao salvar cliente')
+      console.error('Erro ao salvar cliente:', err)
     } finally {
       setSubmitting(false)
     }
@@ -201,307 +162,396 @@ const Clientes = () => {
       return
     }
     
-    if (window.confirm('Tem certeza que deseja excluir este cliente? Esta ação não pode ser desfeita.')) {
-      try {
-        await deleteCliente(id)
-      } catch (err: any) {
-        alert(err.message || 'Erro ao deletar cliente')
-      }
+    try {
+      await deleteCliente(id)
+    } catch (err: any) {
+      alert(err.message || 'Erro ao deletar cliente')
     }
   }
 
-  const handleInputChange = (field: string, value: string | number) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
-    setFormError('')
-  }
+  const columns = [
+    {
+      title: 'Empresa',
+      key: 'empresa',
+      render: (record: any) => (
+        <Text strong style={{ fontSize: 14 }}>{record.empresa}</Text>
+      ),
+      sorter: (a: any, b: any) => a.empresa.localeCompare(b.empresa),
+      width: 200,
+    },
+    {
+      title: 'Contato',
+      dataIndex: 'nome',
+      key: 'nome',
+      render: (text: string) => <Text style={{ fontSize: 13 }}>{text}</Text>,
+      width: 150,
+    },
+    {
+      title: 'Email',
+      dataIndex: 'email',
+      key: 'email',
+      render: (text: string) => <Text style={{ fontSize: 13 }}>{text}</Text>,
+      width: 180,
+    },
+    {
+      title: 'Segmento',
+      dataIndex: 'segmento',
+      key: 'segmento',
+      render: (text: string) => <Tag color="blue">{text}</Tag>,
+      width: 120,
+    },
+    {
+      title: 'Contratos',
+      key: 'contratos',
+      render: (record: any) => {
+        const contratosAtivos = getContratosAtivos(record.id)
+        return (
+          <Text style={{ fontSize: 13 }}>
+            {contratosAtivos} ativo(s)
+          </Text>
+        )
+      },
+      sorter: (a: any, b: any) => getContratosAtivos(a.id) - getContratosAtivos(b.id),
+      width: 100,
+    },
+    {
+      title: 'Valor Total',
+      key: 'valorTotal',
+      render: (record: any) => {
+        const { valoresTotais } = getValoresCliente(record.id)
+        return (
+          <Text strong style={{ color: '#1890ff', fontSize: 13 }}>
+            R$ {valoresTotais.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+          </Text>
+        )
+      },
+      sorter: (a: any, b: any) => getValoresCliente(a.id).valoresTotais - getValoresCliente(b.id).valoresTotais,
+      width: 140,
+    },
+    {
+      title: 'Valor Mensal',
+      key: 'valorMensal',
+      render: (record: any) => {
+        const { valoresMensais } = getValoresCliente(record.id)
+        return (
+          <Text strong style={{ color: '#52c41a', fontSize: 13 }}>
+            R$ {valoresMensais.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+          </Text>
+        )
+      },
+      sorter: (a: any, b: any) => getValoresCliente(a.id).valoresMensais - getValoresCliente(b.id).valoresMensais,
+      width: 140,
+    },
+    {
+      title: 'Custo Total',
+      key: 'custoTotal',
+      render: (record: any) => {
+        const { custosTotais } = getValoresCliente(record.id)
+        return (
+          <Text strong style={{ color: '#faad14', fontSize: 13 }}>
+            R$ {custosTotais.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+          </Text>
+        )
+      },
+      sorter: (a: any, b: any) => getValoresCliente(a.id).custosTotais - getValoresCliente(b.id).custosTotais,
+      width: 140,
+    },
+    {
+      title: 'Impostos',
+      key: 'impostos',
+      render: (record: any) => {
+        const { impostosTotais } = getValoresCliente(record.id)
+        return (
+          <Text strong style={{ color: '#f5222d', fontSize: 13 }}>
+            R$ {impostosTotais.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+          </Text>
+        )
+      },
+      sorter: (a: any, b: any) => getValoresCliente(a.id).impostosTotais - getValoresCliente(b.id).impostosTotais,
+      width: 140,
+    },
+    {
+      title: 'Ações',
+      key: 'actions',
+      render: (record: any) => (
+        <Space size="small">
+          <Button
+            type="text"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => handleOpen(record)}
+            title="Editar"
+          />
+          <Popconfirm
+            title="Excluir cliente"
+            description="Tem certeza que deseja excluir este cliente? Esta ação não pode ser desfeita."
+            onConfirm={() => handleDelete(record.id)}
+            okText="Sim"
+            cancelText="Não"
+            okType="danger"
+          >
+            <Button
+              type="text"
+              size="small"
+              icon={<DeleteOutlined />}
+              danger
+              title="Excluir"
+            />
+          </Popconfirm>
+        </Space>
+      ),
+      width: 80,
+      fixed: 'right',
+    },
+  ]
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
-        <CircularProgress />
-      </Box>
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '50vh' 
+      }}>
+        <Spin size="large" />
+      </div>
     )
   }
 
   if (error) {
     return (
-      <Box sx={{ p: 3 }}>
-        <Alert severity="error">{error}</Alert>
-      </Box>
+      <div style={{ padding: 24 }}>
+        <Alert 
+          message="Erro" 
+          description={error} 
+          type="error" 
+          showIcon 
+        />
+      </div>
     )
   }
 
+  const clientesComContratos = clientes.filter(c => getContratosAtivos(c.id) > 0)
+  const clientesSemContratos = clientes.filter(c => getContratosAtivos(c.id) === 0)
+
   return (
-    <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1" color="text.primary">
-          Clientes ({clientes.length})
-        </Typography>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => handleOpen()}
-        >
-          Novo Cliente
-        </Button>
-      </Box>
+    <div style={{ padding: 24, background: '#f5f5f5', minHeight: '100vh' }}>
+      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        
+        {/* Header */}
+        <div>
+          <Title level={2} style={{ margin: 0, marginBottom: 8 }}>
+            Clientes
+          </Title>
+          <Text type="secondary">
+            Gerencie seus clientes e suas informações
+          </Text>
+        </div>
 
-      {/* Filtro de Busca */}
-      <TextField
-        fullWidth
-        placeholder="Buscar por nome, empresa, email ou segmento..."
-        value={searchTerm}
-        onChange={(e) => handleSearch(e.target.value)}
-        InputProps={{
-          startAdornment: (
-            <InputAdornment position="start">
-              <Search />
-            </InputAdornment>
-          ),
-        }}
-        sx={{ mb: 3 }}
-      />
+        {/* Estatísticas Simplificadas */}
+        <Row gutter={[16, 16]}>
+          <Col xs={24} sm={6}>
+            <Card>
+              <Statistic
+                title="Total de Clientes"
+                value={clientes.length}
+                valueStyle={{ color: '#1890ff' }}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={6}>
+            <Card>
+              <Statistic
+                title="Clientes Ativos"
+                value={clientes.filter(c => getContratosAtivos(c.id) > 0).length}
+                valueStyle={{ color: '#52c41a' }}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={6}>
+            <Card>
+              <Statistic
+                title="Valor Total"
+                value={calcularValoresAgregados(contratos.filter(c => c.status === 'ativo')).valoresTotais}
+                prefix="R$"
+                valueStyle={{ color: '#faad14' }}
+                formatter={(value) => value?.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={6}>
+            <Card>
+              <Statistic
+                title="Valor Mensal"
+                value={calcularValoresAgregados(contratos.filter(c => c.status === 'ativo')).valoresMensais}
+                prefix="R$"
+                valueStyle={{ color: '#3f8600' }}
+                formatter={(value) => value?.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              />
+            </Card>
+          </Col>
+        </Row>
 
-      {/* Tabela */}
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Empresa</TableCell>
-              <TableCell>Contato</TableCell>
-              <TableCell>Email</TableCell>
-              <TableCell>Telefone</TableCell>
-              <TableCell>Segmento</TableCell>
-              <TableCell>Tamanho</TableCell>
-              <TableCell>Ano Início</TableCell>
-              <TableCell>Endereço</TableCell>
-              <TableCell>Contratos Ativos</TableCell>
-              <TableCell>Valor Total</TableCell>
-              <TableCell>Ações</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {filteredClientes.map((cliente) => {
-              const contratosAtivos = getContratosAtivos(cliente.id)
-              const valorTotal = getValorTotalContratos(cliente.id)
-              
-              return (
-                <TableRow key={cliente.id}>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Business color="primary" />
-                      <Box>
-                        <Typography variant="body2" fontWeight="bold">
-                          {cliente.empresa}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {cliente.nome}
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>{cliente.nome}</TableCell>
-                  <TableCell>{cliente.email}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={cliente.segmento}
-                      color="primary"
-                      variant="outlined"
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell>{cliente.telefone ? formatTelefone(cliente.telefone) : '-'}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={cliente.tamanho}
-                      color={cliente.tamanho === 'Grande' ? 'error' : cliente.tamanho === 'Média' ? 'warning' : 'success'}
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell>{cliente.anoInicio}</TableCell>
-                  <TableCell>
-                    <Typography variant="body2" sx={{ maxWidth: 200 }}>
-                      {cliente.endereco ? formatEndereco(cliente.endereco) : '-'}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={`${contratosAtivos} ativo(s)`}
-                      color={contratosAtivos > 0 ? 'success' : 'default'}
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" color="success.main" fontWeight="bold">
-                      R$ {valorTotal.toLocaleString('pt-BR')}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <IconButton
-                      size="small"
-                      color="primary"
-                      onClick={() => handleOpen(cliente)}
-                    >
-                      <Edit />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      color="error"
-                      onClick={() => handleDelete(cliente.id)}
-                    >
-                      <Delete />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
-      </TableContainer>
+        {/* Tabela */}
+        <Card>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <Search
+              placeholder="Buscar clientes..."
+              allowClear
+              style={{ width: 300 }}
+              onSearch={handleSearch}
+              onChange={(e) => handleSearch(e.target.value)}
+            />
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => handleOpen()}
+            >
+              Novo Cliente
+            </Button>
+          </div>
+
+          <Table
+            columns={columns}
+            dataSource={filteredClientes}
+            rowKey="id"
+            pagination={{
+              showSizeChanger: false,
+              showQuickJumper: false,
+              showTotal: (total) => `${total} clientes`,
+              pageSize: 15,
+            }}
+            size="small"
+          />
+        </Card>
+      </Space>
 
       {/* Modal de Adicionar/Editar */}
-      <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-        <DialogTitle>
-          {editingCliente ? 'Editar Cliente' : 'Novo Cliente'}
-        </DialogTitle>
-        <DialogContent>
-          {formError && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {formError}
-            </Alert>
-          )}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-              <TextField
-                label="Nome do Contato *"
-                placeholder="Nome completo"
-                value={formData.nome}
-                onChange={(e) => handleInputChange('nome', e.target.value)}
-                fullWidth
-                disabled={submitting}
-              />
-
-              <TextField
-                label="Empresa *"
-                placeholder="Nome da empresa"
-                value={formData.empresa}
-                onChange={(e) => handleInputChange('empresa', e.target.value)}
-                fullWidth
-                disabled={submitting}
-              />
-            </Box>
-
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-              <TextField
-                label="Email *"
-                type="email"
-                placeholder="email@empresa.com"
-                value={formData.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
-                fullWidth
-                disabled={submitting}
-              />
-
-              <InputMask
-                mask={masks.telefone}
-                value={formData.telefone}
-                onChange={(e) => handleInputChange('telefone', e.target.value)}
-                disabled={submitting}
+      <Modal
+        title={editingCliente ? 'Editar Cliente' : 'Novo Cliente'}
+        open={modalVisible}
+        onCancel={handleClose}
+        footer={null}
+        width={800}
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmit}
+          initialValues={{
+            tamanho: 'Média',
+            anoInicio: dayjs()
+          }}
+        >
+          <Row gutter={[16, 16]}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="nome"
+                label="Nome do Contato"
+                rules={[{ required: true, message: 'Nome do contato é obrigatório' }]}
               >
-                {(inputProps: any) => (
-                  <TextField
-                    {...inputProps}
-                    label="Telefone"
-                    placeholder="(11) 99999-9999"
-                    fullWidth
-                    disabled={submitting}
-                    helperText="Ex: (11) 99999-9999"
-                  />
-                )}
-              </InputMask>
-            </Box>
-
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 2 }}>
-              <FormControl fullWidth disabled={submitting}>
-                <InputLabel>Segmento de Atuação *</InputLabel>
-                <Select
-                  value={formData.segmento}
-                  label="Segmento de Atuação *"
-                  onChange={(e) => handleInputChange('segmento', e.target.value)}
-                >
+                <Input placeholder="Nome completo" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="empresa"
+                label="Empresa"
+                rules={[{ required: true, message: 'Nome da empresa é obrigatório' }]}
+              >
+                <Input placeholder="Nome da empresa" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="email"
+                label="Email"
+                rules={[
+                  { required: true, message: 'Email é obrigatório' },
+                  { type: 'email', message: 'Email inválido' }
+                ]}
+              >
+                <Input placeholder="email@empresa.com" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="telefone"
+                label="Telefone"
+              >
+                <Input placeholder="(11) 99999-9999" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item
+                name="segmento"
+                label="Segmento de Atuação"
+                rules={[{ required: true, message: 'Segmento de atuação é obrigatório' }]}
+              >
+                <Select placeholder="Selecione o segmento">
                   {segmentos.map((segmento) => (
-                    <MenuItem key={segmento} value={segmento}>
+                    <Option key={segmento} value={segmento}>
                       {segmento}
-                    </MenuItem>
+                    </Option>
                   ))}
                 </Select>
-              </FormControl>
-
-              <FormControl fullWidth disabled={submitting}>
-                <InputLabel>Tamanho da Empresa</InputLabel>
-                <Select
-                  value={formData.tamanho}
-                  label="Tamanho da Empresa"
-                  onChange={(e) => handleInputChange('tamanho', e.target.value)}
-                >
-                  {tamanhos.map((tamanho) => (
-                    <MenuItem key={tamanho} value={tamanho}>
-                      {tamanho}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              <InputMask
-                mask={masks.ano}
-                value={formData.anoInicio.toString()}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/\D/g, '')
-                  handleInputChange('anoInicio', value ? parseInt(value) : new Date().getFullYear())
-                }}
-                disabled={submitting}
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item
+                name="tamanho"
+                label="Tamanho da Empresa"
               >
-                {(inputProps: any) => (
-                  <TextField
-                    {...inputProps}
-                    label="Ano de Início *"
-                    placeholder="2023"
-                    fullWidth
-                    disabled={submitting}
-                    helperText="Ex: 2023"
-                    inputProps={{ min: 2000, max: new Date().getFullYear() + 1 }}
-                  />
-                )}
-              </InputMask>
-            </Box>
+                <Select placeholder="Selecione o tamanho">
+                  {tamanhos.map((tamanho) => (
+                    <Option key={tamanho} value={tamanho}>
+                      {tamanho}
+                    </Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item
+                name="anoInicio"
+                label="Ano de Início"
+                rules={[{ required: true, message: 'Ano de início é obrigatório' }]}
+              >
+                <DatePicker 
+                  picker="year" 
+                  style={{ width: '100%' }} 
+                  placeholder="Selecione o ano"
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24}>
+              <Form.Item
+                name="endereco"
+                label="Endereço"
+              >
+                <Input.TextArea 
+                  rows={3} 
+                  placeholder="Endereço completo"
+                />
+              </Form.Item>
+            </Col>
+          </Row>
 
-            <TextField
-              label="Endereço"
-              multiline
-              rows={3}
-              placeholder="Endereço completo"
-              value={formData.endereco}
-              onChange={(e) => handleInputChange('endereco', e.target.value)}
-              fullWidth
-              disabled={submitting}
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClose} disabled={submitting}>
-            Cancelar
-          </Button>
-          <Button 
-            variant="contained" 
-            onClick={handleSubmit}
-            disabled={submitting}
-            startIcon={submitting ? <CircularProgress size={16} /> : undefined}
-          >
-            {submitting ? 'Salvando...' : (editingCliente ? 'Salvar' : 'Adicionar')}
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+            <Button onClick={handleClose} disabled={submitting}>
+              Cancelar
+            </Button>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={submitting}
+            >
+              {submitting ? 'Salvando...' : (editingCliente ? 'Salvar' : 'Adicionar')}
+            </Button>
+          </div>
+        </Form>
+      </Modal>
+    </div>
   )
 }
 

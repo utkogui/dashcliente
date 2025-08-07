@@ -1,42 +1,37 @@
 import React from 'react'
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  Modal,
   Button,
   Typography,
-  Box,
-  Grid,
-  Chip,
+  Row,
+  Col,
+  Tag,
   Divider,
   List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  Paper,
   Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  IconButton,
-} from '@mui/material'
+  Space,
+  Card,
+  Descriptions,
+  Statistic
+} from 'antd'
 import {
-  Person,
-  Business,
-  TrendingUp,
-  Email,
-  Phone,
-  LocationOn,
-  Schedule,
-  AttachMoney,
-  Receipt,
-  Assignment,
-  Close,
-} from '@mui/icons-material'
+  UserOutlined,
+  TeamOutlined,
+  RiseOutlined,
+  MailOutlined,
+  PhoneOutlined,
+  EnvironmentOutlined,
+  ClockCircleOutlined,
+  DollarOutlined,
+  FileTextOutlined,
+  UnorderedListOutlined,
+  CloseOutlined,
+  DownloadOutlined,
+} from '@ant-design/icons'
 import { formatCurrency } from '../utils/formatters'
+import * as XLSX from 'xlsx'
+
+const { Title, Text } = Typography
 
 interface ProfissionalData {
   id: string
@@ -98,24 +93,78 @@ const DetalhesModal: React.FC<DetalhesModalProps> = ({
   open,
   onClose,
   type,
-  data
+  data,
 }) => {
-  if (!data) {
-    return null
-  }
+  // Função para exportar detalhes do contrato para Excel
+  const exportContratoToExcel = () => {
+    if (!data || type !== 'contrato') return
+    
+    const contrato = data as ContratoData
+    
+    // Dados do contrato
+    const contratoData = [{
+      'Projeto': contrato.nomeProjeto,
+      'Cliente': contrato.cliente.empresa,
+      'Status': getStatusText(contrato.status),
+      'Data Início': new Date(contrato.dataInicio).toLocaleDateString('pt-BR'),
+      'Data Fim': contrato.dataFim ? new Date(contrato.dataFim).toLocaleDateString('pt-BR') : 'Indeterminado',
+      'Valor Contrato': contrato.valorContrato,
+      'Impostos': contrato.valorImpostos,
+      'Valor Líquido': contrato.valorContrato - contrato.valorImpostos,
+      'Observações': contrato.observacoes || '-'
+    }]
 
+    // Dados dos profissionais
+    const profissionaisData = contrato.profissionais.map(p => ({
+      'Nome': p.profissional.nome,
+      'Email': p.profissional.email,
+      'Especialidade': p.profissional.especialidade,
+      'Tipo de Contrato': getTipoContratoText(p.profissional.tipoContrato),
+      'Valor/Hora': p.profissional.tipoContrato === 'hora' ? p.valorHora : '-',
+      'Horas Mensais': p.profissional.tipoContrato === 'hora' ? p.horasMensais : '-',
+      'Valor Fechado': p.profissional.tipoContrato === 'fechado' ? p.valorFechado : '-',
+      'Período': p.profissional.tipoContrato === 'fechado' ? p.periodoFechado : '-',
+      'Valor Mensal': p.profissional.tipoContrato === 'hora' ? 
+        (p.valorHora || 0) * (p.horasMensais || 0) : 
+        (p.valorFechado || 0)
+    }))
+
+    // Dados do cliente
+    const clienteData = [{
+      'Empresa': contrato.cliente.empresa,
+      'Nome': contrato.cliente.nome,
+      'Email': contrato.cliente.email,
+      'Telefone': contrato.cliente.telefone || '-',
+      'Endereço': contrato.cliente.endereco || '-',
+      'Ano de Início': contrato.cliente.anoInicio,
+      'Segmento': contrato.cliente.segmento,
+      'Tamanho': contrato.cliente.tamanho
+    }]
+
+    // Criar workbook
+    const workbook = XLSX.utils.book_new()
+    
+    // Adicionar abas
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(contratoData), 'Contrato')
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(profissionaisData), 'Profissionais')
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(clienteData), 'Cliente')
+
+    // Gerar e baixar arquivo
+    const fileName = `contrato_${contrato.nomeProjeto.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`
+    XLSX.writeFile(workbook, fileName)
+  }
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'ativo':
         return 'success'
-      case 'pendente':
+      case 'inativo':
+        return 'default'
+      case 'ferias':
         return 'warning'
       case 'encerrado':
         return 'error'
-      case 'ferias':
-        return 'info'
-      case 'inativo':
-        return 'error'
+      case 'pendente':
+        return 'processing'
       default:
         return 'default'
     }
@@ -125,14 +174,14 @@ const DetalhesModal: React.FC<DetalhesModalProps> = ({
     switch (status) {
       case 'ativo':
         return 'Ativo'
-      case 'pendente':
-        return 'Pendente'
-      case 'encerrado':
-        return 'Encerrado'
-      case 'ferias':
-        return 'Férias'
       case 'inativo':
         return 'Inativo'
+      case 'ferias':
+        return 'Férias'
+      case 'encerrado':
+        return 'Encerrado'
+      case 'pendente':
+        return 'Pendente'
       default:
         return status
     }
@@ -141,9 +190,9 @@ const DetalhesModal: React.FC<DetalhesModalProps> = ({
   const getTipoContratoColor = (tipo: string) => {
     switch (tipo) {
       case 'hora':
-        return 'primary'
+        return 'blue'
       case 'fechado':
-        return 'secondary'
+        return 'green'
       default:
         return 'default'
     }
@@ -161,423 +210,332 @@ const DetalhesModal: React.FC<DetalhesModalProps> = ({
   }
 
   const renderProfissionalDetalhes = () => {
-    const prof = data as ProfissionalData
+    if (!data || type !== 'profissional') return null
+    const profissional = data as ProfissionalData
+
     return (
-      <Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-          <Person color="primary" sx={{ fontSize: 40 }} />
-          <Box>
-            <Typography variant="h4" component="h2" fontWeight="bold">
-              {prof.nome}
-            </Typography>
-            <Typography variant="h6" color="text.secondary">
-              {prof.especialidade}
-            </Typography>
-          </Box>
-          <Chip
-            label={getStatusText(prof.status)}
-            color={getStatusColor(prof.status)}
-            size="large"
-          />
-        </Box>
+      <div>
+        <Row gutter={[24, 24]}>
+          <Col span={24}>
+            <Card>
+              <Row gutter={[16, 16]} align="middle">
+                <Col>
+                  <div style={{ 
+                    width: 64, 
+                    height: 64, 
+                    borderRadius: '50%', 
+                    background: '#1890ff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <UserOutlined style={{ fontSize: 32, color: 'white' }} />
+                  </div>
+                </Col>
+                <Col flex="1">
+                  <Title level={3} style={{ margin: 0 }}>
+                    {profissional.nome}
+                  </Title>
+                  <Space>
+                    <Tag color={getStatusColor(profissional.status)}>
+                      {getStatusText(profissional.status)}
+                    </Tag>
+                    <Tag color={getTipoContratoColor(profissional.tipoContrato)}>
+                      {getTipoContratoText(profissional.tipoContrato)}
+                    </Tag>
+                  </Space>
+                </Col>
+              </Row>
+            </Card>
+          </Col>
 
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="h6" gutterBottom>
-                Informações Pessoais
-              </Typography>
-              <List dense>
-                <ListItem>
-                  <ListItemIcon>
-                    <Email />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary="Email"
-                    secondary={prof.email}
-                  />
-                </ListItem>
-                {prof.telefone && (
-                  <ListItem>
-                    <ListItemIcon>
-                      <Phone />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary="Telefone"
-                      secondary={prof.telefone}
-                    />
-                  </ListItem>
-                )}
-                <ListItem>
-                  <ListItemIcon>
-                    <Schedule />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary="Data de Início"
-                    secondary={new Date(prof.dataInicio).toLocaleDateString('pt-BR')}
-                  />
-                </ListItem>
-              </List>
-            </Paper>
-          </Grid>
+          <Col span={12}>
+            <Card title="Informações Pessoais">
+              <Descriptions column={1} size="small">
+                <Descriptions.Item label="Email">
+                  <Space>
+                    <MailOutlined />
+                    {profissional.email}
+                  </Space>
+                </Descriptions.Item>
+                <Descriptions.Item label="Especialidade">
+                  {profissional.especialidade}
+                </Descriptions.Item>
+                <Descriptions.Item label="Data de Início">
+                  <Space>
+                    <ClockCircleOutlined />
+                    {new Date(profissional.dataInicio).toLocaleDateString('pt-BR')}
+                  </Space>
+                </Descriptions.Item>
+              </Descriptions>
+            </Card>
+          </Col>
 
-          <Grid item xs={12} md={6}>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="h6" gutterBottom>
-                Configuração de Remuneração
-              </Typography>
-              <List dense>
-                <ListItem>
-                  <ListItemIcon>
-                    {prof.tipoContrato === 'hora' ? <AttachMoney /> : <Receipt />}
-                  </ListItemIcon>
-                  <ListItemText
-                    primary="Tipo de Contrato"
-                    secondary={
-                      <Chip
-                        label={getTipoContratoText(prof.tipoContrato)}
-                        color={getTipoContratoColor(prof.tipoContrato)}
-                        size="small"
-                      />
-                    }
+          <Col span={12}>
+            <Card title="Informações Financeiras">
+              <Space direction="vertical" style={{ width: '100%' }}>
+                {profissional.tipoContrato === 'hora' ? (
+                  <Statistic
+                    title="Valor por Hora"
+                    value={profissional.valorHora}
+                    precision={2}
+                    prefix="R$"
+                    valueStyle={{ color: '#3f8600' }}
                   />
-                </ListItem>
-                {prof.tipoContrato === 'hora' ? (
-                  <ListItem>
-                    <ListItemIcon>
-                      <AttachMoney />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary="Valor por Hora"
-                      secondary={formatCurrency(prof.valorHora || 0)}
-                    />
-                  </ListItem>
                 ) : (
-                  <>
-                    <ListItem>
-                      <ListItemIcon>
-                        <Receipt />
-                      </ListItemIcon>
-                      <ListItemText
-                        primary="Valor Fechado"
-                        secondary={formatCurrency(prof.valorFechado || 0)}
-                      />
-                    </ListItem>
-                    <ListItem>
-                      <ListItemIcon>
-                        <Schedule />
-                      </ListItemIcon>
-                      <ListItemText
-                        primary="Período"
-                        secondary={prof.periodoFechado}
-                      />
-                    </ListItem>
-                  </>
-                )}
-                <ListItem>
-                  <ListItemIcon>
-                    <AttachMoney />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary="Valor Pago"
-                    secondary={formatCurrency(prof.valorPago)}
+                  <Statistic
+                    title="Valor Fechado"
+                    value={profissional.valorFechado}
+                    precision={2}
+                    prefix="R$"
+                    valueStyle={{ color: '#3f8600' }}
                   />
-                </ListItem>
-
-              </List>
-            </Paper>
-          </Grid>
-        </Grid>
-      </Box>
+                )}
+                {profissional.tipoContrato === 'fechado' && profissional.periodoFechado && (
+                  <Text type="secondary">
+                    Período: {profissional.periodoFechado}
+                  </Text>
+                )}
+              </Space>
+            </Card>
+          </Col>
+        </Row>
+      </div>
     )
   }
 
   const renderClienteDetalhes = () => {
-    const cli = data as ClienteData
+    if (!data || type !== 'cliente') return null
+    const cliente = data as ClienteData
+
     return (
-      <Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-          <Business color="secondary" sx={{ fontSize: 40 }} />
-          <Box>
-            <Typography variant="h4" component="h2" fontWeight="bold">
-              {cli.empresa}
-            </Typography>
-            <Typography variant="h6" color="text.secondary">
-              {cli.nome}
-            </Typography>
-          </Box>
-          <Chip
-            label={cli.tamanho}
-            color={cli.tamanho === 'Grande' ? 'error' : cli.tamanho === 'Média' ? 'warning' : 'success'}
-            size="large"
-          />
-        </Box>
+      <div>
+        <Row gutter={[24, 24]}>
+          <Col span={24}>
+            <Card>
+              <Row gutter={[16, 16]} align="middle">
+                <Col>
+                  <div style={{ 
+                    width: 64, 
+                    height: 64, 
+                    borderRadius: '50%', 
+                    background: '#52c41a',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <TeamOutlined style={{ fontSize: 32, color: 'white' }} />
+                  </div>
+                </Col>
+                <Col flex="1">
+                  <Title level={3} style={{ margin: 0 }}>
+                    {cliente.empresa}
+                  </Title>
+                  <Text type="secondary">{cliente.nome}</Text>
+                </Col>
+              </Row>
+            </Card>
+          </Col>
 
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="h6" gutterBottom>
-                Informações de Contato
-              </Typography>
-              <List dense>
-                <ListItem>
-                  <ListItemIcon>
-                    <Email />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary="Email"
-                    secondary={cli.email}
-                  />
-                </ListItem>
-                {cli.telefone && (
-                  <ListItem>
-                    <ListItemIcon>
-                      <Phone />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary="Telefone"
-                      secondary={cli.telefone}
-                    />
-                  </ListItem>
+          <Col span={12}>
+            <Card title="Informações de Contato">
+              <Descriptions column={1} size="small">
+                <Descriptions.Item label="Email">
+                  <Space>
+                    <MailOutlined />
+                    {cliente.email}
+                  </Space>
+                </Descriptions.Item>
+                {cliente.telefone && (
+                  <Descriptions.Item label="Telefone">
+                    <Space>
+                      <PhoneOutlined />
+                      {cliente.telefone}
+                    </Space>
+                  </Descriptions.Item>
                 )}
-                {cli.endereco && (
-                  <ListItem>
-                    <ListItemIcon>
-                      <LocationOn />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary="Endereço"
-                      secondary={cli.endereco}
-                    />
-                  </ListItem>
+                {cliente.endereco && (
+                  <Descriptions.Item label="Endereço">
+                    <Space>
+                      <EnvironmentOutlined />
+                      {cliente.endereco}
+                    </Space>
+                  </Descriptions.Item>
                 )}
-              </List>
-            </Paper>
-          </Grid>
+              </Descriptions>
+            </Card>
+          </Col>
 
-          <Grid item xs={12} md={6}>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="h6" gutterBottom>
-                Informações da Empresa
-              </Typography>
-              <List dense>
-                <ListItem>
-                  <ListItemIcon>
-                    <Business />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary="Segmento"
-                    secondary={
-                      <Chip
-                        label={cli.segmento}
-                        color="primary"
-                        variant="outlined"
-                        size="small"
-                      />
-                    }
-                  />
-                </ListItem>
-                <ListItem>
-                  <ListItemIcon>
-                    <Schedule />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary="Ano de Início"
-                    secondary={cli.anoInicio}
-                  />
-                </ListItem>
-                <ListItem>
-                  <ListItemIcon>
-                    <Business />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary="Tamanho"
-                    secondary={
-                      <Chip
-                        label={cli.tamanho}
-                        color={cli.tamanho === 'Grande' ? 'error' : cli.tamanho === 'Média' ? 'warning' : 'success'}
-                        size="small"
-                      />
-                    }
-                  />
-                </ListItem>
-              </List>
-            </Paper>
-          </Grid>
-        </Grid>
-      </Box>
+          <Col span={12}>
+            <Card title="Informações da Empresa">
+              <Descriptions column={1} size="small">
+                <Descriptions.Item label="Ano de Início">
+                  {cliente.anoInicio}
+                </Descriptions.Item>
+                <Descriptions.Item label="Segmento">
+                  {cliente.segmento}
+                </Descriptions.Item>
+                <Descriptions.Item label="Tamanho">
+                  {cliente.tamanho}
+                </Descriptions.Item>
+              </Descriptions>
+            </Card>
+          </Col>
+        </Row>
+      </div>
     )
   }
 
   const renderContratoDetalhes = () => {
-    const con = data as ContratoData
+    if (!data || type !== 'contrato') return null
+    const contrato = data as ContratoData
+
+    const profissionaisColumns = [
+      {
+        title: 'Profissional',
+        dataIndex: 'profissional',
+        key: 'profissional',
+        render: (profissional: ProfissionalData) => (
+          <Space>
+            <UserOutlined />
+            {profissional.nome}
+          </Space>
+        ),
+      },
+      {
+        title: 'Especialidade',
+        dataIndex: 'profissional',
+        key: 'especialidade',
+        render: (profissional: ProfissionalData) => profissional.especialidade,
+      },
+      {
+        title: 'Tipo',
+        dataIndex: 'profissional',
+        key: 'tipo',
+        render: (profissional: ProfissionalData) => (
+          <Tag color={getTipoContratoColor(profissional.tipoContrato)}>
+            {getTipoContratoText(profissional.tipoContrato)}
+          </Tag>
+        ),
+      },
+      {
+        title: 'Valor',
+        dataIndex: 'valorHora',
+        key: 'valor',
+        render: (valorHora: number | null, record: any) => {
+          if (record.profissional.tipoContrato === 'hora') {
+            return `R$ ${valorHora?.toLocaleString('pt-BR') || '0'}/hora`
+          } else {
+            return `R$ ${record.valorFechado?.toLocaleString('pt-BR') || '0'}`
+          }
+        },
+      },
+    ]
+
     return (
-      <Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-          <TrendingUp color="success" sx={{ fontSize: 40 }} />
-          <Box>
-            <Typography variant="h4" component="h2" fontWeight="bold">
-              {con.nomeProjeto}
-            </Typography>
-            <Typography variant="h6" color="text.secondary">
-              {con.cliente?.empresa}
-            </Typography>
-          </Box>
-          <Chip
-            label={getStatusText(con.status)}
-            color={getStatusColor(con.status)}
-            size="large"
-          />
-        </Box>
+      <div>
+        <Row gutter={[24, 24]}>
+          <Col span={24}>
+            <Card>
+              <Row gutter={[16, 16]} align="middle">
+                <Col>
+                  <div style={{ 
+                    width: 64, 
+                    height: 64, 
+                    borderRadius: '50%', 
+                    background: '#722ed1',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <FileTextOutlined style={{ fontSize: 32, color: 'white' }} />
+                  </div>
+                </Col>
+                <Col flex="1">
+                  <Title level={3} style={{ margin: 0 }}>
+                    {contrato.nomeProjeto}
+                  </Title>
+                  <Space>
+                    <Tag color={getStatusColor(contrato.status)}>
+                      {getStatusText(contrato.status)}
+                    </Tag>
+                    <Text type="secondary">
+                      Cliente: {contrato.cliente.empresa}
+                    </Text>
+                  </Space>
+                </Col>
+              </Row>
+            </Card>
+          </Col>
 
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="h6" gutterBottom>
-                Informações do Projeto
-              </Typography>
-              <List dense>
-                <ListItem>
-                  <ListItemIcon>
-                    {con.tipoContrato === 'hora' ? <AttachMoney /> : <Receipt />}
-                  </ListItemIcon>
-                  <ListItemText
-                    primary="Tipo de Contrato"
-                    secondary={
-                      <Chip
-                        label={getTipoContratoText(con.tipoContrato)}
-                        color={getTipoContratoColor(con.tipoContrato)}
-                        size="small"
-                      />
+          <Col span={12}>
+            <Card title="Informações do Projeto">
+              <Descriptions column={1} size="small">
+                <Descriptions.Item label="Data de Início">
+                  <Space>
+                    <ClockCircleOutlined />
+                    {new Date(contrato.dataInicio).toLocaleDateString('pt-BR')}
+                  </Space>
+                </Descriptions.Item>
+                <Descriptions.Item label="Data de Fim">
+                  <Space>
+                    <ClockCircleOutlined />
+                    {contrato.dataFim 
+                      ? new Date(contrato.dataFim).toLocaleDateString('pt-BR')
+                      : 'Indeterminado'
                     }
-                  />
-                </ListItem>
-                <ListItem>
-                  <ListItemIcon>
-                    <Schedule />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary="Período"
-                    secondary={
-                      con.dataFim 
-                        ? `${new Date(con.dataInicio).toLocaleDateString('pt-BR')} - ${new Date(con.dataFim).toLocaleDateString('pt-BR')}`
-                        : `${new Date(con.dataInicio).toLocaleDateString('pt-BR')} - Indeterminado`
-                    }
-                  />
-                </ListItem>
-                <ListItem>
-                  <ListItemIcon>
-                    <Assignment />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary="Profissionais"
-                    secondary={`${con.profissionais?.length || 0} profissional(is)`}
-                  />
-                </ListItem>
-                {con.observacoes && (
-                  <ListItem>
-                    <ListItemIcon>
-                      <Assignment />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary="Observações"
-                      secondary={con.observacoes}
-                    />
-                  </ListItem>
+                  </Space>
+                </Descriptions.Item>
+                {contrato.observacoes && (
+                  <Descriptions.Item label="Observações">
+                    {contrato.observacoes}
+                  </Descriptions.Item>
                 )}
-              </List>
-            </Paper>
-          </Grid>
+              </Descriptions>
+            </Card>
+          </Col>
 
-          <Grid item xs={12} md={6}>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="h6" gutterBottom>
-                Informações Financeiras
-              </Typography>
-              <List dense>
-                <ListItem>
-                  <ListItemIcon>
-                    <AttachMoney />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary="Valor do Contrato"
-                    secondary={formatCurrency(con.valorContrato)}
-                  />
-                </ListItem>
-                <ListItem>
-                  <ListItemIcon>
-                    <Receipt />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary="Impostos"
-                    secondary={formatCurrency(con.valorImpostos)}
-                  />
-                </ListItem>
-                <ListItem>
-                  <ListItemIcon>
-                    <TrendingUp />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary="Valor Líquido"
-                    secondary={formatCurrency(con.valorContrato - con.valorImpostos)}
-                  />
-                </ListItem>
-              </List>
-            </Paper>
-          </Grid>
+          <Col span={12}>
+            <Card title="Informações Financeiras">
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Statistic
+                  title="Valor do Contrato"
+                  value={contrato.valorContrato}
+                  precision={2}
+                  prefix="R$"
+                  valueStyle={{ color: '#3f8600' }}
+                />
+                <Statistic
+                  title="Impostos"
+                  value={contrato.valorImpostos}
+                  precision={2}
+                  prefix="R$"
+                  valueStyle={{ color: '#cf1322' }}
+                />
+                <Statistic
+                  title="Valor Líquido"
+                  value={contrato.valorContrato - contrato.valorImpostos}
+                  precision={2}
+                  prefix="R$"
+                  valueStyle={{ color: '#1890ff' }}
+                />
+              </Space>
+            </Card>
+          </Col>
 
-          {/* Lista de Profissionais */}
-          {con.profissionais && con.profissionais.length > 0 && (
-            <Grid item xs={12}>
-              <Paper sx={{ p: 2 }}>
-                <Typography variant="h6" gutterBottom>
-                  Profissionais do Projeto
-                </Typography>
-                <TableContainer>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Nome</TableCell>
-                        <TableCell>Especialidade</TableCell>
-                        <TableCell>Tipo</TableCell>
-                        <TableCell>Valor</TableCell>
-                        <TableCell>Período</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {con.profissionais.map((prof) => (
-                        <TableRow key={prof.id}>
-                          <TableCell>{prof.profissional.nome}</TableCell>
-                          <TableCell>{prof.profissional.especialidade}</TableCell>
-                          <TableCell>
-                            <Chip
-                              label={getTipoContratoText(prof.profissional.tipoContrato)}
-                              color={getTipoContratoColor(prof.profissional.tipoContrato)}
-                              size="small"
-                            />
-                          </TableCell>
-                          <TableCell>
-                            {prof.profissional.tipoContrato === 'hora' 
-                              ? `${formatCurrency(prof.valorHora || 0)}/hora`
-                              : formatCurrency(prof.valorFechado || 0)
-                            }
-                          </TableCell>
-                          <TableCell>
-                            {prof.profissional.tipoContrato === 'hora' 
-                              ? `${prof.horasMensais || 0}h/mês`
-                              : prof.periodoFechado || 'N/A'
-                            }
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </Paper>
-            </Grid>
-          )}
-        </Grid>
-      </Box>
+          <Col span={24}>
+            <Card title={`Profissionais (${contrato.profissionais.length})`}>
+              <Table
+                columns={profissionaisColumns}
+                dataSource={contrato.profissionais}
+                rowKey="id"
+                pagination={false}
+                size="small"
+              />
+            </Card>
+          </Col>
+        </Row>
+      </div>
     )
   }
 
@@ -608,36 +566,30 @@ const DetalhesModal: React.FC<DetalhesModalProps> = ({
   }
 
   return (
-    <Dialog
+    <Modal
+      title={getModalTitle()}
       open={open}
-      onClose={onClose}
-      maxWidth="lg"
-      fullWidth
-      PaperProps={{
-        sx: {
-          minHeight: '60vh'
-        }
-      }}
-    >
-      <DialogTitle>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography variant="h5" component="h1">
-            {getModalTitle()}
-          </Typography>
-          <IconButton onClick={onClose} size="small">
-            <Close />
-          </IconButton>
-        </Box>
-      </DialogTitle>
-      <DialogContent>
-        {renderDetalhes()}
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} variant="contained">
+      onCancel={onClose}
+      footer={[
+        <Button key="close" onClick={onClose}>
           Fechar
-        </Button>
-      </DialogActions>
-    </Dialog>
+        </Button>,
+        ...(type === 'contrato' ? [
+          <Button 
+            key="export" 
+            type="primary" 
+            icon={<DownloadOutlined />}
+            onClick={exportContratoToExcel}
+          >
+            Exportar Excel
+          </Button>
+        ] : [])
+      ]}
+      width={800}
+      style={{ top: 20 }}
+    >
+      {renderDetalhes()}
+    </Modal>
   )
 }
 

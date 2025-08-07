@@ -1,35 +1,38 @@
-import { Box } from '@mui/material'
+import React from 'react'
+import { Layout } from 'antd'
 import logoFtdMatilha from '../assets/logo_ftd_matilha.png'
+
+const { Header: AntHeader } = Layout
 
 const Header = () => {
   return (
-    <Box
-      sx={{
+    <AntHeader
+      style={{
         position: 'fixed',
         top: 0,
         left: 0,
         right: 0,
-        height: 80, // Altura do header
-        bgcolor: '#0031BC',
+        height: 80,
+        backgroundColor: '#0031BC',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center', // Centraliza o conteúdo horizontalmente
+        justifyContent: 'center',
         zIndex: 1000,
-        boxShadow: 2,
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+        padding: 0,
+        lineHeight: 'normal'
       }}
     >
-      {/* Logo FTD + Matilha */}
-      <Box
-        component="img"
+      <img
         src={logoFtdMatilha}
         alt="Logo FTD Educação + Matilha Tecnologia"
-        sx={{
-          height: 80, // Altura de 80px conforme solicitado
-          width: 'auto', // Mantém a proporção da imagem
-          display: 'block', // Garante que a imagem se comporte como um bloco para centralização
+        style={{
+          height: 80,
+          width: 'auto',
+          display: 'block'
         }}
       />
-    </Box>
+    </AntHeader>
   )
 }
 
