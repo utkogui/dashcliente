@@ -48,6 +48,11 @@ const CadastroContrato = () => {
     periodoFechado: string
   }>>([])
 
+  const [despesasAdicionais, setDespesasAdicionais] = useState<Array<{
+    descricao: string
+    valor: string
+  }>>([])
+
   // Função para calcular resumo em tempo real
   const calcularResumo = () => {
     try {
@@ -94,9 +99,14 @@ const CadastroContrato = () => {
         }
       }, 0)
 
+      // Calcular despesas adicionais
+      const totalDespesasAdicionais = despesasAdicionais.reduce((total, despesa) => {
+        return total + (parseFloat(despesa.valor) || 0)
+      }, 0)
+
       // Calcular margem
       const valorLiquido = valorContrato - valorImpostos
-      const margem = valorLiquido - custoProfissionais
+      const margem = valorLiquido - custoProfissionais - totalDespesasAdicionais
       const percentualMargem = valorLiquido > 0 ? (margem / valorLiquido) * 100 : 0
 
       return {
@@ -104,6 +114,7 @@ const CadastroContrato = () => {
         valorImpostos: valorImpostos || 0,
         valorLiquido: valorLiquido || 0,
         custoProfissionais: custoProfissionais || 0,
+        totalDespesasAdicionais: totalDespesasAdicionais || 0,
         margem: margem || 0,
         percentualMargem: percentualMargem || 0
       }
@@ -114,6 +125,7 @@ const CadastroContrato = () => {
         valorImpostos: 0,
         valorLiquido: 0,
         custoProfissionais: 0,
+        totalDespesasAdicionais: 0,
         margem: 0,
         percentualMargem: 0
       }
@@ -210,6 +222,23 @@ const CadastroContrato = () => {
 
   const handleAplicarSugestao = (profissionaisSugeridos: any[]) => {
     setProfissionaisSelecionados(profissionaisSugeridos)
+  }
+
+  const handleAddDespesa = () => {
+    setDespesasAdicionais(prev => [...prev, {
+      descricao: '',
+      valor: ''
+    }])
+  }
+
+  const handleRemoveDespesa = (index: number) => {
+    setDespesasAdicionais(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const handleDespesaChange = (index: number, field: string, value: string) => {
+    setDespesasAdicionais(prev => prev.map((item, i) => 
+      i === index ? { ...item, [field]: value } : item
+    ))
   }
 
   const handleProfissionalChange = (index: number, field: string, value: string) => {
@@ -652,6 +681,86 @@ const CadastroContrato = () => {
 
             <Divider />
 
+            {/* Despesas Adicionais */}
+            <Title level={4} style={{ marginBottom: 16, color: '#1890ff' }}>
+              Despesas Adicionais
+            </Title>
+
+            <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+              <Col xs={24}>
+                <Button
+                  icon={<PlusOutlined />}
+                  onClick={handleAddDespesa}
+                  disabled={submitting}
+                  type="dashed"
+                  size="large"
+                  style={{ width: '100%' }}
+                >
+                  + Adicionar Despesa
+                </Button>
+              </Col>
+            </Row>
+
+            <List
+              dataSource={despesasAdicionais}
+              renderItem={(despesa, index) => (
+                <List.Item
+                  style={{ 
+                    border: '1px solid #d9d9d9', 
+                    borderRadius: 6, 
+                    marginBottom: 8,
+                    padding: 16
+                  }}
+                  actions={[
+                    <Button
+                      type="text"
+                      icon={<DeleteOutlined />}
+                      onClick={() => handleRemoveDespesa(index)}
+                      disabled={submitting}
+                      danger
+                    />
+                  ]}
+                >
+                  <div style={{ width: '100%' }}>
+                    <Row gutter={[16, 16]} align="middle">
+                      <Col xs={24} md={12}>
+                        <Form.Item
+                          label="Descrição"
+                          style={{ marginBottom: 0 }}
+                        >
+                          <Input
+                            placeholder="Ex: Software, Risco, Infraestrutura"
+                            value={despesa.descricao}
+                            onChange={(e) => handleDespesaChange(index, 'descricao', e.target.value)}
+                            disabled={submitting}
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={12}>
+                        <Form.Item
+                          label="Valor"
+                          style={{ marginBottom: 0 }}
+                        >
+                          <Input
+                            type="number"
+                            placeholder="0,00"
+                            prefix="R$"
+                            min={0}
+                            step={0.01}
+                            value={despesa.valor}
+                            onChange={(e) => handleDespesaChange(index, 'valor', e.target.value)}
+                            disabled={submitting}
+                          />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                  </div>
+                </List.Item>
+              )}
+            />
+
+            <Divider />
+
             {/* Profissionais */}
             <Title level={4} style={{ marginBottom: 16, color: '#1890ff' }}>
               Profissionais
@@ -901,6 +1010,7 @@ const CadastroContrato = () => {
                       <div style={{ padding: 12, backgroundColor: '#fafafa', borderRadius: 8 }}>
                         <Text type="secondary" style={{ fontSize: 11 }}>
                           • Profissionais: {profissionaisSelecionados.length}<br/>
+                          • Despesas: {despesasAdicionais.length}<br/>
                           • Contrato: {form.getFieldValue('contratoIndeterminado') ? 'Indeterminado' : 'Determinado'}<br/>
                           • Tipo: {form.getFieldValue('tipoContrato') === 'hora' ? 'Por Horas' : 'Valor Fechado'}
                         </Text>

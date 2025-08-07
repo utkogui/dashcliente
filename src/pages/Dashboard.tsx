@@ -27,7 +27,15 @@ import * as XLSX from 'xlsx'
 import { useData } from '../contexts/DataContext'
 import { useNavigate } from 'react-router-dom'
 import DetalhesModal from '../components/DetalhesModal'
-import { calcularValoresAgregados, getCardStyle, getStatusBadgeColor, calcularDiasRestantes } from '../utils/formatters'
+import { 
+  calcularValoresAgregados, 
+  getCardStyle, 
+  getStatusBadgeColor, 
+  calcularDiasRestantes,
+  calcularValorMensal,
+  calcularMargemMensal,
+  calcularPercentualMargem
+} from '../utils/formatters'
 import {
   LineChart,
   Line,
@@ -203,15 +211,30 @@ const Dashboard = () => {
     const cardStyle = isContrato ? getCardStyle(data) : {}
     const statusColor = isContrato ? getStatusBadgeColor(data) : undefined
 
+    // Calcular margem para contratos
+    const margemMensal = isContrato ? calcularMargemMensal(data) : 0
+    const percentualMargem = isContrato ? calcularPercentualMargem(data) : 0
+
     return (
       <Card
         key={data.id}
         hoverable
-        style={{ cursor: 'pointer', ...cardStyle }}
+        style={{ 
+          cursor: 'pointer', 
+          height: '200px', // Altura fixa para todos os cards
+          display: 'flex',
+          flexDirection: 'column',
+          ...cardStyle 
+        }}
         onClick={() => handleCardClick(type, data)}
-        bodyStyle={{ padding: 16 }}
+        bodyStyle={{ 
+          padding: 16, 
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column'
+        }}
       >
-        <Space direction="vertical" size="small" style={{ width: '100%' }}>
+        <Space direction="vertical" size="small" style={{ width: '100%', flex: 1 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 2, marginBottom: 4 }}>
@@ -243,61 +266,90 @@ const Dashboard = () => {
           </div>
           
           {isContrato && (
-            <div>
-              <Text type="secondary" style={{ fontSize: 12 }}>Valor Mensal</Text>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <Text strong style={{ fontSize: 14 }}>
-                    R$ {(() => {
-                      const valorMensal = !data.dataFim ? (data.valorContrato / 12) : 
-                        (data.valorContrato / Math.max(1, 
-                          (new Date(data.dataFim).getFullYear() - new Date(data.dataInicio).getFullYear()) * 12 + 
-                          (new Date(data.dataFim).getMonth() - new Date(data.dataInicio).getMonth())
-                        ))
-                      return valorMensal?.toLocaleString('pt-BR', { 
+            <>
+              {/* Informações principais do contrato */}
+              <div style={{ marginTop: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Text strong style={{ fontSize: 16 }}>
+                      R$ {calcularValorMensal(data)?.toLocaleString('pt-BR', { 
                         minimumFractionDigits: 0, 
                         maximumFractionDigits: 0 
-                      }) || '0'
-                    })()}
-                  </Text>
-                  {!data.dataFim && (
-                    <Text type="secondary" style={{ fontSize: 12 }}>∞</Text>
-                  )}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    {data.profissionais?.length || 0} prof.
-                  </Text>
-                  {data.dataFim && (
-                    <Text type="secondary" style={{ fontSize: 10 }}>
-                      {(() => {
-                        const diasRestantes = calcularDiasRestantes(data)
-                        if (diasRestantes === null) return ''
-                        if (diasRestantes > 0) return `${diasRestantes} dias`
-                        return 'Vencido'
-                      })()}
+                      }) || '0'}
                     </Text>
-                  )}
+                    {!data.dataFim && (
+                      <Text type="secondary" style={{ fontSize: 12 }}>/mês</Text>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      {data.profissionais?.length || 0} prof.
+                    </Text>
+                    {data.dataFim && (
+                      <Text type="secondary" style={{ fontSize: 10 }}>
+                        {(() => {
+                          const diasRestantes = calcularDiasRestantes(data)
+                          if (diasRestantes === null) return ''
+                          if (diasRestantes > 0) return `${diasRestantes} dias`
+                          return 'Vencido'
+                        })()}
+                      </Text>
+                    )}
+                  </div>
                 </div>
+              </div>
+              
+              {/* Margem do Projeto */}
+              <div style={{ marginTop: 'auto' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>Margem</Text>
+                  <Text strong style={{ 
+                    fontSize: 16, 
+                    color: margemMensal >= 0 ? '#52c41a' : '#cf1322' 
+                  }}>
+                    R$ {margemMensal?.toLocaleString('pt-BR', { 
+                      minimumFractionDigits: 0, 
+                      maximumFractionDigits: 0 
+                    }) || '0'}
+                  </Text>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <Text style={{ 
+                    fontSize: 12, 
+                    color: percentualMargem >= 0 ? '#52c41a' : '#cf1322',
+                    fontWeight: 'bold'
+                  }}>
+                    {percentualMargem?.toFixed(1) || '0'}% de margem
+                  </Text>
+                </div>
+              </div>
+            </>
+          )}
+
+          {isProfissional && (
+            <div style={{ marginTop: 'auto' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {data.tipoContrato === 'hora' ? 'Valor/Hora' : 'Valor Fechado'}
+                </Text>
+                <Text strong style={{ fontSize: 16 }}>
+                  R$ {data.tipoContrato === 'hora' 
+                    ? (data.valorHora?.toLocaleString('pt-BR') || '0')
+                    : (data.valorFechado?.toLocaleString('pt-BR') || '0')
+                  }
+                </Text>
               </div>
             </div>
           )}
 
-          {isProfissional && (
-            <div>
-              <Text type="secondary" style={{ fontSize: 12 }}>Valor/Hora</Text>
-              <Text strong style={{ fontSize: 14 }}>
-                R$ {data.valorHora?.toLocaleString('pt-BR') || data.valorFechado?.toLocaleString('pt-BR') || '0'}
-              </Text>
-            </div>
-          )}
-
           {isCliente && (
-            <div>
-              <Text type="secondary" style={{ fontSize: 12 }}>Contratos Ativos</Text>
-              <Text strong style={{ fontSize: 14 }}>
-                {contratos.filter(c => c.clienteId === data.id && c.status === 'ativo').length}
-              </Text>
+            <div style={{ marginTop: 'auto' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>Contratos Ativos</Text>
+                <Text strong style={{ fontSize: 16 }}>
+                  {contratos.filter(c => c.clienteId === data.id && c.status === 'ativo').length}
+                </Text>
+              </div>
             </div>
           )}
         </Space>

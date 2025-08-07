@@ -13,9 +13,10 @@ import {
   Space,
   Row,
   Col,
-  Divider
+  Divider,
+  Tag
 } from 'antd'
-import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, SaveOutlined, PlusOutlined } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext'
 import dayjs from 'dayjs'
@@ -31,6 +32,8 @@ const EditarProfissional = () => {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [tags, setTags] = useState<string[]>([])
+  const [newTag, setNewTag] = useState('')
 
   const especialidades = [
     'Desenvolvedor Full Stack',
@@ -43,6 +46,24 @@ const EditarProfissional = () => {
     'Content Ops',
     'QA Engineer',
     'Data Scientist'
+  ]
+
+  const tagsSugeridas = [
+    'Alocação',
+    'Projetos',
+    'Bodyshop',
+    'Freelancer',
+    'CLT',
+    'PJ',
+    'Remoto',
+    'Presencial',
+    'Híbrido',
+    'Senior',
+    'Pleno',
+    'Junior',
+    'Especialista',
+    'Consultor',
+    'Mentor'
   ]
 
   // Carregar dados do profissional
@@ -62,12 +83,35 @@ const EditarProfissional = () => {
           valorPago: profissional.valorPago?.toString() || '',
           status: profissional.status || 'ativo'
         })
+        
+        // Carregar tags
+        if (profissional.tags) {
+          setTags(profissional.tags.split(',').map(tag => tag.trim()).filter(tag => tag))
+        }
       } else {
         setError('Profissional não encontrado')
       }
       setLoading(false)
     }
   }, [id, profissionais, form])
+
+  const handleAddTag = () => {
+    if (newTag.trim() && !tags.includes(newTag.trim())) {
+      setTags([...tags, newTag.trim()])
+      setNewTag('')
+    }
+  }
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    setTags(tags.filter(tag => tag !== tagToRemove))
+  }
+
+  const handleKeyPress = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      handleAddTag()
+    }
+  }
 
   const handleSubmit = async (values: any) => {
     setError(null)
@@ -84,7 +128,8 @@ const EditarProfissional = () => {
         valorFechado: values.tipoContrato === 'fechado' ? parseFloat(values.valorFechado) : null,
         periodoFechado: values.tipoContrato === 'fechado' ? values.periodoFechado : null,
         valorPago: values.tipoContrato === 'fechado' ? parseFloat(values.valorFechado) : null, // Para valor fechado, o valor pago é o mesmo do valor fechado
-        status: values.status
+        status: values.status,
+        tags: tags.join(',')
       }
 
       if (id) {
@@ -318,6 +363,83 @@ const EditarProfissional = () => {
                     <Option value="ferias">Férias</Option>
                   </Select>
                 </Form.Item>
+              </Col>
+
+              {/* Tags */}
+              <Col xs={24}>
+                <div style={{ marginBottom: 16 }}>
+                  <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                    Tags
+                  </Text>
+                  <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+                    Adicione tags para categorizar o profissional (ex: Alocação, Projetos, Bodyshop)
+                  </Text>
+                  
+                  {/* Input para adicionar tags */}
+                  <Space style={{ marginBottom: 16 }}>
+                    <Input
+                      placeholder="Digite uma tag e pressione Enter"
+                      value={newTag}
+                      onChange={(e) => setNewTag(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      style={{ width: 300 }}
+                    />
+                    <Button 
+                      type="primary" 
+                      icon={<PlusOutlined />}
+                      onClick={handleAddTag}
+                      disabled={!newTag.trim()}
+                    >
+                      Adicionar
+                    </Button>
+                  </Space>
+
+                  {/* Tags sugeridas */}
+                  <div style={{ marginBottom: 16 }}>
+                    <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+                      Tags sugeridas:
+                    </Text>
+                    <Space wrap>
+                      {tagsSugeridas.map((tag) => (
+                        <Tag
+                          key={tag}
+                          color={tags.includes(tag) ? 'blue' : 'default'}
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => {
+                            if (tags.includes(tag)) {
+                              handleRemoveTag(tag)
+                            } else {
+                              setTags([...tags, tag])
+                            }
+                          }}
+                        >
+                          {tag}
+                        </Tag>
+                      ))}
+                    </Space>
+                  </div>
+
+                  {/* Tags selecionadas */}
+                  {tags.length > 0 && (
+                    <div>
+                      <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+                        Tags selecionadas:
+                      </Text>
+                      <Space wrap>
+                        {tags.map((tag) => (
+                          <Tag
+                            key={tag}
+                            color="blue"
+                            closable
+                            onClose={() => handleRemoveTag(tag)}
+                          >
+                            {tag}
+                          </Tag>
+                        ))}
+                      </Space>
+                    </div>
+                  )}
+                </div>
               </Col>
             </Row>
 

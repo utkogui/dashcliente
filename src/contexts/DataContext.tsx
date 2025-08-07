@@ -27,6 +27,13 @@ interface Cliente {
   tamanho: string
 }
 
+interface DespesaAdicional {
+  id: string
+  contratoId: string
+  descricao: string
+  valor: number
+}
+
 interface Contrato {
   id: string
   nomeProjeto: string
@@ -39,6 +46,7 @@ interface Contrato {
   status: 'ativo' | 'encerrado' | 'pendente'
   observacoes?: string
   profissionais: ContratoProfissional[]
+  despesasAdicionais: DespesaAdicional[]
 }
 
 interface ContratoProfissional {

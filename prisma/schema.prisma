@@ -22,6 +22,7 @@ model Profissional {
   valorFechado      Float?     // Valor do contrato fechado
   periodoFechado    String?    // mensal, trimestral, semestral, anual
   valorPago         Float      // Valor bruto pago ao profissional
+  tags              String?    // Tags separadas por vírgula (ex: "Alocação,Projetos,Bodyshop")
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
 
@@ -68,8 +69,23 @@ model Contrato {
   // Relacionamentos
   cliente            Cliente      @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   profissionais      ContratoProfissional[]
+  despesasAdicionais DespesaAdicional[]
 
   @@map("contratos")
+}
+
+model DespesaAdicional {
+  id          String   @id @default(cuid())
+  contratoId  String
+  descricao   String   // Ex: "Software", "Risco", "Infraestrutura"
+  valor       Float    // Valor da despesa
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacionamentos
+  contrato    Contrato @relation(fields: [contratoId], references: [id], onDelete: Cascade)
+
+  @@map("despesas_adicionais")
 }
 
 model ContratoProfissional {

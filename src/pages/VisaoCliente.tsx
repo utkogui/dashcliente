@@ -326,38 +326,44 @@ const VisaoCliente = () => {
                         </Typography>
 
                         {/* Tags */}
-                        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                          <Chip 
-                            label="Alocação" 
-                            size="small" 
-                            variant="outlined"
-                            sx={{ 
-                              borderColor: 'primary.main',
-                              color: 'primary.main',
-                              fontWeight: 'bold'
-                            }}
-                          />
-                          <Chip 
-                            label="Projetos" 
-                            size="small" 
-                            variant="outlined"
-                            sx={{ 
-                              borderColor: 'success.main',
-                              color: 'success.main',
-                              fontWeight: 'bold'
-                            }}
-                          />
-                          <Chip 
-                            label="Bodyshop" 
-                            size="small" 
-                            variant="outlined"
-                            sx={{ 
-                              borderColor: 'warning.main',
-                              color: 'warning.main',
-                              fontWeight: 'bold'
-                            }}
-                          />
-                        </Box>
+                        {profissional.tags && (
+                          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                            {profissional.tags.split(',').map((tag: string, index: number) => {
+                              const tagTrim = tag.trim()
+                              if (!tagTrim) return null
+                              
+                              // Cores baseadas no tipo de tag
+                              let color = 'default'
+                              if (tagTrim.toLowerCase().includes('alocação') || tagTrim.toLowerCase().includes('alocacao')) {
+                                color = 'primary'
+                              } else if (tagTrim.toLowerCase().includes('projeto')) {
+                                color = 'success'
+                              } else if (tagTrim.toLowerCase().includes('bodyshop')) {
+                                color = 'warning'
+                              } else if (tagTrim.toLowerCase().includes('freelancer')) {
+                                color = 'info'
+                              } else if (tagTrim.toLowerCase().includes('clt')) {
+                                color = 'secondary'
+                              } else if (tagTrim.toLowerCase().includes('pj')) {
+                                color = 'error'
+                              }
+                              
+                              return (
+                                <Chip 
+                                  key={index}
+                                  label={tagTrim} 
+                                  size="small" 
+                                  variant="outlined"
+                                  color={color as any}
+                                  sx={{ 
+                                    fontWeight: 'bold',
+                                    fontSize: '0.75rem'
+                                  }}
+                                />
+                              )
+                            })}
+                          </Box>
+                        )}
                       </Box>
 
                       <Divider sx={{ my: 2, borderColor: 'rgba(0,0,0,0.08)' }} />

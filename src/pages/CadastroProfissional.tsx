@@ -16,9 +16,11 @@ import {
   Grid,
   Alert,
   CircularProgress,
-  InputAdornment
+  InputAdornment,
+  Chip,
+  Autocomplete
 } from '@mui/material'
-import { ArrowBack, Save } from '@mui/icons-material'
+import { ArrowBack, Save, Add } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
 import { useData } from '../contexts/DataContext'
 
@@ -40,8 +42,11 @@ const CadastroProfissional = () => {
     valorFechado: '',
     periodoFechado: 'mensal',
     valorPago: '',
-    status: 'ativo' as 'ativo' | 'inativo' | 'ferias'
+    status: 'ativo' as 'ativo' | 'inativo' | 'ferias',
+    tags: [] as string[]
   })
+
+  const [newTag, setNewTag] = useState('')
 
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -58,10 +63,52 @@ const CadastroProfissional = () => {
     'Data Scientist'
   ]
 
+  const tagsSugeridas = [
+    'Alocação',
+    'Projetos',
+    'Bodyshop',
+    'Freelancer',
+    'CLT',
+    'PJ',
+    'Remoto',
+    'Presencial',
+    'Híbrido',
+    'Senior',
+    'Pleno',
+    'Junior',
+    'Especialista',
+    'Consultor',
+    'Mentor'
+  ]
+
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }))
+    }
+  }
+
+  const handleAddTag = () => {
+    if (newTag.trim() && !formData.tags.includes(newTag.trim())) {
+      setFormData(prev => ({
+        ...prev,
+        tags: [...prev.tags, newTag.trim()]
+      }))
+      setNewTag('')
+    }
+  }
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    setFormData(prev => ({
+      ...prev,
+      tags: prev.tags.filter(tag => tag !== tagToRemove)
+    }))
+  }
+
+  const handleKeyPress = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      handleAddTag()
     }
   }
 
@@ -121,7 +168,8 @@ const CadastroProfissional = () => {
         valorFechado: formData.tipoContrato === 'fechado' ? parseFloat(formData.valorFechado) : null,
         periodoFechado: formData.tipoContrato === 'fechado' ? formData.periodoFechado : null,
         valorPago: parseFloat(formData.valorPago),
-        status: formData.status
+        status: formData.status,
+        tags: formData.tags.join(',')
       }
 
       await addProfissional(profissionalData)
@@ -340,6 +388,91 @@ const CadastroProfissional = () => {
                   <MenuItem value="ferias">Férias</MenuItem>
                 </Select>
               </FormControl>
+            </Grid>
+
+            {/* Tags */}
+            <Grid item xs={12}>
+              <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
+                Tags
+              </Typography>
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  Adicione tags para categorizar o profissional (ex: Alocação, Projetos, Bodyshop)
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder="Digite uma tag e pressione Enter"
+                    value={newTag}
+                    onChange={(e) => setNewTag(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    disabled={submitting}
+                    InputProps={{
+                      endAdornment: (
+                        <Button
+                          onClick={handleAddTag}
+                          disabled={!newTag.trim() || submitting}
+                          size="small"
+                          sx={{ minWidth: 'auto' }}
+                        >
+                          <Add />
+                        </Button>
+                      ),
+                    }}
+                  />
+                </Box>
+                
+                {/* Tags Sugeridas */}
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    Tags sugeridas:
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    {tagsSugeridas.map((tag) => (
+                      <Chip
+                        key={tag}
+                        label={tag}
+                        size="small"
+                        variant={formData.tags.includes(tag) ? "filled" : "outlined"}
+                        color={formData.tags.includes(tag) ? "primary" : "default"}
+                        onClick={() => {
+                          if (formData.tags.includes(tag)) {
+                            handleRemoveTag(tag)
+                          } else {
+                            setFormData(prev => ({
+                              ...prev,
+                              tags: [...prev.tags, tag]
+                            }))
+                          }
+                        }}
+                        sx={{ cursor: 'pointer' }}
+                      />
+                    ))}
+                  </Box>
+                </Box>
+
+                {/* Tags Selecionadas */}
+                {formData.tags.length > 0 && (
+                  <Box>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                      Tags selecionadas:
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                      {formData.tags.map((tag) => (
+                        <Chip
+                          key={tag}
+                          label={tag}
+                          size="small"
+                          color="primary"
+                          onDelete={() => handleRemoveTag(tag)}
+                          disabled={submitting}
+                        />
+                      ))}
+                    </Box>
+                  </Box>
+                )}
+              </Box>
             </Grid>
 
             {/* Botões */}
