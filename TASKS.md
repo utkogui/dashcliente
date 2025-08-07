@@ -43,12 +43,14 @@ Implementação das melhorias definidas no PRD para tornar o cadastro de empresa
 - [ ] Testar wizard de profissionais
 
 ### Fase 4: Frontend - Contratos
-- [ ] Atualizar interface de criação de contratos
-- [ ] Implementar seleção baseada no tipo de remuneração do profissional
-- [ ] Adicionar campo de percentual de impostos específico do contrato
-- [ ] Implementar recálculo automático de valores
-- [ ] Validar criação de contratos (tipo oposto)
-- [ ] Testar criação e edição de contratos
+- [x] Atualizar interface de criação de contratos
+- [x] Implementar seleção baseada no tipo de remuneração do profissional
+- [x] Adicionar campo de percentual de impostos específico do contrato
+- [x] Implementar recálculo automático de valores
+- [x] Validar criação de contratos (tipo oposto)
+- [x] Testar criação e edição de contratos
+- [x] Adicionar campo "Código do Contrato" na página de cadastro
+- [x] Exibir código do contrato no modal de detalhes do dashboard
 
 ### Fase 5: Dashboard e Relatórios
 - [ ] Implementar cards clicáveis no dashboard

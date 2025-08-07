@@ -20,6 +20,8 @@ export interface Cliente {
 
 export interface Contrato {
   id: string;
+  nomeProjeto: string;
+  codigoContrato?: string;
   profissionalId: string;
   clienteId: string;
   dataInicio: string;

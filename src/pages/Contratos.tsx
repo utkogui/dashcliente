@@ -37,6 +37,7 @@ const { Search } = Input
 interface Contrato {
   id: string
   nomeProjeto: string
+  codigoContrato?: string
   clienteId: string
   dataInicio: string
   dataFim: string | null
@@ -74,6 +75,7 @@ const Contratos = () => {
     const filtered = contratos.filter(c => {
       return (
         c.nomeProjeto.toLowerCase().includes(value.toLowerCase()) ||
+        c.codigoContrato?.toLowerCase().includes(value.toLowerCase()) ||
         c.cliente?.nome.toLowerCase().includes(value.toLowerCase()) ||
         c.cliente?.empresa.toLowerCase().includes(value.toLowerCase()) ||
         c.observacoes?.toLowerCase().includes(value.toLowerCase()) ||

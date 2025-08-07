@@ -103,6 +103,7 @@ const seedDatabase = async () => {
     await prisma.contrato.create({
       data: {
         nomeProjeto: 'Sistema de Gestão',
+        codigoContrato: 'CON-2024-001',
         clienteId: cli1.id,
         dataInicio: '2024-01-01',
         dataFim: '2024-12-31',
@@ -127,6 +128,7 @@ const seedDatabase = async () => {
     await prisma.contrato.create({
       data: {
         nomeProjeto: 'Design Mobile',
+        codigoContrato: 'CON-2024-002',
         clienteId: cli2.id,
         dataInicio: '2024-02-01',
         dataFim: '2024-11-30',
@@ -150,6 +152,7 @@ const seedDatabase = async () => {
     await prisma.contrato.create({
       data: {
         nomeProjeto: 'Infraestrutura Cloud',
+        codigoContrato: 'CON-2024-003',
         clienteId: cli3.id,
         dataInicio: '2024-03-01',
         dataFim: '2024-10-31',

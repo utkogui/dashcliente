@@ -54,6 +54,7 @@ model Cliente {
 model Contrato {
   id                 String   @id @default(cuid())
   nomeProjeto        String   // Nome do projeto
+  codigoContrato     String?  // Código do contrato
   clienteId          String
   dataInicio         String
   dataFim            String?

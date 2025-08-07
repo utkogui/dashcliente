@@ -62,6 +62,7 @@ interface ClienteData {
 interface ContratoData {
   id: string
   nomeProjeto: string
+  codigoContrato?: string
   clienteId: string
   dataInicio: string
   dataFim: string | null
@@ -104,6 +105,7 @@ const DetalhesModal: React.FC<DetalhesModalProps> = ({
     // Dados do contrato
     const contratoData = [{
       'Projeto': contrato.nomeProjeto,
+      'Código do Contrato': contrato.codigoContrato || '-',
       'Cliente': contrato.cliente.empresa,
       'Status': getStatusText(contrato.status),
       'Data Início': new Date(contrato.dataInicio).toLocaleDateString('pt-BR'),
@@ -471,6 +473,13 @@ const DetalhesModal: React.FC<DetalhesModalProps> = ({
           <Col span={12}>
             <Card title="Informações do Projeto">
               <Descriptions column={1} size="small">
+                {contrato.codigoContrato && (
+                  <Descriptions.Item label="Código do Contrato">
+                    <Text strong style={{ color: '#1890ff' }}>
+                      {contrato.codigoContrato}
+                    </Text>
+                  </Descriptions.Item>
+                )}
                 <Descriptions.Item label="Data de Início">
                   <Space>
                     <ClockCircleOutlined />

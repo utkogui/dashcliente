@@ -144,6 +144,7 @@ const CadastroContrato = () => {
         // Preencher formulário com dados do contrato
         form.setFieldsValue({
           nomeProjeto: contrato.nomeProjeto,
+          codigoContrato: contrato.codigoContrato || '',
           clienteId: contrato.clienteId,
           dataInicio: contrato.dataInicio ? dayjs(contrato.dataInicio) : null,
           dataFim: contrato.dataFim ? dayjs(contrato.dataFim) : null,
@@ -329,6 +330,7 @@ const CadastroContrato = () => {
 
       const contratoData = {
         nomeProjeto: values.nomeProjeto,
+        codigoContrato: values.codigoContrato || null,
         clienteId: values.clienteId,
         dataInicio: values.dataInicio?.format('YYYY-MM-DD') || '',
         dataFim: values.contratoIndeterminado ? null : values.dataFim?.format('YYYY-MM-DD') || '',
@@ -433,6 +435,15 @@ const CadastroContrato = () => {
                       </Option>
                     ))}
                   </Select>
+                </Form.Item>
+              </Col>
+
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="codigoContrato"
+                  label="Código do Contrato"
+                >
+                  <Input placeholder="Digite o código do contrato (opcional)" />
                 </Form.Item>
               </Col>
 
