@@ -7,17 +7,115 @@ const prisma = new PrismaClient()
 const PORT = 3001
 
 // Middleware
-app.use(cors())
+app.use(cors({
+  origin: 'http://localhost:5173', // Frontend URL
+  credentials: true // Permitir cookies/sessões
+}))
 app.use(express.json())
+
+// Middleware de sessão simples (em produção usar Redis ou similar)
+const sessions = new Map()
+
+// Middleware para verificar sessão
+const verificarSessao = (req: any, res: any, next: any) => {
+  const sessionId = req.headers.authorization?.replace('Bearer ', '')
+  
+  if (sessionId && sessions.has(sessionId)) {
+    req.usuario = sessions.get(sessionId)
+    next()
+  } else {
+    res.status(401).json({ error: 'Não autorizado' })
+  }
+}
 
 // Função para popular o banco com dados iniciais
 const seedDatabase = async () => {
   const profissionaisCount = await prisma.profissional.count()
   const clientesCount = await prisma.cliente.count()
   const contratosCount = await prisma.contrato.count()
+  const usuariosCount = await prisma.usuario.count()
+  const clientesSistemaCount = await prisma.clienteSistema.count()
 
-  if (profissionaisCount === 0 && clientesCount === 0 && contratosCount === 0) {
-    console.log('🌱 Populando banco de dados com dados iniciais...')
+  console.log('📊 Status do banco:', {
+    profissionais: profissionaisCount,
+    clientes: clientesCount,
+    contratos: contratosCount,
+    usuarios: usuariosCount,
+    clientesSistema: clientesSistemaCount
+  })
+
+  // Sempre criar usuários se não existirem
+  if (usuariosCount === 0) {
+    console.log('🌱 Criando usuários iniciais...')
+
+    // Verificar se os clientes do sistema já existem
+    let matilha = await prisma.clienteSistema.findUnique({
+      where: { id: 'cliente_matilha_default' }
+    })
+    
+    if (!matilha) {
+      matilha = await prisma.clienteSistema.create({
+        data: {
+          id: 'cliente_matilha_default',
+          nome: 'Matilha',
+          descricao: 'Cliente padrão do sistema',
+          ativo: true
+        }
+      })
+    }
+
+    let ftd = await prisma.clienteSistema.findFirst({
+      where: { nome: 'FTD' }
+    })
+    
+    if (!ftd) {
+      ftd = await prisma.clienteSistema.create({
+        data: {
+          nome: 'FTD',
+          descricao: 'Cliente FTD',
+          ativo: true
+        }
+      })
+    }
+
+    // Criar usuário admin padrão
+    const { criptografarSenha } = await import('./utils/auth.ts')
+    const senhaAdmin = await criptografarSenha('admin123')
+    
+    await prisma.usuario.create({
+      data: {
+        email: 'admin@matilha.com',
+        senha: senhaAdmin,
+        tipo: 'admin',
+        ativo: true
+      }
+    })
+
+    // Criar usuário cliente para Matilha
+    const senhaMatilha = await criptografarSenha('matilha123')
+    
+    await prisma.usuario.create({
+      data: {
+        email: 'matilha@matilha.com',
+        senha: senhaMatilha,
+        tipo: 'cliente',
+        clienteId: matilha.id,
+        ativo: true
+      }
+    })
+
+    // Criar usuário cliente para FTD
+    const senhaFtd = await criptografarSenha('ftd123')
+    
+    await prisma.usuario.create({
+      data: {
+        email: 'ftd@ftd.com',
+        senha: senhaFtd,
+        tipo: 'cliente',
+        clienteId: ftd.id,
+        ativo: true
+      }
+    })
 
     // Criar profissionais
     const prof1 = await prisma.profissional.create({
@@ -29,7 +127,8 @@ const seedDatabase = async () => {
         status: 'ativo',
         dataInicio: '2023-01-15',
         tipoContrato: 'hora',
-        valorPago: 11520
+        valorPago: 11520,
+        clienteId: matilha.id
       }
     })
 
@@ -42,7 +141,8 @@ const seedDatabase = async () => {
         status: 'ativo',
         dataInicio: '2023-03-20',
         tipoContrato: 'hora',
-        valorPago: 7200
+        valorPago: 7200,
+        clienteId: matilha.id
       }
     })
 
@@ -55,7 +155,8 @@ const seedDatabase = async () => {
         status: 'ativo',
         dataInicio: '2023-02-10',
         tipoContrato: 'hora',
-        valorPago: 12600
+        valorPago: 12600,
+        clienteId: matilha.id
       }
     })
 
@@ -69,7 +170,8 @@ const seedDatabase = async () => {
         endereco: 'Rua das Flores, 123 - São Paulo/SP',
         anoInicio: 2023,
         segmento: 'Tecnologia',
-        tamanho: 'Média'
+        tamanho: 'Média',
+        clienteId: matilha.id
       }
     })
 
@@ -82,7 +184,8 @@ const seedDatabase = async () => {
         endereco: 'Av. Paulista, 1000 - São Paulo/SP',
         anoInicio: 2024,
         segmento: 'Tecnologia',
-        tamanho: 'Pequena'
+        tamanho: 'Pequena',
+        clienteId: matilha.id
       }
     })
 
@@ -95,7 +198,8 @@ const seedDatabase = async () => {
         endereco: 'Rua Augusta, 500 - São Paulo/SP',
         anoInicio: 2023,
         segmento: 'Tecnologia',
-        tamanho: 'Pequena'
+        tamanho: 'Pequena',
+        clienteId: matilha.id
       }
     })
 
@@ -105,6 +209,7 @@ const seedDatabase = async () => {
         nomeProjeto: 'Sistema de Gestão',
         codigoContrato: 'CON-2024-001',
         clienteId: cli1.id,
+        clienteSistemaId: matilha.id,
         dataInicio: '2024-01-01',
         dataFim: '2024-12-31',
         tipoContrato: 'hora',
@@ -130,6 +235,7 @@ const seedDatabase = async () => {
         nomeProjeto: 'Design Mobile',
         codigoContrato: 'CON-2024-002',
         clienteId: cli2.id,
+        clienteSistemaId: matilha.id,
         dataInicio: '2024-02-01',
         dataFim: '2024-11-30',
         tipoContrato: 'hora',
@@ -154,6 +260,7 @@ const seedDatabase = async () => {
         nomeProjeto: 'Infraestrutura Cloud',
         codigoContrato: 'CON-2024-003',
         clienteId: cli3.id,
+        clienteSistemaId: matilha.id,
         dataInicio: '2024-03-01',
         dataFim: '2024-10-31',
         tipoContrato: 'hora',
@@ -178,9 +285,19 @@ const seedDatabase = async () => {
 }
 
 // Rotas para Profissionais
-app.get('/api/profissionais', async (req, res) => {
+app.get('/api/profissionais', verificarSessao, async (req, res) => {
   try {
+    const { usuario } = req
+    
+    let whereClause = {}
+    
+    // Se não é admin, filtrar por cliente
+    if (usuario.tipo !== 'admin') {
+      whereClause = { clienteId: usuario.clienteId }
+    }
+    
     const profissionais = await prisma.profissional.findMany({
+      where: whereClause,
       orderBy: { nome: 'asc' }
     })
     res.json(profissionais.map(p => ({
@@ -192,10 +309,18 @@ app.get('/api/profissionais', async (req, res) => {
   }
 })
 
-app.post('/api/profissionais', async (req, res) => {
+app.post('/api/profissionais', verificarSessao, async (req, res) => {
   try {
+    const { usuario } = req
+    
+    // Adicionar cliente_id automaticamente se não for admin
+    const dadosProfissional = {
+      ...req.body,
+      clienteId: usuario.tipo === 'admin' ? req.body.clienteId : usuario.clienteId
+    }
+    
     const profissional = await prisma.profissional.create({
-      data: req.body
+      data: dadosProfissional
     })
     res.json({
       ...profissional,
@@ -241,9 +366,19 @@ app.delete('/api/profissionais/:id', async (req, res) => {
 })
 
 // Rotas para Clientes
-app.get('/api/clientes', async (req, res) => {
+app.get('/api/clientes', verificarSessao, async (req, res) => {
   try {
+    const { usuario } = req
+    
+    let whereClause = {}
+    
+    // Se não é admin, filtrar por cliente
+    if (usuario.tipo !== 'admin') {
+      whereClause = { clienteId: usuario.clienteId }
+    }
+    
     const clientes = await prisma.cliente.findMany({
+      where: whereClause,
       orderBy: { empresa: 'asc' }
     })
     res.json(clientes.map(c => ({
@@ -335,9 +470,19 @@ app.delete('/api/clientes/:id', async (req, res) => {
 })
 
 // Rotas para Contratos
-app.get('/api/contratos', async (req, res) => {
+app.get('/api/contratos', verificarSessao, async (req, res) => {
   try {
+    const { usuario } = req
+    
+    let whereClause = {}
+    
+    // Se não é admin, filtrar por cliente
+    if (usuario.tipo !== 'admin') {
+      whereClause = { clienteSistemaId: usuario.clienteId }
+    }
+    
     const contratos = await prisma.contrato.findMany({
+      where: whereClause,
       include: {
         profissionais: {
           include: {
@@ -456,9 +601,382 @@ app.delete('/api/contratos/:id', async (req, res) => {
   }
 })
 
+// ===== ROTAS DE AUTENTICAÇÃO =====
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, senha } = req.body
+
+    // Validar campos obrigatórios
+    if (!email || !senha) {
+      return res.status(400).json({ error: 'Email e senha são obrigatórios' })
+    }
+
+    // Buscar usuário no banco
+    const usuario = await prisma.usuario.findUnique({
+      where: { email },
+      include: {
+        cliente: true
+      }
+    })
+
+    if (!usuario) {
+      return res.status(401).json({ error: 'Credenciais inválidas' })
+    }
+
+    if (!usuario.ativo) {
+      return res.status(401).json({ error: 'Usuário inativo' })
+    }
+
+    // Verificar senha
+    const { verificarSenha } = await import('./utils/auth.ts')
+    const senhaValida = await verificarSenha(senha, usuario.senha)
+
+    if (!senhaValida) {
+      return res.status(401).json({ error: 'Credenciais inválidas' })
+    }
+
+    // Criar sessão
+    const sessionId = Math.random().toString(36).substring(2) + Date.now().toString(36)
+    sessions.set(sessionId, {
+      id: usuario.id,
+      email: usuario.email,
+      tipo: usuario.tipo,
+      clienteId: usuario.clienteId,
+      cliente: usuario.cliente
+    })
+
+    // Retornar dados do usuário (sem senha)
+    res.json({
+      usuario: {
+        id: usuario.id,
+        email: usuario.email,
+        tipo: usuario.tipo,
+        clienteId: usuario.clienteId,
+        cliente: usuario.cliente
+      },
+      sessionId
+    })
+  } catch (error) {
+    console.error('Erro no login:', error)
+    res.status(500).json({ error: 'Erro interno do servidor' })
+  }
+})
+
+app.post('/api/auth/logout', async (req, res) => {
+  try {
+    const sessionId = req.headers.authorization?.replace('Bearer ', '')
+    
+    if (sessionId && sessions.has(sessionId)) {
+      sessions.delete(sessionId)
+    }
+    
+    res.json({ message: 'Logout realizado com sucesso' })
+  } catch (error) {
+    console.error('Erro no logout:', error)
+    res.status(500).json({ error: 'Erro interno do servidor' })
+  }
+})
+
+app.get('/api/auth/me', verificarSessao, async (req, res) => {
+  try {
+    res.json({ usuario: req.usuario })
+  } catch (error) {
+    console.error('Erro ao buscar usuário:', error)
+    res.status(500).json({ error: 'Erro interno do servidor' })
+  }
+})
+
 // Rota de health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'API funcionando!' })
+})
+
+// Rotas para Gestão de Clientes do Sistema (apenas admin)
+app.get('/api/clientes-sistema', verificarSessao, async (req, res) => {
+  try {
+    const { usuario } = req
+    
+    // Apenas admin pode acessar
+    if (usuario.tipo !== 'admin') {
+      return res.status(403).json({ error: 'Acesso negado' })
+    }
+    
+    const clientesSistema = await prisma.clienteSistema.findMany({
+      include: {
+        usuarios: {
+          select: {
+            id: true,
+            email: true,
+            tipo: true,
+            ativo: true,
+            createdAt: true
+          }
+        }
+      },
+      orderBy: { nome: 'asc' }
+    })
+    
+    res.json(clientesSistema)
+  } catch (error) {
+    console.error('Erro ao buscar clientes do sistema:', error)
+    res.status(500).json({ error: 'Erro ao buscar clientes do sistema' })
+  }
+})
+
+app.post('/api/clientes-sistema', verificarSessao, async (req, res) => {
+  try {
+    const { usuario } = req
+    const { nome, descricao, email, senha } = req.body
+    
+    // Apenas admin pode criar
+    if (usuario.tipo !== 'admin') {
+      return res.status(403).json({ error: 'Acesso negado' })
+    }
+    
+    // Validar campos obrigatórios
+    if (!nome || !email || !senha) {
+      return res.status(400).json({ error: 'Nome, email e senha são obrigatórios' })
+    }
+    
+    // Verificar se já existe cliente com este nome
+    const clienteExistente = await prisma.clienteSistema.findFirst({
+      where: { nome }
+    })
+    
+    if (clienteExistente) {
+      return res.status(400).json({ error: 'Já existe um cliente com este nome' })
+    }
+    
+    // Verificar se já existe usuário com este email
+    const usuarioExistente = await prisma.usuario.findUnique({
+      where: { email }
+    })
+    
+    if (usuarioExistente) {
+      return res.status(400).json({ error: 'Já existe um usuário com este email' })
+    }
+    
+    // Criar cliente do sistema
+    const { criptografarSenha } = await import('./utils/auth.ts')
+    const senhaCriptografada = await criptografarSenha(senha)
+    
+    const novoCliente = await prisma.clienteSistema.create({
+      data: {
+        nome,
+        descricao,
+        ativo: true
+      }
+    })
+    
+    // Criar usuário para o cliente
+    await prisma.usuario.create({
+      data: {
+        email,
+        senha: senhaCriptografada,
+        tipo: 'cliente',
+        clienteId: novoCliente.id,
+        ativo: true
+      }
+    })
+    
+    res.json(novoCliente)
+  } catch (error) {
+    console.error('Erro ao criar cliente do sistema:', error)
+    res.status(500).json({ error: 'Erro ao criar cliente do sistema' })
+  }
+})
+
+app.put('/api/clientes-sistema/:id', verificarSessao, async (req, res) => {
+  try {
+    const { usuario } = req
+    const { id } = req.params
+    const { nome, descricao } = req.body
+    
+    // Apenas admin pode editar
+    if (usuario.tipo !== 'admin') {
+      return res.status(403).json({ error: 'Acesso negado' })
+    }
+    
+    // Verificar se o cliente existe
+    const cliente = await prisma.clienteSistema.findUnique({
+      where: { id }
+    })
+    
+    if (!cliente) {
+      return res.status(404).json({ error: 'Cliente não encontrado' })
+    }
+    
+    // Não permitir editar o nome do Matilha
+    if (cliente.nome === 'Matilha' && nome !== 'Matilha') {
+      return res.status(400).json({ error: 'Não é possível alterar o nome do cliente Matilha' })
+    }
+    
+    // Verificar se já existe outro cliente com este nome
+    if (nome !== cliente.nome) {
+      const clienteExistente = await prisma.clienteSistema.findFirst({
+        where: { 
+          nome,
+          id: { not: id }
+        }
+      })
+      
+      if (clienteExistente) {
+        return res.status(400).json({ error: 'Já existe um cliente com este nome' })
+      }
+    }
+    
+    // Atualizar cliente
+    const clienteAtualizado = await prisma.clienteSistema.update({
+      where: { id },
+      data: { nome, descricao }
+    })
+    
+    res.json(clienteAtualizado)
+  } catch (error) {
+    console.error('Erro ao atualizar cliente do sistema:', error)
+    res.status(500).json({ error: 'Erro ao atualizar cliente do sistema' })
+  }
+})
+
+app.delete('/api/clientes-sistema/:id', verificarSessao, async (req, res) => {
+  try {
+    const { usuario } = req
+    const { id } = req.params
+    
+    // Apenas admin pode deletar
+    if (usuario.tipo !== 'admin') {
+      return res.status(403).json({ error: 'Acesso negado' })
+    }
+    
+    // Verificar se o cliente existe
+    const cliente = await prisma.clienteSistema.findUnique({
+      where: { id }
+    })
+    
+    if (!cliente) {
+      return res.status(404).json({ error: 'Cliente não encontrado' })
+    }
+    
+    // Não permitir deletar o Matilha
+    if (cliente.nome === 'Matilha') {
+      return res.status(400).json({ error: 'Não é possível excluir o cliente Matilha' })
+    }
+    
+    // Verificar se há dados associados
+    const profissionaisCount = await prisma.profissional.count({
+      where: { clienteId: id }
+    })
+    
+    const clientesCount = await prisma.cliente.count({
+      where: { clienteId: id }
+    })
+    
+    const contratosCount = await prisma.contrato.count({
+      where: { clienteSistemaId: id }
+    })
+    
+    if (profissionaisCount > 0 || clientesCount > 0 || contratosCount > 0) {
+      return res.status(400).json({ 
+        error: `Não é possível excluir este cliente pois possui dados associados: ${profissionaisCount} profissionais, ${clientesCount} clientes, ${contratosCount} contratos` 
+      })
+    }
+    
+    // Deletar usuários associados
+    await prisma.usuario.deleteMany({
+      where: { clienteId: id }
+    })
+    
+    // Deletar cliente do sistema
+    await prisma.clienteSistema.delete({
+      where: { id }
+    })
+    
+    res.json({ message: 'Cliente excluído com sucesso' })
+  } catch (error) {
+    console.error('Erro ao deletar cliente do sistema:', error)
+    res.status(500).json({ error: 'Erro ao deletar cliente do sistema' })
+  }
+})
+
+// Rota temporária para criar usuários (remover depois)
+app.post('/api/setup-users', async (req, res) => {
+  try {
+    // Verificar se já existem usuários
+    const usuariosCount = await prisma.usuario.count()
+    if (usuariosCount > 0) {
+      return res.json({ message: 'Usuários já existem no sistema' })
+    }
+
+    // Criar clientes do sistema
+    const matilha = await prisma.clienteSistema.create({
+      data: {
+        id: 'cliente_matilha_default',
+        nome: 'Matilha',
+        descricao: 'Cliente padrão do sistema',
+        ativo: true
+      }
+    })
+
+    const ftd = await prisma.clienteSistema.create({
+      data: {
+        nome: 'FTD',
+        descricao: 'Cliente FTD',
+        ativo: true
+      }
+    })
+
+    // Criar usuário admin
+    const { criptografarSenha } = await import('./utils/auth.js')
+    const senhaAdmin = await criptografarSenha('admin123')
+    
+    await prisma.usuario.create({
+      data: {
+        email: 'admin@matilha.com',
+        senha: senhaAdmin,
+        tipo: 'admin',
+        ativo: true
+      }
+    })
+
+    // Criar usuário cliente para Matilha
+    const senhaMatilha = await criptografarSenha('matilha123')
+    
+    await prisma.usuario.create({
+      data: {
+        email: 'matilha@matilha.com',
+        senha: senhaMatilha,
+        tipo: 'cliente',
+        clienteId: matilha.id,
+        ativo: true
+      }
+    })
+
+    // Criar usuário cliente para FTD
+    const senhaFtd = await criptografarSenha('ftd123')
+    
+    await prisma.usuario.create({
+      data: {
+        email: 'ftd@ftd.com',
+        senha: senhaFtd,
+        tipo: 'cliente',
+        clienteId: ftd.id,
+        ativo: true
+      }
+    })
+
+    res.json({ 
+      message: 'Usuários criados com sucesso!',
+      usuarios: {
+        admin: 'admin@matilha.com / admin123',
+        matilha: 'matilha@matilha.com / matilha123',
+        ftd: 'ftd@ftd.com / ftd123'
+      }
+    })
+  } catch (error) {
+    console.error('Erro ao criar usuários:', error)
+    res.status(500).json({ error: 'Erro ao criar usuários' })
+  }
 })
 
 // Rota para visualizar o banco de dados
@@ -482,6 +1000,17 @@ app.get('/api/database', async (req, res) => {
         contrato: true
       }
     })
+    const usuarios = await prisma.usuario.findMany({
+      select: {
+        id: true,
+        email: true,
+        tipo: true,
+        clienteId: true,
+        ativo: true,
+        createdAt: true
+      }
+    })
+    const clientesSistema = await prisma.clienteSistema.findMany()
 
     res.json({
       profissionais: {
@@ -499,6 +1028,14 @@ app.get('/api/database', async (req, res) => {
       contratoProfissionais: {
         count: contratoProfissionais.length,
         data: contratoProfissionais
+      },
+      usuarios: {
+        count: usuarios.length,
+        data: usuarios
+      },
+      clientesSistema: {
+        count: clientesSistema.length,
+        data: clientesSistema
       }
     })
   } catch (error) {

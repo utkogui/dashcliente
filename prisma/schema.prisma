@@ -23,11 +23,13 @@ model Profissional {
   periodoFechado    String?    // mensal, trimestral, semestral, anual
   valorPago         Float      // Valor bruto pago ao profissional
   tags              String?    // Tags separadas por vírgula (ex: "Alocação,Projetos,Bodyshop")
+  clienteId         String     // Cliente do sistema que possui este profissional
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
 
   // Relacionamentos
   contratos         ContratoProfissional[]
+  cliente           ClienteSistema @relation(fields: [clienteId], references: [id], onDelete: Cascade)
 
   @@map("profissionais")
 }
@@ -42,11 +44,13 @@ model Cliente {
   anoInicio   Int        // Ano de início do relacionamento com a Matilha
   segmento    String     // Segmento de atuação
   tamanho     String     @default("Média") // Pequena, Média, Grande
+  clienteId   String     // Cliente do sistema que possui este cliente
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
   // Relacionamentos
   contratos   Contrato[]
+  cliente     ClienteSistema @relation(fields: [clienteId], references: [id], onDelete: Cascade)
 
   @@map("clientes")
 }
@@ -55,7 +59,8 @@ model Contrato {
   id                 String   @id @default(cuid())
   nomeProjeto        String   // Nome do projeto
   codigoContrato     String?  // Código do contrato
-  clienteId          String
+  clienteId          String   // Cliente de negócio (relacionado ao Cliente)
+  clienteSistemaId   String   // Cliente do sistema que possui este contrato
   dataInicio         String
   dataFim            String?
   tipoContrato       String   @default("hora") // hora, fechado
@@ -69,6 +74,7 @@ model Contrato {
 
   // Relacionamentos
   cliente            Cliente      @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  clienteSistema     ClienteSistema @relation(fields: [clienteSistemaId], references: [id], onDelete: Cascade)
   profissionais      ContratoProfissional[]
   despesasAdicionais DespesaAdicional[]
 
@@ -106,4 +112,39 @@ model ContratoProfissional {
 
   @@unique([contratoId, profissionalId])
   @@map("contrato_profissionais")
+}
+
+// ===== NOVAS TABELAS PARA SISTEMA DE LOGIN =====
+
+model Usuario {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  senha       String   // Senha criptografada
+  tipo        String   @default("cliente") // admin, cliente
+  clienteId   String?  // Null para admin, ID do cliente para usuários cliente
+  ativo       Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacionamentos
+  cliente     ClienteSistema? @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  @@map("usuarios")
+}
+
+model ClienteSistema {
+  id          String   @id @default(cuid())
+  nome        String   // Nome do cliente do sistema (ex: "Matilha", "FTD")
+  descricao   String?  // Descrição opcional
+  ativo       Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacionamentos
+  usuarios    Usuario[]
+  profissionais Profissional[]
+  clientes    Cliente[]
+  contratos   Contrato[]
+
+  @@map("clientes_sistema")
 }

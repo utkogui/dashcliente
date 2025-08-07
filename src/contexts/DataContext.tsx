@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react'
+import { useAuth } from './AuthContext'
 
 // Tipos
 interface Profissional {
@@ -105,12 +106,19 @@ const API_BASE_URL = process.env.NODE_ENV === 'production'
   : 'http://localhost:3001/api'
 
 // Funções auxiliares para chamadas da API
-const apiCall = async (endpoint: string, options: RequestInit = {}) => {
+const apiCall = async (endpoint: string, options: RequestInit = {}, sessionId?: string | null) => {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...options.headers,
+  }
+
+  // Adicionar token de autenticação se disponível
+  if (sessionId) {
+    headers['Authorization'] = `Bearer ${sessionId}`
+  }
+
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+    headers,
     ...options,
   })
 
@@ -123,24 +131,34 @@ const apiCall = async (endpoint: string, options: RequestInit = {}) => {
 }
 
 export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
+  const { sessionId } = useAuth()
   const [profissionais, setProfissionais] = useState<Profissional[]>([])
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [contratos, setContratos] = useState<Contrato[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Carregar dados iniciais
+  // Carregar dados iniciais e quando sessionId mudar
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true)
         setError(null)
         
+        // Só carregar dados se há uma sessão ativa
+        if (!sessionId) {
+          setProfissionais([])
+          setClientes([])
+          setContratos([])
+          setLoading(false)
+          return
+        }
+        
         // Carregar dados
         const [profData, cliData, conData] = await Promise.all([
-          apiCall('/profissionais'),
-          apiCall('/clientes'),
-          apiCall('/contratos')
+          apiCall('/profissionais', {}, sessionId),
+          apiCall('/clientes', {}, sessionId),
+          apiCall('/contratos', {}, sessionId)
         ])
         
         setProfissionais(profData)
@@ -155,7 +173,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     }
 
     loadData()
-  }, [])
+  }, [sessionId])
 
   // Funções para Profissionais
   const addProfissional = async (profissional: Omit<Profissional, 'id'>) => {
@@ -163,7 +181,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       const novoProfissional = await apiCall('/profissionais', {
         method: 'POST',
         body: JSON.stringify(profissional)
-      })
+      }, sessionId)
       setProfissionais(prev => [...prev, novoProfissional])
     } catch (err: any) {
       console.error('Erro ao adicionar profissional:', err)
@@ -176,7 +194,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       const profissionalAtualizado = await apiCall(`/profissionais/${id}`, {
         method: 'PUT',
         body: JSON.stringify(profissional)
-      })
+      }, sessionId)
       setProfissionais(prev => 
         prev.map(p => p.id === id ? profissionalAtualizado : p)
       )
@@ -190,7 +208,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     try {
       await apiCall(`/profissionais/${id}`, {
         method: 'DELETE'
-      })
+      }, sessionId)
       setProfissionais(prev => prev.filter(p => p.id !== id))
       // Remove contratos que têm este profissional
       setContratos(prev => prev.filter(c => 
@@ -208,7 +226,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       const novoCliente = await apiCall('/clientes', {
         method: 'POST',
         body: JSON.stringify(cliente)
-      })
+      }, sessionId)
       setClientes(prev => [...prev, novoCliente])
     } catch (err: any) {
       console.error('Erro ao adicionar cliente:', err)
@@ -221,7 +239,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       const clienteAtualizado = await apiCall(`/clientes/${id}`, {
         method: 'PUT',
         body: JSON.stringify(cliente)
-      })
+      }, sessionId)
       setClientes(prev => 
         prev.map(c => c.id === id ? clienteAtualizado : c)
       )
@@ -235,7 +253,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     try {
       await apiCall(`/clientes/${id}`, {
         method: 'DELETE'
-      })
+      }, sessionId)
       setClientes(prev => prev.filter(c => c.id !== id))
       // Remove contratos relacionados
       setContratos(prev => prev.filter(c => c.clienteId !== id))
@@ -251,7 +269,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       const novoContrato = await apiCall('/contratos', {
         method: 'POST',
         body: JSON.stringify(contrato)
-      })
+      }, sessionId)
       setContratos(prev => [...prev, novoContrato])
     } catch (err: any) {
       console.error('Erro ao adicionar contrato:', err)
@@ -264,7 +282,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       const contratoAtualizado = await apiCall(`/contratos/${id}`, {
         method: 'PUT',
         body: JSON.stringify(contrato)
-      })
+      }, sessionId)
       setContratos(prev => 
         prev.map(c => c.id === id ? contratoAtualizado : c)
       )
@@ -278,7 +296,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     try {
       await apiCall(`/contratos/${id}`, {
         method: 'DELETE'
-      })
+      }, sessionId)
       setContratos(prev => prev.filter(c => c.id !== id))
     } catch (err: any) {
       console.error('Erro ao deletar contrato:', err)

@@ -9,7 +9,10 @@ import {
   EyeOutlined,
   BarChartOutlined,
   DatabaseOutlined,
+  SettingOutlined,
 } from '@ant-design/icons'
+import { useAuth } from '../contexts/AuthContext'
+import ClientSelector from './ClientSelector'
 
 const { Sider } = Layout
 const { Title, Text } = Typography
@@ -57,11 +60,18 @@ const menuItems = [
     label: 'Banco de Dados',
     path: '/database'
   },
+  { 
+    key: '/gestao-usuarios', 
+    icon: <SettingOutlined />, 
+    label: 'Gestão de Usuários',
+    path: '/gestao-usuarios'
+  },
 ]
 
 const Sidebar = () => {
   const location = useLocation()
   const navigate = useNavigate()
+  const { usuario } = useAuth()
 
   const handleMenuClick = ({ key }: { key: string }) => {
     const item = menuItems.find(item => item.key === key)
@@ -69,6 +79,15 @@ const Sidebar = () => {
       navigate(item.path)
     }
   }
+
+  // Filtrar itens do menu baseado no tipo de usuário
+  const filteredMenuItems = menuItems.filter(item => {
+    // Apenas admin pode ver gestão de usuários
+    if (item.key === '/gestao-usuarios') {
+      return usuario?.tipo === 'admin'
+    }
+    return true
+  })
 
   return (
     <Sider
@@ -99,6 +118,11 @@ const Sidebar = () => {
         </Title>
       </div>
 
+      {/* ClientSelector para administradores */}
+      <div style={{ padding: '0 16px 16px 16px' }}>
+        <ClientSelector />
+      </div>
+
       <Menu
         mode="inline"
         selectedKeys={[location.pathname]}
@@ -109,7 +133,7 @@ const Sidebar = () => {
           paddingTop: 8
         }}
         onClick={handleMenuClick}
-        items={menuItems.map(item => ({
+        items={filteredMenuItems.map(item => ({
           key: item.key,
           icon: item.icon,
           label: item.label,
