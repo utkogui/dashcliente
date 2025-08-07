@@ -1,6 +1,6 @@
 import React from 'react'
 import { Layout, Menu, Typography, Divider } from 'antd'
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   DashboardOutlined,
   UserOutlined,
@@ -61,11 +61,12 @@ const menuItems = [
 
 const Sidebar = () => {
   const location = useLocation()
+  const navigate = useNavigate()
 
   const handleMenuClick = ({ key }: { key: string }) => {
     const item = menuItems.find(item => item.key === key)
     if (item) {
-      window.location.href = item.path
+      navigate(item.path)
     }
   }
 

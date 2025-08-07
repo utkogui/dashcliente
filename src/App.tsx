@@ -21,7 +21,7 @@ function App() {
         {/* Rota especial para Visão do Cliente - sem menu lateral */}
         <Route path="/visao-cliente" element={<VisaoCliente />} />
         
-        {/* Rotas padrão com menu lateral */}
+        {/* Layout principal com sidebar */}
         <Route path="/*" element={
           <Box sx={{ height: '100vh' }}>
             <Header />
@@ -33,8 +33,8 @@ function App() {
                   flexGrow: 1, 
                   overflow: 'auto', 
                   bgcolor: 'background.default',
-                  ml: '280px', // Margem à esquerda para compensar a sidebar fixa
-                  width: 'calc(100% - 280px)' // Largura ajustada
+                  ml: '280px',
+                  width: 'calc(100% - 280px)'
                 }}
               >
                 <Routes>
@@ -47,6 +47,17 @@ function App() {
                   <Route path="/database" element={<DatabaseViewer />} />
                   <Route path="/clientes" element={<Clientes />} />
                   <Route path="/timeline" element={<Timeline />} />
+                  {/* Rota catch-all para 404 */}
+                  <Route path="*" element={
+                    <Box sx={{ p: 3, textAlign: 'center' }}>
+                      <Typography variant="h4" color="error">
+                        Página não encontrada
+                      </Typography>
+                      <Typography variant="body1" sx={{ mt: 2 }}>
+                        A página que você está procurando não existe.
+                      </Typography>
+                    </Box>
+                  } />
                 </Routes>
               </Box>
             </Box>
