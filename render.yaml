@@ -2,7 +2,7 @@ services:
   - type: web
     name: dash-ftd-frontend
     runtime: static
-    buildCommand: npm run build
+    buildCommand: ./render-build.sh
     staticPublishPath: ./dist
     routes:
       - type: rewrite
@@ -11,6 +11,10 @@ services:
       - type: rewrite
         source: /*
         destination: /index.html
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache
 
   - type: web
     name: dash-ftd-api
