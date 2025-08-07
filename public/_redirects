@@ -1,2 +1,1 @@
-# Redirect all routes to index.html for React Router
-/*    /index.html   200
+# HashRouter doesn't need redirects - all routing is handled client-side
