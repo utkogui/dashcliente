@@ -19,4 +19,4 @@ services:
       - key: DATABASE_URL
         value: file:./dev.db 
       - key: CORS_ORIGIN
-        value: https://dash-ftd-frontend.onrender.com,https://dashcliente.onrender.com
+        value: https://dashcliente-1.onrender.com,https://dashcliente.onrender.com

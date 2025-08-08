@@ -7,14 +7,25 @@ const prisma = new PrismaClient()
 const PORT = 3001
 
 // Middleware
-app.use(cors({
-  origin: process.env.CORS_ORIGIN
-    ? process.env.CORS_ORIGIN.split(',')
-    : (process.env.NODE_ENV === 'production' 
-        ? ['https://dash-ftd-frontend.onrender.com', 'https://dashcliente.onrender.com']
-        : 'http://localhost:5173'),
-  credentials: true
-}))
+const allowedOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',')
+  : (process.env.NODE_ENV === 'production'
+      ? ['https://dashcliente-1.onrender.com', 'https://dashcliente.onrender.com']
+      : ['http://localhost:5173'])
+
+const corsOptions: cors.CorsOptions = {
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true)
+    if (allowedOrigins.includes(origin)) return callback(null, true)
+    return callback(new Error('Not allowed by CORS'))
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}
+
+app.use(cors(corsOptions))
+app.options('*', cors(corsOptions))
 app.use(express.json())
 
 // Middleware de sessão simples (em produção usar Redis ou similar)
