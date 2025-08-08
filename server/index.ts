@@ -8,10 +8,12 @@ const PORT = 3001
 
 // Middleware
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://dashcliente-1.onrender.com', 'https://dashcliente.onrender.com'] // URLs de produção
-    : 'http://localhost:5173', // Frontend URL em desenvolvimento
-  credentials: true // Permitir cookies/sessões
+  origin: process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(',')
+    : (process.env.NODE_ENV === 'production' 
+        ? ['https://dash-ftd-frontend.onrender.com', 'https://dashcliente.onrender.com']
+        : 'http://localhost:5173'),
+  credentials: true
 }))
 app.use(express.json())
 

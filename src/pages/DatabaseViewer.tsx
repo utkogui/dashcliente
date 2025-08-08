@@ -22,7 +22,7 @@ import { formatCurrency } from '../utils/formatters'
 
 // Configuração da API
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://dashcliente.onrender.com/api'  // URL do backend no Render
+  ? 'https://dash-ftd-api.onrender.com/api'  // URL do backend (Render - serviço API)
   : 'http://localhost:3001/api'
 
 interface DatabaseData {

@@ -15,3 +15,5 @@ services:
         value: production
       - key: DATABASE_URL
         value: file:./dev.db 
+      - key: CORS_ORIGIN
+        value: https://dash-ftd-frontend.onrender.com,https://dashcliente.onrender.com
