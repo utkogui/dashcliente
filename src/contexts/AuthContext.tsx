@@ -2,9 +2,11 @@ import React, { createContext, useContext, useState, useEffect, type ReactNode }
 import { useNavigate } from 'react-router-dom'
 
 // Configuração da API
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://dash-ftd-api.onrender.com/api'  // URL do backend (Render - serviço API)
-  : 'http://localhost:3001/api'
+const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || (
+  process.env.NODE_ENV === 'production'
+    ? 'https://dashcliente.onrender.com/api'
+    : 'http://localhost:3001/api'
+)
 
 // Tipos
 interface Usuario {
