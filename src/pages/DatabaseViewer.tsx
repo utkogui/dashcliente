@@ -20,6 +20,11 @@ import {
 import { ExpandMore, Refresh } from '@mui/icons-material'
 import { formatCurrency } from '../utils/formatters'
 
+// Configuração da API
+const API_BASE_URL = process.env.NODE_ENV === 'production' 
+  ? 'https://dashcliente.onrender.com/api'  // URL do backend no Render
+  : 'http://localhost:3001/api'
+
 interface DatabaseData {
   profissionais: {
     count: number
@@ -44,11 +49,14 @@ const DatabaseViewer = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchData = async () => {
+  const carregarDados = async () => {
     try {
       setLoading(true)
-      setError(null)
-      const response = await fetch('http://localhost:3001/api/database')
+      const response = await fetch(`${API_BASE_URL}/database`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('sessionId')}`
+        }
+      })
       if (!response.ok) {
         throw new Error('Erro ao buscar dados')
       }
@@ -62,7 +70,7 @@ const DatabaseViewer = () => {
   }
 
   useEffect(() => {
-    fetchData()
+    carregarDados()
   }, [])
 
   if (loading) {
@@ -77,7 +85,7 @@ const DatabaseViewer = () => {
     return (
       <Box sx={{ p: 3 }}>
         <Alert severity="error" action={
-          <Button color="inherit" size="small" onClick={fetchData}>
+          <Button color="inherit" size="small" onClick={carregarDados}>
             Tentar Novamente
           </Button>
         }>
@@ -104,7 +112,7 @@ const DatabaseViewer = () => {
         <Button
           variant="outlined"
           startIcon={<Refresh />}
-          onClick={fetchData}
+          onClick={carregarDados}
         >
           Atualizar
         </Button>

@@ -1,11 +1,27 @@
 import React, { useState, useEffect } from 'react'
-import { Box, Typography, Alert, Card, CardContent } from '@mui/material'
+import {
+  Box,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Typography,
+  Chip,
+  Alert,
+  Card,
+  CardContent
+} from '@mui/material'
 import { 
   PlayArrow as AtivoIcon,
   Pause as PausadoIcon,
   Stop as FinalizadoIcon
 } from '@mui/icons-material'
 import { useAuth } from '../contexts/AuthContext'
+
+// Configuração da API
+const API_BASE_URL = process.env.NODE_ENV === 'production' 
+  ? 'https://dashcliente.onrender.com/api'  // URL do backend no Render
+  : 'http://localhost:3001/api'
 
 interface ClienteSistema {
   id: string
@@ -37,7 +53,7 @@ const ClientSelector: React.FC = () => {
   const carregarClientes = async () => {
     try {
       setLoading(true)
-      const response = await fetch('http://localhost:3001/api/clientes-sistema', {
+      const response = await fetch(`${API_BASE_URL}/clientes-sistema`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('sessionId')}`
         }

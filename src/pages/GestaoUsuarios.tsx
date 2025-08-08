@@ -28,6 +28,11 @@ import {
 } from '@mui/icons-material'
 import { useAuth } from '../contexts/AuthContext'
 
+// Configuração da API
+const API_BASE_URL = process.env.NODE_ENV === 'production' 
+  ? 'https://dashcliente.onrender.com/api'  // URL do backend no Render
+  : 'http://localhost:3001/api'
+
 interface ClienteSistema {
   id: string
   nome: string
@@ -81,7 +86,7 @@ const GestaoUsuarios = () => {
   const carregarClientes = async () => {
     try {
       setLoading(true)
-      const response = await fetch('http://localhost:3001/api/clientes-sistema', {
+      const response = await fetch(`${API_BASE_URL}/clientes-sistema`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('sessionId')}`
         }
@@ -103,7 +108,7 @@ const GestaoUsuarios = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const response = await fetch('http://localhost:3001/api/clientes-sistema', {
+      const response = await fetch(`${API_BASE_URL}/clientes-sistema`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -134,7 +139,7 @@ const GestaoUsuarios = () => {
     if (!editingCliente) return
 
     try {
-      const response = await fetch(`http://localhost:3001/api/clientes-sistema/${editingCliente.id}/usuario`, {
+      const response = await fetch(`${API_BASE_URL}/clientes-sistema/${editingCliente.id}/usuario`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
