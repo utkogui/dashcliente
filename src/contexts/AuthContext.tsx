@@ -106,6 +106,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUsuario(data.usuario)
         setSessionId(data.sessionId)
         localStorage.setItem('sessionId', data.sessionId)
+        
+        // Redirecionar baseado no tipo de usuário
+        if (data.usuario.tipo === 'admin') {
+          navigate('/gestao-usuarios')
+        } else {
+          navigate('/')
+        }
       } else {
         console.error('Erro no login:', data.error)
         // Retornar mensagem de erro específica

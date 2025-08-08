@@ -1,7 +1,8 @@
 import { Box, Typography } from '@mui/material'
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { DataProvider } from './contexts/DataContext'
 import { AuthProvider } from './contexts/AuthContext'
+import { useAuth } from './contexts/AuthContext'
 import AuthGuard from './components/AuthGuard'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
@@ -17,6 +18,17 @@ import Clientes from './pages/Clientes'
 import VisaoCliente from './pages/VisaoCliente'
 import Timeline from './pages/Timeline'
 import GestaoUsuarios from './pages/GestaoUsuarios'
+
+// Componente para redirecionar admin
+const AdminRedirect = () => {
+  const { usuario } = useAuth()
+  
+  if (usuario?.tipo === 'admin') {
+    return <Navigate to="/gestao-usuarios" replace />
+  }
+  
+  return <Dashboard />
+}
 
 function App() {
   return (
@@ -51,7 +63,7 @@ function App() {
                     }}
                   >
                     <Routes>
-                      <Route path="/" element={<Dashboard />} />
+                      <Route path="/" element={<AdminRedirect />} />
                       <Route path="/profissionais" element={<Profissionais />} />
                       <Route path="/cadastro-profissional" element={<CadastroProfissional />} />
                       <Route path="/editar-profissional/:id" element={<EditarProfissional />} />

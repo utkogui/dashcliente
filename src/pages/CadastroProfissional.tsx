@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Box,
   Typography,
@@ -23,6 +23,12 @@ import {
 import { ArrowBack, Save, Add } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
 import { useData } from '../contexts/DataContext'
+import { 
+  obterPerfisDisponiveis, 
+  obterEspecialidadesPorPerfil, 
+  obterValorHora,
+  obterEspecialidadesDisponiveis 
+} from '../utils/tabelaPrecos'
 
 import { validateEmail, validateRequired } from '../utils/validations'
 
@@ -36,6 +42,8 @@ const CadastroProfissional = () => {
     nome: '',
     email: '',
     especialidade: '',
+    perfil: '',
+    especialidadeEspecifica: '',
     dataInicio: '',
     tipoContrato: 'hora' as 'hora' | 'fechado',
     valorHora: '',
@@ -47,8 +55,11 @@ const CadastroProfissional = () => {
   })
 
   const [newTag, setNewTag] = useState('')
-
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // Estados para controle das especialidades
+  const [especialidadesDisponiveis, setEspecialidadesDisponiveis] = useState<string[]>([])
+  const [especialidadesPorPerfil, setEspecialidadesPorPerfil] = useState<string[]>([])
 
   const especialidades = [
     'Desenvolvedor Full Stack',
@@ -80,6 +91,34 @@ const CadastroProfissional = () => {
     'Consultor',
     'Mentor'
   ]
+
+  // Carregar especialidades disponíveis na tabela de preços
+  useEffect(() => {
+    setEspecialidadesDisponiveis(obterEspecialidadesDisponiveis())
+  }, [])
+
+  // Atualizar especialidades quando o perfil mudar
+  useEffect(() => {
+    if (formData.perfil) {
+      const especialidadesDoPerfil = obterEspecialidadesPorPerfil(formData.perfil)
+      setEspecialidadesPorPerfil(especialidadesDoPerfil)
+      
+      // Se a especialidade específica atual não está disponível para o perfil, limpar
+      if (formData.especialidadeEspecifica && !especialidadesDoPerfil.includes(formData.especialidadeEspecifica)) {
+        setFormData(prev => ({ ...prev, especialidadeEspecifica: '', valorHora: '' }))
+      }
+    }
+  }, [formData.perfil])
+
+  // Atualizar valor por hora quando perfil ou especialidade específica mudar
+  useEffect(() => {
+    if (formData.perfil && formData.especialidadeEspecifica && formData.tipoContrato === 'hora') {
+      const valorHora = obterValorHora(formData.perfil, formData.especialidadeEspecifica)
+      if (valorHora) {
+        setFormData(prev => ({ ...prev, valorHora: valorHora.toString() }))
+      }
+    }
+  }, [formData.perfil, formData.especialidadeEspecifica, formData.tipoContrato])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -162,6 +201,8 @@ const CadastroProfissional = () => {
         nome: formData.nome,
         email: formData.email,
         especialidade: formData.especialidade,
+        perfil: formData.perfil,
+        especialidadeEspecifica: formData.especialidadeEspecifica,
         dataInicio: formData.dataInicio,
         tipoContrato: formData.tipoContrato,
         valorHora: formData.tipoContrato === 'hora' ? parseFloat(formData.valorHora) : null,
@@ -254,6 +295,40 @@ const CadastroProfissional = () => {
             </Grid>
 
             <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel>Perfil</InputLabel>
+                <Select
+                  value={formData.perfil}
+                  onChange={(e) => handleInputChange('perfil', e.target.value)}
+                  disabled={submitting}
+                >
+                  {obterPerfisDisponiveis().map((perfil) => (
+                    <MenuItem key={perfil} value={perfil}>
+                      {perfil}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel>Especialidade Específica</InputLabel>
+                <Select
+                  value={formData.especialidadeEspecifica}
+                  onChange={(e) => handleInputChange('especialidadeEspecifica', e.target.value)}
+                  disabled={submitting || !formData.perfil}
+                >
+                  {especialidadesPorPerfil.map((esp) => (
+                    <MenuItem key={esp} value={esp}>
+                      {esp}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+
+            <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
                 label="Data de Início"
@@ -311,9 +386,13 @@ const CadastroProfissional = () => {
                   value={formData.valorHora}
                   onChange={(e) => handleInputChange('valorHora', e.target.value)}
                   error={!!errors.valorHora}
-                  helperText={errors.valorHora || 'Ex: 100,00'}
+                  helperText={
+                    formData.perfil && formData.especialidadeEspecifica 
+                      ? 'Valor da tabela de preços - será editável no contrato'
+                      : errors.valorHora || 'Ex: 100,00'
+                  }
                   placeholder="100,00"
-                  disabled={submitting}
+                  disabled={submitting || (formData.perfil && formData.especialidadeEspecifica)}
                   InputProps={{
                     startAdornment: <InputAdornment position="start">R$</InputAdornment>,
                   }}

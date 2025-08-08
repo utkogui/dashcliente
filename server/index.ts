@@ -20,10 +20,14 @@ const sessions = new Map()
 const verificarSessao = (req: any, res: any, next: any) => {
   const sessionId = req.headers.authorization?.replace('Bearer ', '')
   
+  console.log('Verificando sessão:', { sessionId, hasSession: sessions.has(sessionId) })
+  
   if (sessionId && sessions.has(sessionId)) {
     req.usuario = sessions.get(sessionId)
+    console.log('Usuário autenticado:', req.usuario)
     next()
   } else {
+    console.log('Sessão inválida ou não encontrada')
     res.status(401).json({ error: 'Não autorizado' })
   }
 }
@@ -391,11 +395,14 @@ app.get('/api/clientes', verificarSessao, async (req, res) => {
   }
 })
 
-app.post('/api/clientes', async (req, res) => {
+app.post('/api/clientes', verificarSessao, async (req, res) => {
   try {
+    const { usuario } = req
+    
     const cliente = await prisma.cliente.create({
       data: {
         ...req.body,
+        clienteId: usuario.clienteId,
         telefone: req.body.telefone || null,
         endereco: req.body.endereco || null
       }
@@ -410,8 +417,22 @@ app.post('/api/clientes', async (req, res) => {
   }
 })
 
-app.put('/api/clientes/:id', async (req, res) => {
+app.put('/api/clientes/:id', verificarSessao, async (req, res) => {
   try {
+    const { usuario } = req
+    
+    // Verificar se o cliente pertence ao usuário
+    const clienteExistente = await prisma.cliente.findFirst({
+      where: { 
+        id: req.params.id,
+        clienteId: usuario.clienteId
+      }
+    })
+
+    if (!clienteExistente) {
+      return res.status(404).json({ error: 'Cliente não encontrado' })
+    }
+
     const cliente = await prisma.cliente.update({
       where: { id: req.params.id },
       data: {
@@ -430,8 +451,22 @@ app.put('/api/clientes/:id', async (req, res) => {
   }
 })
 
-app.delete('/api/clientes/:id', async (req, res) => {
+app.delete('/api/clientes/:id', verificarSessao, async (req, res) => {
   try {
+    const { usuario } = req
+    
+    // Verificar se o cliente pertence ao usuário
+    const clienteExistente = await prisma.cliente.findFirst({
+      where: { 
+        id: req.params.id,
+        clienteId: usuario.clienteId
+      }
+    })
+
+    if (!clienteExistente) {
+      return res.status(404).json({ error: 'Cliente não encontrado' })
+    }
+
     // Verificar se tem contratos ativos
     const contratosAtivos = await prisma.contrato.count({
       where: {
@@ -502,14 +537,30 @@ app.get('/api/contratos', verificarSessao, async (req, res) => {
   }
 })
 
-app.post('/api/contratos', async (req, res) => {
+app.post('/api/contratos', verificarSessao, async (req, res) => {
   try {
+    const { usuario } = req
     const { profissionais, ...contratoData } = req.body
+
+    console.log('Dados recebidos:', { contratoData, profissionais, usuario })
+
+    // Verificar se o usuário tem clienteId (não deve ser admin)
+    if (!usuario.clienteId) {
+      return res.status(403).json({ error: 'Apenas usuários cliente podem criar contratos' })
+    }
+
+    // Adicionar clienteSistemaId baseado no usuário logado
+    const contratoComCliente = {
+      ...contratoData,
+      clienteSistemaId: usuario.clienteId,
+      observacoes: contratoData.observacoes || null
+    }
+
+    console.log('Dados para criação:', contratoComCliente)
 
     const contrato = await prisma.contrato.create({
       data: {
-        ...contratoData,
-        observacoes: contratoData.observacoes || null,
+        ...contratoComCliente,
         profissionais: {
           create: profissionais.map((prof: any) => ({
             profissionalId: prof.profissionalId,
@@ -529,6 +580,9 @@ app.post('/api/contratos', async (req, res) => {
         cliente: true
       }
     })
+    
+    console.log('Contrato criado com sucesso:', contrato.id)
+    
     res.json({
       ...contrato,
       observacoes: contrato.observacoes || ''
@@ -539,9 +593,22 @@ app.post('/api/contratos', async (req, res) => {
   }
 })
 
-app.put('/api/contratos/:id', async (req, res) => {
+app.put('/api/contratos/:id', verificarSessao, async (req, res) => {
   try {
+    const { usuario } = req
     const { profissionais, ...contratoData } = req.body
+
+    // Verificar se o contrato pertence ao usuário
+    const contratoExistente = await prisma.contrato.findFirst({
+      where: { 
+        id: req.params.id,
+        clienteSistemaId: usuario.clienteId
+      }
+    })
+
+    if (!contratoExistente) {
+      return res.status(404).json({ error: 'Contrato não encontrado' })
+    }
 
     // Primeiro deleta os profissionais existentes
     await prisma.contratoProfissional.deleteMany({
@@ -583,8 +650,22 @@ app.put('/api/contratos/:id', async (req, res) => {
   }
 })
 
-app.delete('/api/contratos/:id', async (req, res) => {
+app.delete('/api/contratos/:id', verificarSessao, async (req, res) => {
   try {
+    const { usuario } = req
+
+    // Verificar se o contrato pertence ao usuário
+    const contratoExistente = await prisma.contrato.findFirst({
+      where: { 
+        id: req.params.id,
+        clienteSistemaId: usuario.clienteId
+      }
+    })
+
+    if (!contratoExistente) {
+      return res.status(404).json({ error: 'Contrato não encontrado' })
+    }
+
     // Primeiro deleta os relacionamentos em ContratoProfissional
     await prisma.contratoProfissional.deleteMany({
       where: { contratoId: req.params.id }
@@ -739,13 +820,18 @@ app.post('/api/clientes-sistema', verificarSessao, async (req, res) => {
       return res.status(400).json({ error: 'Nome, email e senha são obrigatórios' })
     }
     
+    // Validar senha mínima
+    if (senha.length < 6) {
+      return res.status(400).json({ error: 'A senha deve ter pelo menos 6 caracteres' })
+    }
+    
     // Verificar se já existe cliente com este nome
     const clienteExistente = await prisma.clienteSistema.findFirst({
       where: { nome }
     })
     
     if (clienteExistente) {
-      return res.status(400).json({ error: 'Já existe um cliente com este nome' })
+      return res.status(400).json({ error: 'Já existe uma empresa com este nome' })
     }
     
     // Verificar se já existe usuário com este email
@@ -782,16 +868,17 @@ app.post('/api/clientes-sistema', verificarSessao, async (req, res) => {
     
     res.json(novoCliente)
   } catch (error) {
-    console.error('Erro ao criar cliente do sistema:', error)
-    res.status(500).json({ error: 'Erro ao criar cliente do sistema' })
+    console.error('Erro ao criar empresa:', error)
+    res.status(500).json({ error: 'Erro ao criar empresa' })
   }
 })
 
-app.put('/api/clientes-sistema/:id', verificarSessao, async (req, res) => {
+// Rota para atualizar credenciais do usuário de uma empresa
+app.put('/api/clientes-sistema/:id/usuario', verificarSessao, async (req, res) => {
   try {
     const { usuario } = req
     const { id } = req.params
-    const { nome, descricao } = req.body
+    const { email, senha } = req.body
     
     // Apenas admin pode editar
     if (usuario.tipo !== 'admin') {
@@ -800,102 +887,57 @@ app.put('/api/clientes-sistema/:id', verificarSessao, async (req, res) => {
     
     // Verificar se o cliente existe
     const cliente = await prisma.clienteSistema.findUnique({
-      where: { id }
+      where: { id },
+      include: {
+        usuarios: {
+          where: { tipo: 'cliente' }
+        }
+      }
     })
     
     if (!cliente) {
-      return res.status(404).json({ error: 'Cliente não encontrado' })
+      return res.status(404).json({ error: 'Empresa não encontrada' })
     }
     
-    // Não permitir editar o nome do Matilha
-    if (cliente.nome === 'Matilha' && nome !== 'Matilha') {
-      return res.status(400).json({ error: 'Não é possível alterar o nome do cliente Matilha' })
+    if (cliente.usuarios.length === 0) {
+      return res.status(404).json({ error: 'Usuário da empresa não encontrado' })
     }
     
-    // Verificar se já existe outro cliente com este nome
-    if (nome !== cliente.nome) {
-      const clienteExistente = await prisma.clienteSistema.findFirst({
-        where: { 
-          nome,
-          id: { not: id }
-        }
+    const usuarioCliente = cliente.usuarios[0]
+    
+    // Preparar dados para atualização
+    const updateData: any = {}
+    
+    if (email && email !== usuarioCliente.email) {
+      // Verificar se o novo email já existe
+      const emailExistente = await prisma.usuario.findUnique({
+        where: { email }
       })
       
-      if (clienteExistente) {
-        return res.status(400).json({ error: 'Já existe um cliente com este nome' })
+      if (emailExistente && emailExistente.id !== usuarioCliente.id) {
+        return res.status(400).json({ error: 'Já existe um usuário com este email' })
       }
+      
+      updateData.email = email
     }
     
-    // Atualizar cliente
-    const clienteAtualizado = await prisma.clienteSistema.update({
-      where: { id },
-      data: { nome, descricao }
-    })
-    
-    res.json(clienteAtualizado)
-  } catch (error) {
-    console.error('Erro ao atualizar cliente do sistema:', error)
-    res.status(500).json({ error: 'Erro ao atualizar cliente do sistema' })
-  }
-})
-
-app.delete('/api/clientes-sistema/:id', verificarSessao, async (req, res) => {
-  try {
-    const { usuario } = req
-    const { id } = req.params
-    
-    // Apenas admin pode deletar
-    if (usuario.tipo !== 'admin') {
-      return res.status(403).json({ error: 'Acesso negado' })
+    if (senha && senha.length >= 6) {
+      const { criptografarSenha } = await import('./utils/auth.ts')
+      updateData.senha = await criptografarSenha(senha)
     }
     
-    // Verificar se o cliente existe
-    const cliente = await prisma.clienteSistema.findUnique({
-      where: { id }
-    })
-    
-    if (!cliente) {
-      return res.status(404).json({ error: 'Cliente não encontrado' })
-    }
-    
-    // Não permitir deletar o Matilha
-    if (cliente.nome === 'Matilha') {
-      return res.status(400).json({ error: 'Não é possível excluir o cliente Matilha' })
-    }
-    
-    // Verificar se há dados associados
-    const profissionaisCount = await prisma.profissional.count({
-      where: { clienteId: id }
-    })
-    
-    const clientesCount = await prisma.cliente.count({
-      where: { clienteId: id }
-    })
-    
-    const contratosCount = await prisma.contrato.count({
-      where: { clienteSistemaId: id }
-    })
-    
-    if (profissionaisCount > 0 || clientesCount > 0 || contratosCount > 0) {
-      return res.status(400).json({ 
-        error: `Não é possível excluir este cliente pois possui dados associados: ${profissionaisCount} profissionais, ${clientesCount} clientes, ${contratosCount} contratos` 
+    // Atualizar usuário se há mudanças
+    if (Object.keys(updateData).length > 0) {
+      await prisma.usuario.update({
+        where: { id: usuarioCliente.id },
+        data: updateData
       })
     }
     
-    // Deletar usuários associados
-    await prisma.usuario.deleteMany({
-      where: { clienteId: id }
-    })
-    
-    // Deletar cliente do sistema
-    await prisma.clienteSistema.delete({
-      where: { id }
-    })
-    
-    res.json({ message: 'Cliente excluído com sucesso' })
+    res.json({ message: 'Credenciais atualizadas com sucesso' })
   } catch (error) {
-    console.error('Erro ao deletar cliente do sistema:', error)
-    res.status(500).json({ error: 'Erro ao deletar cliente do sistema' })
+    console.error('Erro ao atualizar credenciais:', error)
+    res.status(500).json({ error: 'Erro ao atualizar credenciais' })
   }
 })
 

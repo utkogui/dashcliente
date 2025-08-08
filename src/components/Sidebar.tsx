@@ -63,7 +63,7 @@ const menuItems = [
   { 
     key: '/gestao-usuarios', 
     icon: <SettingOutlined />, 
-    label: 'Gestão de Usuários',
+    label: 'Gestão de Empresas',
     path: '/gestao-usuarios'
   },
 ]
@@ -76,17 +76,24 @@ const Sidebar = () => {
   const handleMenuClick = ({ key }: { key: string }) => {
     const item = menuItems.find(item => item.key === key)
     if (item) {
-      navigate(item.path)
+      // Se é admin, sempre redirecionar para gestão de empresas
+      if (usuario?.tipo === 'admin') {
+        navigate('/gestao-usuarios')
+      } else {
+        navigate(item.path)
+      }
     }
   }
 
   // Filtrar itens do menu baseado no tipo de usuário
   const filteredMenuItems = menuItems.filter(item => {
-    // Apenas admin pode ver gestão de usuários
-    if (item.key === '/gestao-usuarios') {
-      return usuario?.tipo === 'admin'
+    // Se é admin, mostrar apenas gestão de empresas
+    if (usuario?.tipo === 'admin') {
+      return item.key === '/gestao-usuarios'
     }
-    return true
+    
+    // Se é cliente, mostrar todas as opções exceto gestão de usuários
+    return item.key !== '/gestao-usuarios'
   })
 
   return (
@@ -114,14 +121,16 @@ const Sidebar = () => {
             margin: 0
           }}
         >
-          Alocações Matilha
+          {usuario?.tipo === 'admin' ? 'Administração' : 'Alocações Matilha'}
         </Title>
       </div>
 
-      {/* ClientSelector para administradores */}
-      <div style={{ padding: '0 16px 16px 16px' }}>
-        <ClientSelector />
-      </div>
+      {/* ClientSelector apenas para administradores */}
+      {usuario?.tipo === 'admin' && (
+        <div style={{ padding: '0 16px 16px 16px' }}>
+          <ClientSelector />
+        </div>
+      )}
 
       <Menu
         mode="inline"

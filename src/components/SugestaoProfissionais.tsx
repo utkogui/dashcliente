@@ -369,7 +369,6 @@ const SugestaoProfissionais: React.FC<SugestaoProfissionaisProps> = ({
                 return (
                   <React.Fragment key={profissional.id}>
                     <ListItem 
-                      button
                       selected={profissionaisSelecionados.includes(profissional.id)}
                       onClick={() => toggleProfissional(profissional.id)}
                       sx={{
@@ -450,7 +449,6 @@ const SugestaoProfissionais: React.FC<SugestaoProfissionaisProps> = ({
                   {sugestoes.map((sugestao, index) => (
                     <React.Fragment key={sugestao.profissional.id}>
                       <ListItem 
-                        button
                         selected={profissionaisSelecionados.includes(sugestao.profissional.id)}
                         onClick={() => toggleProfissional(sugestao.profissional.id)}
                         sx={{

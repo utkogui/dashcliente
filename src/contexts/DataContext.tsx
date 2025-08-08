@@ -7,6 +7,8 @@ interface Profissional {
   nome: string
   email: string
   especialidade: string
+  perfil: string | null
+  especialidadeEspecifica: string | null
   valorHora: number | null
   status: 'ativo' | 'inativo' | 'ferias'
   dataInicio: string
@@ -14,6 +16,7 @@ interface Profissional {
   valorFechado: number | null
   periodoFechado: string | null
   valorPago: number
+  tags: string | null
 }
 
 interface Cliente {

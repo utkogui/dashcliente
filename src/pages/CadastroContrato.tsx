@@ -68,10 +68,8 @@ const CadastroContrato = () => {
           valorContrato = valorContrato * 12
         }
       } else {
+        // Para contratos fechados, o valor já é o valor total
         valorContrato = parseFloat(formValues.valorContrato) || 0
-        if (formValues.valorContratoMensal && formValues.contratoIndeterminado) {
-          valorContrato = valorContrato * 12
-        }
       }
 
       // Calcular impostos
@@ -322,10 +320,8 @@ const CadastroContrato = () => {
           valorContratoFinal = valorContratoFinal * 12
         }
       } else {
+        // Para contratos fechados, o valor já é o valor total
         valorContratoFinal = parseFloat(values.valorContrato) || 0
-        if (values.valorContratoMensal && values.contratoIndeterminado) {
-          valorContratoFinal = valorContratoFinal * 12
-        }
       }
 
       const contratoData = {
@@ -658,10 +654,8 @@ const CadastroContrato = () => {
                           valorContrato = valorContrato * 12
                         }
                       } else {
+                        // Para contratos fechados, o valor já é o valor total
                         valorContrato = parseFloat(formValues.valorContrato) || 0
-                        if (formValues.valorContratoMensal && formValues.contratoIndeterminado) {
-                          valorContrato = valorContrato * 12
-                        }
                       }
                       
                       const valorImpostos = valorContrato * (percentualImpostos / 100)

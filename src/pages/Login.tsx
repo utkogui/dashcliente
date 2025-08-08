@@ -167,10 +167,10 @@ const Login = () => {
               Admin: admin@matilha.com / admin123
             </Typography>
             <Typography variant="caption" color="text.secondary" display="block">
-              Matilha: matilha@matilha.com / matilha123
+              FTD: ftd@ftd.com / ftd123
             </Typography>
             <Typography variant="caption" color="text.secondary" display="block">
-              FTD: ftd@ftd.com / ftd123
+              Matilha: matilha@matilha.com / matilha123
             </Typography>
           </Box>
         </Paper>

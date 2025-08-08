@@ -19,6 +19,11 @@ import {
 import { ArrowLeftOutlined, SaveOutlined, PlusOutlined } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext'
+import { 
+  obterPerfisDisponiveis, 
+  obterEspecialidadesPorPerfil, 
+  obterValorHora 
+} from '../utils/tabelaPrecos'
 import dayjs from 'dayjs'
 
 const { Title, Text } = Typography
@@ -34,6 +39,7 @@ const EditarProfissional = () => {
   const [loading, setLoading] = useState(true)
   const [tags, setTags] = useState<string[]>([])
   const [newTag, setNewTag] = useState('')
+  const [especialidadesPorPerfil, setEspecialidadesPorPerfil] = useState<string[]>([])
 
   const especialidades = [
     'Desenvolvedor Full Stack',
@@ -75,6 +81,8 @@ const EditarProfissional = () => {
           nome: profissional.nome || '',
           email: profissional.email || '',
           especialidade: profissional.especialidade || '',
+          perfil: profissional.perfil || '',
+          especialidadeEspecifica: profissional.especialidadeEspecifica || '',
           dataInicio: profissional.dataInicio ? dayjs(profissional.dataInicio) : null,
           tipoContrato: profissional.tipoContrato || 'hora',
           valorHora: profissional.valorHora?.toString() || '',
@@ -83,6 +91,11 @@ const EditarProfissional = () => {
           valorPago: profissional.valorPago?.toString() || '',
           status: profissional.status || 'ativo'
         })
+        
+        // Atualizar especialidades disponíveis para o perfil
+        if (profissional.perfil) {
+          setEspecialidadesPorPerfil(obterEspecialidadesPorPerfil(profissional.perfil))
+        }
         
         // Carregar tags
         if (profissional.tags) {
@@ -122,6 +135,8 @@ const EditarProfissional = () => {
         nome: values.nome,
         email: values.email,
         especialidade: values.especialidade,
+        perfil: values.perfil || null,
+        especialidadeEspecifica: values.especialidadeEspecifica || null,
         dataInicio: values.dataInicio?.format('YYYY-MM-DD') || '',
         tipoContrato: values.tipoContrato,
         valorHora: values.tipoContrato === 'hora' ? parseFloat(values.valorHora) : null,
@@ -255,6 +270,57 @@ const EditarProfissional = () => {
                 </Form.Item>
               </Col>
 
+              {/* Perfil */}
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="perfil"
+                  label="Perfil"
+                >
+                  <Select 
+                    placeholder="Selecione o perfil"
+                    onChange={(value) => {
+                      if (value) {
+                        setEspecialidadesPorPerfil(obterEspecialidadesPorPerfil(value))
+                        form.setFieldsValue({ especialidadeEspecifica: undefined })
+                      }
+                    }}
+                  >
+                    {obterPerfisDisponiveis().map((perfil) => (
+                      <Option key={perfil} value={perfil}>
+                        {perfil}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </Col>
+
+              {/* Especialidade Específica */}
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="especialidadeEspecifica"
+                  label="Especialidade Específica"
+                >
+                  <Select 
+                    placeholder="Selecione a especialidade específica"
+                    disabled={!form.getFieldValue('perfil')}
+                    onChange={(value) => {
+                      if (value && form.getFieldValue('perfil') && form.getFieldValue('tipoContrato') === 'hora') {
+                        const valorHora = obterValorHora(form.getFieldValue('perfil'), value)
+                        if (valorHora) {
+                          form.setFieldsValue({ valorHora: valorHora.toString() })
+                        }
+                      }
+                    }}
+                  >
+                    {especialidadesPorPerfil.map((especialidade) => (
+                      <Option key={especialidade} value={especialidade}>
+                        {especialidade}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </Col>
+
               {/* Data de Início */}
               <Col xs={24} md={12}>
                 <Form.Item
@@ -291,12 +357,17 @@ const EditarProfissional = () => {
                   const tipoContrato = getFieldValue('tipoContrato')
                   
                   if (tipoContrato === 'hora') {
+                    const perfil = getFieldValue('perfil')
+                    const especialidadeEspecifica = getFieldValue('especialidadeEspecifica')
+                    const isValorAutomatico = perfil && especialidadeEspecifica
+                    
                     return (
                       <Col xs={24} md={12}>
                         <Form.Item
                           name="valorHora"
                           label="Valor por Hora"
                           rules={[{ required: true, message: 'Valor por hora é obrigatório' }]}
+                          extra={isValorAutomatico ? 'Valor da tabela de preços - será editável no contrato' : undefined}
                         >
                           <Input 
                             type="number" 
@@ -304,6 +375,7 @@ const EditarProfissional = () => {
                             prefix="R$"
                             min={0}
                             step={0.01}
+                            disabled={isValorAutomatico}
                           />
                         </Form.Item>
                       </Col>

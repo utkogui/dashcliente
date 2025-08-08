@@ -219,7 +219,7 @@ const Contratos = () => {
                 (dataFim.getMonth() - dataInicio.getMonth()))
               return total + (prof.valorFechado / mesesDuracao)
             }
-            return total + (prof.valorFechado / 12)
+            return total + prof.valorFechado
           }
           return total
         }, 0) || 0
@@ -241,7 +241,7 @@ const Contratos = () => {
                 (dataFim.getMonth() - dataInicio.getMonth()))
               return total + (prof.valorFechado / mesesDuracao)
             }
-            return total + (prof.valorFechado / 12)
+            return total + prof.valorFechado
           }
           return total
         }, 0) || 0
@@ -256,7 +256,7 @@ const Contratos = () => {
                 (dataFim.getMonth() - dataInicio.getMonth()))
               return total + (prof.valorFechado / mesesDuracao)
             }
-            return total + (prof.valorFechado / 12)
+            return total + prof.valorFechado
           }
           return total
         }, 0) || 0

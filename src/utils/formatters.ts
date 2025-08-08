@@ -136,8 +136,8 @@ export const calcularCustoMensal = (contrato: any): number => {
           (dataFim.getMonth() - dataInicio.getMonth()))
         return total + (prof.valorFechado / mesesDuracao)
       }
-      // Para contratos indeterminados, dividir por 12
-      return total + (prof.valorFechado / 12)
+      // Para contratos indeterminados, o valor fechado já é mensal
+      return total + prof.valorFechado
     }
     return total
   }, 0)

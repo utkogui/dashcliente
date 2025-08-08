@@ -15,14 +15,16 @@ import {
   CircularProgress,
   Chip,
   IconButton,
-  Tooltip
+  Tooltip,
+  Divider
 } from '@mui/material'
 import {
   Add as AddIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
   Business as BusinessIcon,
-  Person as PersonIcon
+  Person as PersonIcon,
+  Email as EmailIcon,
+  CalendarToday as CalendarIcon,
+  Edit as EditIcon
 } from '@mui/icons-material'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -38,9 +40,8 @@ interface ClienteSistema {
 interface Usuario {
   id: string
   email: string
-  tipo: 'admin' | 'cliente'
+  tipo: string
   ativo: boolean
-  createdAt: string
 }
 
 const GestaoUsuarios = () => {
@@ -49,10 +50,15 @@ const GestaoUsuarios = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [openDialog, setOpenDialog] = useState(false)
+  const [openEditDialog, setOpenEditDialog] = useState(false)
   const [editingCliente, setEditingCliente] = useState<ClienteSistema | null>(null)
   const [formData, setFormData] = useState({
     nome: '',
     descricao: '',
+    email: '',
+    senha: ''
+  })
+  const [editFormData, setEditFormData] = useState({
     email: '',
     senha: ''
   })
@@ -97,14 +103,8 @@ const GestaoUsuarios = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const url = editingCliente 
-        ? `http://localhost:3001/api/clientes-sistema/${editingCliente.id}`
-        : 'http://localhost:3001/api/clientes-sistema'
-      
-      const method = editingCliente ? 'PUT' : 'POST'
-      
-      const response = await fetch(url, {
-        method,
+      const response = await fetch('http://localhost:3001/api/clientes-sistema', {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('sessionId')}`
@@ -113,48 +113,47 @@ const GestaoUsuarios = () => {
       })
 
       if (response.ok) {
+        const novoCliente = await response.json()
         setOpenDialog(false)
-        setEditingCliente(null)
         setFormData({ nome: '', descricao: '', email: '', senha: '' })
         carregarClientes()
+        
+        // Mostrar mensagem de sucesso com as credenciais
+        alert(`Empresa criada com sucesso!\n\nCredenciais de acesso:\nEmail: ${formData.email}\nSenha: ${formData.senha}\n\nGuarde essas informações com segurança!`)
       } else {
         const data = await response.json()
-        setError(data.error || 'Erro ao salvar cliente')
+        setError(data.error || 'Erro ao criar empresa')
       }
     } catch (err) {
       setError('Erro de conexão')
     }
   }
 
-  const handleEdit = (cliente: ClienteSistema) => {
-    setEditingCliente(cliente)
-    setFormData({
-      nome: cliente.nome,
-      descricao: cliente.descricao || '',
-      email: '',
-      senha: ''
-    })
-    setOpenDialog(true)
-  }
-
-  const handleDelete = async (clienteId: string) => {
-    if (!window.confirm('Tem certeza que deseja excluir este cliente? Esta ação não pode ser desfeita.')) {
-      return
-    }
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingCliente) return
 
     try {
-      const response = await fetch(`http://localhost:3001/api/clientes-sistema/${clienteId}`, {
-        method: 'DELETE',
+      const response = await fetch(`http://localhost:3001/api/clientes-sistema/${editingCliente.id}/usuario`, {
+        method: 'PUT',
         headers: {
+          'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('sessionId')}`
-        }
+        },
+        body: JSON.stringify(editFormData)
       })
 
       if (response.ok) {
+        setOpenEditDialog(false)
+        setEditingCliente(null)
+        setEditFormData({ email: '', senha: '' })
         carregarClientes()
+        
+        // Mostrar mensagem de sucesso
+        alert('Credenciais atualizadas com sucesso!')
       } else {
         const data = await response.json()
-        setError(data.error || 'Erro ao excluir cliente')
+        setError(data.error || 'Erro ao atualizar credenciais')
       }
     } catch (err) {
       setError('Erro de conexão')
@@ -162,9 +161,18 @@ const GestaoUsuarios = () => {
   }
 
   const handleOpenDialog = () => {
-    setEditingCliente(null)
     setFormData({ nome: '', descricao: '', email: '', senha: '' })
     setOpenDialog(true)
+  }
+
+  const handleOpenEditDialog = (cliente: ClienteSistema) => {
+    setEditingCliente(cliente)
+    const usuarioCliente = cliente.usuarios.find(u => u.tipo === 'cliente')
+    setEditFormData({
+      email: usuarioCliente?.email || '',
+      senha: ''
+    })
+    setOpenEditDialog(true)
   }
 
   if (loading) {
@@ -178,15 +186,21 @@ const GestaoUsuarios = () => {
   return (
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          Gestão de Clientes do Sistema
-        </Typography>
+        <Box>
+          <Typography variant="h4" component="h1" gutterBottom>
+            Gestão de Empresas
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Gerencie as empresas que têm acesso ao sistema
+          </Typography>
+        </Box>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
           onClick={handleOpenDialog}
+          size="large"
         >
-          Novo Cliente
+          Nova Empresa
         </Button>
       </Box>
 
@@ -199,8 +213,8 @@ const GestaoUsuarios = () => {
       <Grid container spacing={3}>
         {clientes.map((cliente) => (
           <Grid item xs={12} md={6} lg={4} key={cliente.id}>
-            <Card>
-              <CardContent>
+            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+              <CardContent sx={{ flexGrow: 1 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
                     <BusinessIcon sx={{ mr: 1, color: 'primary.main' }} />
@@ -208,23 +222,15 @@ const GestaoUsuarios = () => {
                       {cliente.nome}
                     </Typography>
                   </Box>
-                  <Box>
-                    <Tooltip title="Editar">
-                      <IconButton size="small" onClick={() => handleEdit(cliente)}>
-                        <EditIcon />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Excluir">
-                      <IconButton 
-                        size="small" 
-                        color="error"
-                        onClick={() => handleDelete(cliente.id)}
-                        disabled={cliente.nome === 'Matilha'} // Não permitir excluir Matilha
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
+                  <Tooltip title="Editar credenciais">
+                    <IconButton 
+                      size="small" 
+                      onClick={() => handleOpenEditDialog(cliente)}
+                      color="primary"
+                    >
+                      <EditIcon />
+                    </IconButton>
+                  </Tooltip>
                 </Box>
 
                 {cliente.descricao && (
@@ -233,10 +239,28 @@ const GestaoUsuarios = () => {
                   </Typography>
                 )}
 
+                <Divider sx={{ my: 2 }} />
+
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                   <PersonIcon sx={{ mr: 1, fontSize: 16 }} />
                   <Typography variant="body2">
                     {cliente.usuarios.length} usuário(s)
+                  </Typography>
+                </Box>
+
+                {cliente.usuarios.map((user) => (
+                  <Box key={user.id} sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                    <EmailIcon sx={{ mr: 1, fontSize: 14, color: 'text.secondary' }} />
+                    <Typography variant="caption" color="text.secondary">
+                      {user.email}
+                    </Typography>
+                  </Box>
+                ))}
+
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, mt: 1 }}>
+                  <CalendarIcon sx={{ mr: 1, fontSize: 16, color: 'text.secondary' }} />
+                  <Typography variant="caption" color="text.secondary">
+                    Criado em: {new Date(cliente.createdAt).toLocaleDateString('pt-BR')}
                   </Typography>
                 </Box>
 
@@ -247,37 +271,38 @@ const GestaoUsuarios = () => {
                     size="small"
                   />
                   <Chip
-                    label={cliente.nome === 'Matilha' ? 'Padrão' : 'Cliente'}
+                    label={cliente.nome === 'Matilha' ? 'Padrão' : 'Empresa'}
                     color={cliente.nome === 'Matilha' ? 'primary' : 'secondary'}
                     size="small"
                   />
                 </Box>
-
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
-                  Criado em: {new Date(cliente.createdAt).toLocaleDateString('pt-BR')}
-                </Typography>
               </CardContent>
             </Card>
           </Grid>
         ))}
       </Grid>
 
-      {/* Dialog para criar/editar cliente */}
+      {/* Dialog para criar nova empresa */}
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
-          {editingCliente ? 'Editar Cliente' : 'Novo Cliente'}
+          Nova Empresa
         </DialogTitle>
         <form onSubmit={handleSubmit}>
           <DialogContent>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Crie uma nova empresa no sistema. Será gerado um usuário com as credenciais fornecidas.
+            </Typography>
+            
             <TextField
               fullWidth
-              label="Nome do Cliente"
+              label="Nome da Empresa"
               value={formData.nome}
               onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
               margin="normal"
               required
-              disabled={editingCliente?.nome === 'Matilha'} // Não permitir editar nome do Matilha
+              helperText="Nome da empresa que aparecerá no sistema"
             />
+            
             <TextField
               fullWidth
               label="Descrição (opcional)"
@@ -286,38 +311,80 @@ const GestaoUsuarios = () => {
               margin="normal"
               multiline
               rows={2}
+              helperText="Descrição adicional sobre a empresa"
             />
-            {!editingCliente && (
-              <>
-                <TextField
-                  fullWidth
-                  label="Email do Usuário"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  margin="normal"
-                  required
-                  helperText="Email para o usuário administrador deste cliente"
-                />
-                <TextField
-                  fullWidth
-                  label="Senha"
-                  type="password"
-                  value={formData.senha}
-                  onChange={(e) => setFormData({ ...formData, senha: e.target.value })}
-                  margin="normal"
-                  required
-                  helperText="Senha para o usuário administrador deste cliente"
-                />
-              </>
-            )}
+            
+            <TextField
+              fullWidth
+              label="Email do Administrador"
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              margin="normal"
+              required
+              helperText="Email que será usado para fazer login no sistema"
+            />
+            
+            <TextField
+              fullWidth
+              label="Senha"
+              type="password"
+              value={formData.senha}
+              onChange={(e) => setFormData({ ...formData, senha: e.target.value })}
+              margin="normal"
+              required
+              helperText="Senha para acesso ao sistema (mínimo 6 caracteres)"
+            />
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setOpenDialog(false)}>
               Cancelar
             </Button>
             <Button type="submit" variant="contained">
-              {editingCliente ? 'Salvar' : 'Criar'}
+              Criar Empresa
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
+
+      {/* Dialog para editar credenciais */}
+      <Dialog open={openEditDialog} onClose={() => setOpenEditDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          Editar Credenciais - {editingCliente?.nome}
+        </DialogTitle>
+        <form onSubmit={handleEditSubmit}>
+          <DialogContent>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Atualize as credenciais de acesso para esta empresa.
+            </Typography>
+            
+            <TextField
+              fullWidth
+              label="Email"
+              type="email"
+              value={editFormData.email}
+              onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+              margin="normal"
+              required
+              helperText="Novo email para acesso ao sistema"
+            />
+            
+            <TextField
+              fullWidth
+              label="Nova Senha"
+              type="password"
+              value={editFormData.senha}
+              onChange={(e) => setEditFormData({ ...editFormData, senha: e.target.value })}
+              margin="normal"
+              helperText="Deixe em branco para manter a senha atual (mínimo 6 caracteres se preenchido)"
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOpenEditDialog(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" variant="contained">
+              Atualizar Credenciais
             </Button>
           </DialogActions>
         </form>
