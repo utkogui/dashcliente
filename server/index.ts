@@ -98,7 +98,7 @@ const seedDatabase = async () => {
     }
 
     // Criar usuário admin padrão
-    const { criptografarSenha } = await import('./utils/auth.ts')
+    const { criptografarSenha } = await import('./utils/auth.js')
     const senhaAdmin = await criptografarSenha('admin123')
     
     await prisma.usuario.create({
@@ -725,7 +725,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     // Verificar senha
-    const { verificarSenha } = await import('./utils/auth.ts')
+    const { verificarSenha } = await import('./utils/auth.js')
     const senhaValida = await verificarSenha(senha, usuario.senha)
 
     if (!senhaValida) {
@@ -859,7 +859,7 @@ app.post('/api/clientes-sistema', verificarSessao, async (req, res) => {
     }
     
     // Criar cliente do sistema
-    const { criptografarSenha } = await import('./utils/auth.ts')
+    const { criptografarSenha } = await import('./utils/auth.js')
     const senhaCriptografada = await criptografarSenha(senha)
     
     const novoCliente = await prisma.clienteSistema.create({
@@ -937,7 +937,7 @@ app.put('/api/clientes-sistema/:id/usuario', verificarSessao, async (req, res) =
     }
     
     if (senha && senha.length >= 6) {
-      const { criptografarSenha } = await import('./utils/auth.ts')
+      const { criptografarSenha } = await import('./utils/auth.js')
       updateData.senha = await criptografarSenha(senha)
     }
     
