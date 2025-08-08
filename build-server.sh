@@ -9,6 +9,10 @@ npm install
 echo "🔧 Gerando cliente Prisma..."
 npx prisma generate
 
+# Aplicar migrações (garante schema no SQLite em produção)
+echo "🗃️ Aplicando migrações Prisma..."
+npx prisma migrate deploy
+
 # Compilar TypeScript
 echo "⚙️ Compilando TypeScript..."
 npx tsc --project tsconfig.server.json
