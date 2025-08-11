@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   Box,
   Typography,
@@ -6,7 +6,6 @@ import {
   CardContent,
   Grid,
   Chip,
-  Avatar,
   Paper,
   TextField,
   InputAdornment,
@@ -15,21 +14,27 @@ import {
   Select,
   MenuItem,
   Alert,
-  Divider
+  Divider,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  IconButton
 } from '@mui/material'
 import {
   Person,
-  Work,
   Search,
-  Assignment,
   PendingActions,
   CalendarToday,
   AccessTime,
-  FilterList
+  FilterList,
+  Email,
+  Chat,
+  Close
 } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
 import { useData } from '../contexts/DataContext'
-import { calcularDiasRestantes, getCardStyle, getStatusBadgeColor } from '../utils/formatters'
+import { calcularDiasRestantes, getCardStyle } from '../utils/formatters'
 import logoFtdMatilha from '../assets/logo_ftd_matilha.png'
 
 const VisaoCliente = () => {
@@ -38,6 +43,7 @@ const VisaoCliente = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('todos')
   const [filterEspecialidade, setFilterEspecialidade] = useState('todas')
+  const [selectedProfissionalId, setSelectedProfissionalId] = useState<string | null>(null)
 
   // Obter informações do profissional
   const getProfissionalInfo = (profissional: any) => {
@@ -110,26 +116,6 @@ const VisaoCliente = () => {
 
   const especialidades = [...new Set(profissionais.map(p => p.especialidade))]
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'ativo': return 'success'
-      case 'aguardando': return 'warning'
-      case 'inativo': return 'error'
-      case 'ferias': return 'info'
-      default: return 'default'
-    }
-  }
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'ativo': return 'Ativo'
-      case 'aguardando': return 'Aguardando Contrato'
-      case 'inativo': return 'Inativo'
-      case 'ferias': return 'Férias'
-      default: return status
-    }
-  }
-
   const getDiasRestantes = (projeto: any) => {
     if (!projeto.dataFim) return null
     return calcularDiasRestantes(projeto.contrato)
@@ -148,6 +134,40 @@ const VisaoCliente = () => {
     if (dias > 0) return `${dias} dias`
     return 'Vencido'
   }
+
+  // Estilo do modal: linha superior fixa e fundo igual ao card da frente
+  const modalTopBarColor = '#22c55e'
+  const selectedBgColor = useMemo(() => {
+    const fallback = 'rgba(34, 197, 94, 0.08)'
+    if (!selectedProfissionalId) return fallback
+    const prof = profissionais.find(p => p.id === selectedProfissionalId)
+    if (!prof) return fallback
+    const info = getProfissionalInfo(prof)
+    const proj = info.projetos[0]
+    if (proj && proj.contrato) {
+      const style = getCardStyle(proj.contrato) as any
+      return (style && style.backgroundColor) || fallback
+    }
+    return fallback
+  }, [selectedProfissionalId, profissionais, contratos, clientes])
+
+  const selectedCardStyle = useMemo(() => {
+    const fallback = {
+      boxShadow: '0 4px 16px rgba(34, 197, 94, 0.25)',
+      border: '2px solid rgba(34, 197, 94, 0.3)',
+      backgroundColor: 'rgba(34, 197, 94, 0.08)'
+    } as const
+    if (!selectedProfissionalId) return fallback
+    const prof = profissionais.find(p => p.id === selectedProfissionalId)
+    if (!prof) return fallback
+    const info = getProfissionalInfo(prof)
+    const proj = info.projetos[0]
+    if (proj && proj.contrato) {
+      const style = getCardStyle(proj.contrato) as any
+      return { ...fallback, ...style }
+    }
+    return fallback
+  }, [selectedProfissionalId, profissionais, contratos, clientes])
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5' }}>
@@ -274,10 +294,13 @@ const VisaoCliente = () => {
               const projetoAtivo = info.projetos[0] // Primeiro projeto ativo
               const diasRestantes = projetoAtivo ? getDiasRestantes(projetoAtivo) : null
               const diasColor = getDiasRestantesColor(diasRestantes)
+              const emProjeto = info.status === 'ativo' && Boolean(projetoAtivo)
+              const disponibilidadeCor = emProjeto ? '#22c55e' : '#ff9aa2'
               
               return (
                 <Grid item xs={12} sm={6} md={4} lg={3} key={profissional.id}>
                   <Card 
+                    onClick={() => setSelectedProfissionalId(profissional.id)}
                     sx={{ 
                       height: '100%',
                       display: 'flex',
@@ -292,152 +315,130 @@ const VisaoCliente = () => {
                       ...(info.status === 'ativo' && projetoAtivo ? getCardStyle(projetoAtivo.contrato) : {})
                     }}
                   >
-                    <CardContent sx={{ flexGrow: 1, p: 3 }}>
-                      {/* PARTE SUPERIOR - INFORMAÇÕES DO PROFISSIONAL */}
-                      <Box sx={{ mb: 3 }}>
-                        {/* Nome e Status */}
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                          <Avatar 
-                            sx={{ 
-                              bgcolor: info.status === 'ativo' ? 'success.main' : 'warning.main',
-                              width: 48, 
-                              height: 48,
-                              boxShadow: `0 0 0 3px ${info.status === 'ativo' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(251, 191, 36, 0.2)'}`
-                            }}
-                          >
-                            <Person sx={{ fontSize: 24 }} />
-                          </Avatar>
-                          <Box sx={{ flexGrow: 1 }}>
-                            <Typography variant="h6" component="h3" fontWeight="bold" gutterBottom>
-                              {profissional.nome}
-                            </Typography>
-                            <Chip 
-                              label={getStatusText(info.status)}
-                              color={getStatusColor(info.status)}
-                              size="small"
-                              sx={{ fontWeight: 'bold' }}
-                            />
-                          </Box>
-                        </Box>
-
-                        {/* Expertise */}
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                          {profissional.especialidade}
-                        </Typography>
-
-                        {/* Tags */}
-                        {profissional.tags && (
-                          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                            {profissional.tags.split(',').map((tag: string, index: number) => {
-                              const tagTrim = tag.trim()
-                              if (!tagTrim) return null
-                              
-                              // Cores baseadas no tipo de tag
-                              let color = 'default'
-                              if (tagTrim.toLowerCase().includes('alocação') || tagTrim.toLowerCase().includes('alocacao')) {
-                                color = 'primary'
-                              } else if (tagTrim.toLowerCase().includes('projeto')) {
-                                color = 'success'
-                              } else if (tagTrim.toLowerCase().includes('bodyshop')) {
-                                color = 'warning'
-                              } else if (tagTrim.toLowerCase().includes('freelancer')) {
-                                color = 'info'
-                              } else if (tagTrim.toLowerCase().includes('clt')) {
-                                color = 'secondary'
-                              } else if (tagTrim.toLowerCase().includes('pj')) {
-                                color = 'error'
-                              }
-                              
-                              return (
-                                <Chip 
-                                  key={index}
-                                  label={tagTrim} 
-                                  size="small" 
-                                  variant="outlined"
-                                  color={color as any}
-                                  sx={{ 
-                                    fontWeight: 'bold',
-                                    fontSize: '0.75rem'
-                                  }}
-                                />
-                              )
-                            })}
-                          </Box>
-                        )}
-                      </Box>
-
-                      <Divider sx={{ my: 2, borderColor: 'rgba(0,0,0,0.08)' }} />
-
-                      {/* PARTE INFERIOR - INFORMAÇÕES DO PROJETO */}
-                      <Box>
-                        {info.status === 'aguardando' ? (
-                          <Box sx={{ 
-                            p: 2, 
-                            bgcolor: 'warning.50', 
-                            borderRadius: 2,
-                            border: '2px solid',
-                            borderColor: 'warning.200',
-                            textAlign: 'center'
-                          }}>
-                            <PendingActions sx={{ color: 'warning.main', fontSize: 32, mb: 1 }} />
-                            <Typography variant="body2" color="warning.dark" fontWeight="bold">
-                              Aguardando contrato
-                            </Typography>
-                          </Box>
-                        ) : projetoAtivo ? (
-                          <Box>
-                            {/* Nome do Projeto */}
-                            <Typography variant="h6" component="h4" fontWeight="bold" gutterBottom>
-                              {projetoAtivo.nome}
-                            </Typography>
-
-                            {/* Cliente */}
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                              {projetoAtivo.cliente}
-                            </Typography>
-
-                            {/* Datas */}
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                              <CalendarToday sx={{ fontSize: 16, color: 'text.secondary' }} />
-                              <Typography variant="body2" color="text.secondary">
-                                {new Date(projetoAtivo.dataInicio).toLocaleDateString('pt-BR')}
-                                {projetoAtivo.dataFim && ` - ${new Date(projetoAtivo.dataFim).toLocaleDateString('pt-BR')}`}
+                    <CardContent sx={{ flexGrow: 1, p: 3, minHeight: 320, display: 'flex', flexDirection: 'column' }}>
+                        <>
+                          {/* TOPO - 35% */}
+                          <Box sx={{ flex: '0 0 35%', display: 'flex', flexDirection: 'column' }}>
+                            {/* Nome e Disponibilidade */}
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                              <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: disponibilidadeCor, boxShadow: `0 0 0 3px ${emProjeto ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.12)'}` }} />
+                              <Typography variant="h6" component="h3" fontWeight="bold" noWrap title={profissional.nome}>
+                                {profissional.nome}
                               </Typography>
                             </Box>
-
-                            {/* Dias Restantes */}
-                            <Box sx={{ 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              gap: 1,
-                              p: 2,
-                              bgcolor: `${diasColor}10`,
-                              borderRadius: 2,
-                              border: `2px solid ${diasColor}30`
-                            }}>
-                              <AccessTime sx={{ color: diasColor, fontSize: 20 }} />
-                              <Typography 
-                                variant="h6" 
-                                fontWeight="bold"
-                                sx={{ color: diasColor }}
-                              >
-                                {getDiasRestantesText(diasRestantes)}
-                              </Typography>
-                            </Box>
-                          </Box>
-                        ) : (
-                          <Box sx={{ 
-                            p: 2, 
-                            bgcolor: 'grey.50', 
-                            borderRadius: 2,
-                            textAlign: 'center'
-                          }}>
-                            <Typography variant="body2" color="text.secondary">
-                              Sem projeto ativo
+                            <Typography variant="caption" color={emProjeto ? 'success.main' : 'error.main'} sx={{ fontWeight: 700 }}>
+                              {emProjeto ? 'Em projeto' : 'Disponível'}
                             </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                              {profissional.especialidade}
+                            </Typography>
+                            {profissional.tags && (
+                              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1 }}>
+                                {profissional.tags.split(',').map((tag: string, index: number) => {
+                                  const tagTrim = tag.trim()
+                                  if (!tagTrim) return null
+                                  let color = 'default'
+                                  if (tagTrim.toLowerCase().includes('alocação') || tagTrim.toLowerCase().includes('alocacao')) {
+                                    color = 'primary'
+                                  } else if (tagTrim.toLowerCase().includes('projeto')) {
+                                    color = 'success'
+                                  } else if (tagTrim.toLowerCase().includes('bodyshop')) {
+                                    color = 'warning'
+                                  } else if (tagTrim.toLowerCase().includes('freelancer')) {
+                                    color = 'info'
+                                  } else if (tagTrim.toLowerCase().includes('clt')) {
+                                    color = 'secondary'
+                                  } else if (tagTrim.toLowerCase().includes('pj')) {
+                                    color = 'error'
+                                  }
+                                  return (
+                                    <Chip 
+                                      key={index}
+                                      label={tagTrim}
+                                      size="small"
+                                      variant="outlined"
+                                      color={color as any}
+                                      sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}
+                                    />
+                                  )
+                                })}
+                              </Box>
+                            )}
                           </Box>
-                        )}
-                      </Box>
+
+                          <Divider sx={{ my: 2, borderColor: 'rgba(0,0,0,0.08)' }} />
+
+                          {/* BASE - 65% */}
+                          <Box sx={{ flex: '1 0 0', display: 'flex', flexDirection: 'column', justifyContent: info.status === 'aguardando' || !projetoAtivo ? 'center' : 'flex-start' }}>
+                            {info.status === 'aguardando' ? (
+                              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 2, bgcolor: 'warning.50', borderRadius: 2, border: '2px solid', borderColor: 'warning.200', textAlign: 'center' }}>
+                                <PendingActions sx={{ color: 'warning.main', fontSize: 32, mb: 1 }} />
+                                <Typography variant="body2" color="warning.dark" fontWeight="bold" sx={{ mb: 2 }}>
+                                  Aguardando contrato
+                                </Typography>
+                                <Button variant="contained" color="primary" onClick={(e) => { e.stopPropagation(); navigate('/cadastro-contrato') }}>
+                                  Alocar este profissional
+                                </Button>
+                              </Box>
+                            ) : projetoAtivo ? (
+                              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                <Typography variant="h6" component="h4" fontWeight="bold" gutterBottom noWrap title={projetoAtivo.nome}>
+                                  {projetoAtivo.nome}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  {projetoAtivo.cliente}
+                                </Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <CalendarToday sx={{ fontSize: 16, color: 'text.secondary' }} />
+                                  <Typography variant="body2" color="text.secondary">
+                                    {new Date(projetoAtivo.dataInicio).toLocaleDateString('pt-BR')}
+                                    {projetoAtivo.dataFim && ` - ${new Date(projetoAtivo.dataFim).toLocaleDateString('pt-BR')}`}
+                                  </Typography>
+                                </Box>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mt: 1 }}>
+                                  {(() => {
+                                    const cliente = clientes.find(c => c.empresa === projetoAtivo.cliente)
+                                    const contatoNome = cliente?.nome
+                                    const contatoEmail = cliente?.email
+                                    const teamsHref = contatoEmail ? `https://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(contatoEmail)}` : undefined
+                                    return (
+                                      <>
+                                        {contatoNome && (
+                                          <Chip icon={<Person />} label={`Contato: ${contatoNome}`} size="small" />
+                                        )}
+                                        {contatoEmail && (
+                                          <Button component="a" size="small" variant="text" startIcon={<Chat />} href={teamsHref} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
+                                            Teams
+                                          </Button>
+                                        )}
+                                        {contatoEmail && (
+                                          <Button component="a" size="small" variant="text" startIcon={<Email />} href={`mailto:${contatoEmail}`} onClick={(e) => e.stopPropagation()}>
+                                            Email
+                                          </Button>
+                                        )}
+                                      </>
+                                    )
+                                  })()}
+                                </Box>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 2, mt: 1, bgcolor: `${diasColor}10`, borderRadius: 2, border: `2px solid ${diasColor}30` }}>
+                                  <AccessTime sx={{ color: diasColor, fontSize: 20 }} />
+                                  <Typography variant="h6" fontWeight="bold" sx={{ color: diasColor }}>
+                                    {getDiasRestantesText(diasRestantes)}
+                                  </Typography>
+                                </Box>
+                              </Box>
+                            ) : (
+                              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 2, bgcolor: 'grey.50', borderRadius: 2, textAlign: 'center' }}>
+                                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                  Sem projeto ativo
+                                </Typography>
+                                <Button variant="contained" color="primary" onClick={(e) => { e.stopPropagation(); navigate('/cadastro-contrato') }}>
+                                  Alocar este profissional
+                                </Button>
+                              </Box>
+                            )}
+                          </Box>
+                        </>
                     </CardContent>
                   </Card>
                 </Grid>
@@ -446,6 +447,106 @@ const VisaoCliente = () => {
           </Grid>
         )}
       </Box>
+
+      {/* Modal de detalhes (verso) */}
+      <Dialog
+        open={Boolean(selectedProfissionalId)}
+        onClose={() => setSelectedProfissionalId(null)}
+        fullWidth
+        maxWidth="lg"
+        BackdropProps={{ sx: { backdropFilter: 'blur(6px)' } }}
+        PaperProps={{ 
+          sx: { 
+            borderRadius: 3,
+            ...selectedCardStyle,
+            borderTop: `6px solid ${modalTopBarColor}`,
+            backgroundColor: '#fff',
+            bgcolor: '#fff'
+          } 
+        }}
+      >
+        {(() => {
+          const profissionalSel = profissionais.find(p => p.id === selectedProfissionalId)
+          if (!profissionalSel) return null
+          const infoSel = getProfissionalInfo(profissionalSel)
+          const projetoSel = infoSel.projetos[0]
+          const diasSel = projetoSel ? getDiasRestantes(projetoSel) : null
+          const diasSelColor = getDiasRestantesColor(diasSel)
+          return (
+            <>
+              <DialogTitle sx={{ pr: 5 }}>
+                {profissionalSel.nome}
+                <IconButton aria-label="close" onClick={() => setSelectedProfissionalId(null)} sx={{ position: 'absolute', right: 8, top: 8 }}>
+                  <Close />
+                </IconButton>
+              </DialogTitle>
+              <DialogContent dividers sx={{ bgcolor: '#fff' }}>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={6}>
+                    <Paper variant="outlined" sx={{ p: 2, height: '100%', borderRadius: 2 }}>
+                      <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                        Projeto atual
+                      </Typography>
+                      {projetoSel ? (
+                        <>
+                          <Typography variant="body2"><strong>Nome:</strong> {projetoSel.nome}</Typography>
+                          <Typography variant="body2"><strong>Cliente:</strong> {projetoSel.cliente}</Typography>
+                          <Typography variant="body2"><strong>Início:</strong> {new Date(projetoSel.dataInicio).toLocaleDateString('pt-BR')}</Typography>
+                          <Typography variant="body2"><strong>Término:</strong> {projetoSel.dataFim ? new Date(projetoSel.dataFim).toLocaleDateString('pt-BR') : 'Indeterminado'}</Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1.5, mt: 1, bgcolor: `${diasSelColor}10`, borderRadius: 1, border: `1px solid ${diasSelColor}30` }}>
+                            <AccessTime sx={{ color: diasSelColor, fontSize: 18 }} />
+                            <Typography variant="body2" sx={{ color: diasSelColor }}>
+                              {getDiasRestantesText(diasSel)}
+                            </Typography>
+                          </Box>
+                          <Typography variant="body2" sx={{ mt: 1 }} color="text.secondary">Outras infos (mock): Squad Ecommerce, Regime Híbrido, 3 reuniões semanais</Typography>
+                        </>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">Sem alocação atual</Typography>
+                      )}
+                    </Paper>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <Paper variant="outlined" sx={{ p: 2, height: '100%', borderRadius: 2 }}>
+                      <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                        Projetos futuros (previstos)
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Typography variant="body2">• Portal Pedagógico - UX Review — Previsto: 01/09/2025</Typography>
+                        <Typography variant="body2">• App Leitura FTD - Fase 2 — Previsto: 15/10/2025</Typography>
+                        <Typography variant="body2">• Design System v2 — Previsto: 01/11/2025</Typography>
+                      </Box>
+                    </Paper>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <Paper variant="outlined" sx={{ p: 2, height: '100%', borderRadius: 2 }}>
+                      <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                        Informações Matilha
+                      </Typography>
+                      <Typography variant="body2"><strong>Gestor interno:</strong> Bruno Silva</Typography>
+                      <Typography variant="body2"><strong>Tempo de casa:</strong> 1 ano e 3 meses</Typography>
+                      <Typography variant="body2"><strong>Cargo:</strong> {profissionalSel.especialidade}</Typography>
+                      <Typography variant="body2"><strong>Skills:</strong> {profissionalSel.tags || 'UX, UI, Prototipação'}</Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Notas (mock): Disponível para workshops; excelente comunicação</Typography>
+                    </Paper>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <Paper variant="outlined" sx={{ p: 2, height: '100%', borderRadius: 2 }}>
+                      <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                        Informações financeiras
+                      </Typography>
+                      <Typography variant="body2"><strong>Nº da vaga:</strong> FTD-2025-UX-123</Typography>
+                      <Typography variant="body2"><strong>Código da vaga:</strong> CON-FTD-UX-9876</Typography>
+                      <Typography variant="body2"><strong>Data emissão NF:</strong> 10/08/2025</Typography>
+                      <Typography variant="caption" color="text.secondary">Dados mockados para layout</Typography>
+                    </Paper>
+                  </Grid>
+                </Grid>
+              </DialogContent>
+            </>
+          )
+        })()}
+      </Dialog>
     </Box>
   )
 }

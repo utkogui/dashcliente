@@ -21,6 +21,7 @@ import {
 import { ArrowLeftOutlined, SaveOutlined, PlusOutlined, DeleteOutlined, BulbOutlined } from '@ant-design/icons'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext'
+import type { NovoContrato } from '../contexts/DataContext'
 import SugestaoProfissionais from '../components/SugestaoProfissionais'
 import dayjs from 'dayjs'
 
@@ -310,7 +311,7 @@ const CadastroContrato = () => {
         }
       }
 
-      // Calcular valor total do contrato
+      // Calcular valor total do contrato e impostos (sem depender do botão OK)
       let valorContratoFinal = 0
       if (values.tipoContrato === 'hora') {
         const quantidadeHoras = parseFloat(values.quantidadeHoras) || 0
@@ -324,7 +325,10 @@ const CadastroContrato = () => {
         valorContratoFinal = parseFloat(values.valorContrato) || 0
       }
 
-      const contratoData = {
+      const percentualImpostosNumber = parseFloat(values.percentualImpostos) || 13.0
+      const valorImpostosFinal = Number((valorContratoFinal * (percentualImpostosNumber / 100)).toFixed(2))
+
+      const contratoData: NovoContrato = {
         nomeProjeto: values.nomeProjeto,
         codigoContrato: values.codigoContrato || null,
         clienteId: values.clienteId,
@@ -332,8 +336,8 @@ const CadastroContrato = () => {
         dataFim: values.contratoIndeterminado ? null : values.dataFim?.format('YYYY-MM-DD') || '',
         tipoContrato: values.tipoContrato,
         valorContrato: valorContratoFinal,
-        valorImpostos: parseFloat(values.valorImpostos),
-        percentualImpostos: parseFloat(values.percentualImpostos) || 13.0,
+        valorImpostos: valorImpostosFinal,
+        percentualImpostos: percentualImpostosNumber,
         status: values.status,
         observacoes: values.observacoes || null,
         profissionais: profissionaisSelecionados.map(prof => {

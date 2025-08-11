@@ -604,7 +604,14 @@ app.post('/api/contratos', verificarSessao, async (req, res) => {
     })
   } catch (error) {
     console.error('Erro ao criar contrato:', error)
-    res.status(500).json({ error: 'Erro ao criar contrato' })
+    const isDev = process.env.NODE_ENV !== 'production'
+    res.status(500).json({ 
+      error: 'Erro ao criar contrato',
+      ...(isDev && {
+        details: (error as any)?.message || String(error),
+        code: (error as any)?.code,
+      })
+    })
   }
 })
 

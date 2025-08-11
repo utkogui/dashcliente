@@ -65,6 +65,31 @@ interface ContratoProfissional {
   profissional: Profissional
 }
 
+// Tipos para criação/atualização de contrato (payload)
+export interface NovoContratoProfissionalInput {
+  profissionalId: string
+  valorHora: number | null
+  horasMensais: number | null
+  valorFechado: number | null
+  periodoFechado: string | null
+}
+
+export interface NovoContrato {
+  nomeProjeto: string
+  codigoContrato?: string | null
+  clienteId: string
+  dataInicio: string
+  dataFim: string | null
+  tipoContrato: 'hora' | 'fechado'
+  valorContrato: number
+  valorImpostos: number
+  percentualImpostos: number
+  status: 'ativo' | 'encerrado' | 'pendente'
+  observacoes?: string | null
+  profissionais: NovoContratoProfissionalInput[]
+  despesasAdicionais?: Array<{ descricao: string; valor: number }>
+}
+
 interface DataContextType {
   // Profissionais
   profissionais: Profissional[]
@@ -80,8 +105,8 @@ interface DataContextType {
   
   // Contratos
   contratos: Contrato[]
-  addContrato: (contrato: Omit<Contrato, 'id'>) => Promise<void>
-  updateContrato: (id: string, contrato: Partial<Contrato>) => Promise<void>
+  addContrato: (contrato: NovoContrato) => Promise<void>
+  updateContrato: (id: string, contrato: Partial<NovoContrato>) => Promise<void>
   deleteContrato: (id: string) => Promise<void>
 
   // Estado de carregamento
@@ -269,7 +294,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   }
 
   // Funções para Contratos
-  const addContrato = async (contrato: Omit<Contrato, 'id'>) => {
+  const addContrato = async (contrato: NovoContrato) => {
     try {
       const novoContrato = await apiCall('/contratos', {
         method: 'POST',
@@ -282,7 +307,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     }
   }
 
-  const updateContrato = async (id: string, contrato: Partial<Contrato>) => {
+  const updateContrato = async (id: string, contrato: Partial<NovoContrato>) => {
     try {
       const contratoAtualizado = await apiCall(`/contratos/${id}`, {
         method: 'PUT',
