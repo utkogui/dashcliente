@@ -9,7 +9,9 @@ import {
   Button, 
   Alert, 
   Spin,
-  Tag
+  Tag,
+  List,
+  Pagination
 } from 'antd'
 import { 
   UserOutlined, 
@@ -58,8 +60,10 @@ const Dashboard = () => {
   const [modalType, setModalType] = useState<'profissional' | 'cliente' | 'contrato'>('profissional')
   const [modalData, setModalData] = useState<any>(null)
   const [showAllContratos, setShowAllContratos] = useState(false)
-  const [showAllProfissionais, setShowAllProfissionais] = useState(false)
+  // Lista paginada substitui o botão "ver mais" para profissionais
   const [showAllClientes, setShowAllClientes] = useState(false)
+  const [profPage, setProfPage] = useState(1)
+  const pageSize = 10
 
   // Função para exportar dados para Excel
   const exportToExcel = () => {
@@ -576,7 +580,7 @@ const Dashboard = () => {
             )}
           </Card>
 
-          {/* Profissionais */}
+          {/* Profissionais - substituído por lista paginada */}
           <Card style={{ marginBottom: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <Title level={4} style={{ margin: 0 }}>
@@ -590,26 +594,49 @@ const Dashboard = () => {
                 Novo Profissional
               </Button>
             </div>
-            
-            <Row gutter={[16, 16]}>
-              {(showAllProfissionais ? profissionais : profissionais.slice(0, 4)).map((profissional) => (
-                <Col xs={24} sm={12} md={8} lg={6} key={profissional.id}>
-                  {renderCard('profissional', profissional)}
-                </Col>
-              ))}
-            </Row>
-            
-            {profissionais.length > 4 && (
-              <div style={{ textAlign: 'center', marginTop: 16 }}>
-                <Button 
-                  type="link" 
-                  icon={<EyeOutlined />}
-                  onClick={() => setShowAllProfissionais(!showAllProfissionais)}
-                >
-                  {showAllProfissionais ? 'Ver Menos' : `Ver Mais (${profissionais.length - 4})`}
-                </Button>
-              </div>
-            )}
+
+            <List
+              itemLayout="horizontal"
+              dataSource={profissionais
+                .slice()
+                .sort((a, b) => a.nome.localeCompare(b.nome))
+                .slice((profPage - 1) * pageSize, profPage * pageSize)
+              }
+              renderItem={(item: any) => {
+                const ocupado = contratos.some(c => c.status === 'ativo' && c.profissionais.some(p => p.profissionalId === item.id))
+                const cor = ocupado ? '#22c55e' : '#ef4444'
+                return (
+                  <List.Item>
+                    <List.Item.Meta
+                      title={
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', backgroundColor: cor, boxShadow: `0 0 0 3px ${ocupado ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.12)'}` }} />
+                          <span style={{ fontWeight: 600 }}>{item.nome}</span>
+                        </div>
+                      }
+                      description={
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <span style={{ color: '#6b7280' }}>{item.especialidade}</span>
+                          <span style={{ color: '#111827', fontWeight: 600 }}>
+                            {item.tipoContrato === 'hora' ? `R$ ${(item.valorHora || 0).toLocaleString('pt-BR')} /h` : `R$ ${(item.valorFechado || 0).toLocaleString('pt-BR')} /mês`}
+                          </span>
+                        </div>
+                      }
+                    />
+                  </List.Item>
+                )
+              }}
+            />
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
+              <Pagination
+                current={profPage}
+                pageSize={pageSize}
+                total={profissionais.length}
+                onChange={(p) => setProfPage(p)}
+                showSizeChanger={false}
+              />
+            </div>
           </Card>
 
           {/* Clientes */}
@@ -717,7 +744,7 @@ const Dashboard = () => {
                     fill="#8884d8"
                     dataKey="value"
                   >
-                    {dadosPie.map((entry, index) => (
+                    {dadosPie.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>

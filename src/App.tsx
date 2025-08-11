@@ -8,7 +8,6 @@ import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
-import Home from './pages/Home'
 import Profissionais from './pages/Profissionais'
 import CadastroProfissional from './pages/CadastroProfissional'
 import EditarProfissional from './pages/EditarProfissional'
@@ -28,7 +27,7 @@ const AdminRedirect = () => {
     return <Navigate to="/gestao-usuarios" replace />
   }
   
-  return <Home />
+  return <Dashboard />
 }
 
 function App() {
