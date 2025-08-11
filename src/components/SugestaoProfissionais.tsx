@@ -1,45 +1,30 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
+  Modal,
   Typography,
-  Box,
+  Button,
+  Space,
   Card,
-  CardContent,
-  Grid,
-  Chip,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
-  IconButton,
-  Alert,
-  CircularProgress,
-  Divider,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  TextField,
-  InputAdornment,
+  Row,
+  Col,
   Tabs,
-  Tab
-} from '@mui/material'
+  Input,
+  Select,
+  List,
+  Tag,
+  Spin,
+  Alert,
+  Divider,
+  InputNumber,
+  Badge
+} from 'antd'
 import {
-  Person,
-  AttachMoney,
-  TrendingUp,
-  TrendingDown,
-  CheckCircle,
-  Warning,
-  Close,
-  Lightbulb,
-  Add,
-  Search
-} from '@mui/icons-material'
+  SearchOutlined,
+  CheckCircleOutlined,
+  ThunderboltOutlined,
+  LoadingOutlined,
+  ArrowRightOutlined
+} from '@ant-design/icons'
 import { useData } from '../contexts/DataContext'
 import { formatCurrency } from '../utils/formatters'
 
@@ -77,8 +62,8 @@ const SugestaoProfissionais: React.FC<SugestaoProfissionaisProps> = ({
   const [loading, setLoading] = useState(false)
   const [filtroEspecialidade, setFiltroEspecialidade] = useState('todas')
   const [profissionaisSelecionados, setProfissionaisSelecionados] = useState<string[]>([])
-  const [margemDesejada, setMargemDesejada] = useState(20) // 20% de margem padrão
-  const [tabAtiva, setTabAtiva] = useState(0) // 0 = Manual, 1 = Sugestões
+  const [margemDesejada, setMargemDesejada] = useState<number>(20) // 20% padrão
+  const [tabAtiva, setTabAtiva] = useState<'manual' | 'sugestoes'>('manual')
   const [buscaManual, setBuscaManual] = useState('')
 
   // Calcular orçamento disponível
@@ -118,25 +103,15 @@ const SugestaoProfissionais: React.FC<SugestaoProfissionaisProps> = ({
   // Gerar sugestões
   const gerarSugestoes = () => {
     setLoading(true)
-    
     const sugestoesCalculadas: SugestaoProfissional[] = profissionais
-      .filter(profissional => {
-        // Filtrar por especialidade se selecionado
-        if (filtroEspecialidade !== 'todas' && profissional.especialidade !== filtroEspecialidade) {
-          return false
-        }
-        return true
-      })
-      .map(profissional => {
+      .filter((profissional) => filtroEspecialidade === 'todas' || profissional.especialidade === filtroEspecialidade)
+      .map((profissional) => {
         const custoMensal = calcularCustoMensal(profissional)
         const custoTotal = isMensal ? custoMensal * 12 : custoMensal
         const margem = orcamentoDisponivel - custoTotal
         const percentualMargem = orcamentoDisponivel > 0 ? (margem / orcamentoDisponivel) * 100 : 0
-        
-        // Score baseado em margem e disponibilidade
         const disponivel = verificarDisponibilidade(profissional.id)
-        const score = disponivel ? percentualMargem : percentualMargem * 0.5 // Penalizar indisponíveis
-        
+        const score = disponivel ? percentualMargem : percentualMargem * 0.5
         return {
           profissional,
           custoMensal,
@@ -147,10 +122,9 @@ const SugestaoProfissionais: React.FC<SugestaoProfissionaisProps> = ({
           especialidade: profissional.especialidade
         }
       })
-      .filter(sugestao => sugestao.percentualMargem >= -margemDesejada) // Filtrar margem mínima
-      .sort((a, b) => b.score - a.score) // Ordenar por score
-      .slice(0, 20) // Top 20 sugestões
-
+      .filter((sugestao) => sugestao.percentualMargem >= -margemDesejada)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 20)
     setSugestoes(sugestoesCalculadas)
     setLoading(false)
   }
@@ -159,7 +133,7 @@ const SugestaoProfissionais: React.FC<SugestaoProfissionaisProps> = ({
   const aplicarSugestao = () => {
     let profissionaisSelecionadosData: any[] = []
 
-    if (tabAtiva === 0) {
+    if (tabAtiva === 'manual') {
       // Seleção manual
       const profissionaisManual = profissionaisFiltrados.filter(p => 
         profissionaisSelecionados.includes(p.id)
@@ -201,9 +175,15 @@ const SugestaoProfissionais: React.FC<SugestaoProfissionaisProps> = ({
   }
 
   // Gerar sugestões quando abrir o modal ou mudar para aba de sugestões
+  // Recalcular sugestões quando mudar filtros/campos na aba "Sugestões"
   useEffect(() => {
-    if (open && tabAtiva === 1) {
-      gerarSugestoes()
+    if (open && tabAtiva === 'sugestoes') {
+      // Loading a cada caractere: ativa imediatamente e aplica debounce curto
+      setLoading(true)
+      const t = setTimeout(() => {
+        gerarSugestoes()
+      }, 300)
+      return () => clearTimeout(t)
     }
   }, [open, tabAtiva, valorContrato, valorImpostos, isMensal, filtroEspecialidade, margemDesejada])
 
@@ -211,326 +191,278 @@ const SugestaoProfissionais: React.FC<SugestaoProfissionaisProps> = ({
   useEffect(() => {
     if (open) {
       setProfissionaisSelecionados([])
-      setTabAtiva(0)
+      setTabAtiva('manual')
       setBuscaManual('')
     }
   }, [open])
 
-  const especialidades = [...new Set(profissionais.map(p => p.especialidade))]
+  const especialidades = useMemo(() => [...new Set(profissionais.map(p => p.especialidade))], [profissionais])
+
+  // Resumo dinâmico baseado na seleção atual (dentro do modal)
+  const selecionadosObjs = useMemo(
+    () => profissionais.filter(p => profissionaisSelecionados.includes(p.id)),
+    [profissionais, profissionaisSelecionados]
+  )
+  const custoSelecionadosMensal = useMemo(() => {
+    return selecionadosObjs.reduce((acc, p) => {
+      if (p.tipoContrato === 'hora') return acc + ((p.valorHora || 0) * 160)
+      return acc + (p.valorFechado || 0)
+    }, 0)
+  }, [selecionadosObjs])
+  const resultadoAtual = useMemo(() => (valorContrato - valorImpostos) - custoSelecionadosMensal, [valorContrato, valorImpostos, custoSelecionadosMensal])
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
-      <DialogTitle>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Add color="primary" />
-          <Typography variant="h6">
-            Adicionar Profissional
-          </Typography>
-        </Box>
-      </DialogTitle>
-      
-      <DialogContent>
-        {/* Tabs para escolher entre Manual e Sugestões */}
-        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-          <Tabs value={tabAtiva} onChange={(e, newValue) => setTabAtiva(newValue)}>
-            <Tab 
-              icon={<Search />} 
-              label="Seleção Manual" 
-              iconPosition="start"
-            />
-            <Tab 
-              icon={<Lightbulb />} 
-              label="Sugestões Automáticas" 
-              iconPosition="start"
-            />
-          </Tabs>
-        </Box>
-
-        {/* Resumo do Contrato */}
-        <Card sx={{ mb: 3, bgcolor: 'primary.50' }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Resumo do Contrato
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={6} md={3}>
-                <Typography variant="body2" color="text.secondary">
-                  Valor do Contrato
-                </Typography>
-                <Typography variant="h6" color="primary">
-                  {formatCurrency(valorContrato)}
-                </Typography>
-              </Grid>
-              <Grid item xs={6} md={3}>
-                <Typography variant="body2" color="text.secondary">
-                  Impostos
-                </Typography>
-                <Typography variant="h6" color="error">
-                  {formatCurrency(valorImpostos)}
-                </Typography>
-              </Grid>
-              <Grid item xs={6} md={3}>
-                <Typography variant="body2" color="text.secondary">
-                  Valor Líquido
-                </Typography>
-                <Typography variant="h6" color="success.main">
-                  {formatCurrency(valorLiquido)}
-                </Typography>
-              </Grid>
-              <Grid item xs={6} md={3}>
-                <Typography variant="body2" color="text.secondary">
-                  Orçamento Disponível
-                </Typography>
-                <Typography variant="h6" color="info.main">
-                  {formatCurrency(orcamentoDisponivel)}
-                </Typography>
-              </Grid>
-            </Grid>
-            <Box sx={{ mt: 2 }}>
-              <Chip 
-                label={isMensal ? 'Contrato Mensal' : 'Contrato Único'} 
-                color={isMensal ? 'primary' : 'secondary'}
-                size="small"
-              />
-              <Chip 
-                label="Múltiplos profissionais" 
-                color="info"
-                size="small"
-                sx={{ ml: 1 }}
-              />
-            </Box>
-          </CardContent>
-        </Card>
-
-        {/* Filtros */}
-        <Box sx={{ mb: 3 }}>
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
-              <FormControl fullWidth>
-                <InputLabel>Filtrar por Especialidade</InputLabel>
-                <Select
-                  value={filtroEspecialidade}
-                  onChange={(e) => setFiltroEspecialidade(e.target.value)}
-                >
-                  <MenuItem value="todas">Todas as Especialidades</MenuItem>
-                  {especialidades.map(especialidade => (
-                    <MenuItem key={especialidade} value={especialidade}>
-                      {especialidade}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              {tabAtiva === 0 ? (
-                <TextField
-                  fullWidth
-                  label="Buscar por Nome"
-                  value={buscaManual}
-                  onChange={(e) => setBuscaManual(e.target.value)}
-                  placeholder="Digite o nome do profissional..."
-                />
-              ) : (
-                <TextField
-                  fullWidth
-                  label="Margem Mínima (%)"
-                  type="number"
-                  value={margemDesejada}
-                  onChange={(e) => setMargemDesejada(Number(e.target.value))}
-                  InputProps={{
-                    endAdornment: <InputAdornment position="end">%</InputAdornment>,
-                  }}
-                />
-              )}
-            </Grid>
-          </Grid>
-        </Box>
-
-        {/* Conteúdo baseado na aba ativa */}
-        {tabAtiva === 0 ? (
-          // Seleção Manual
-          <>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-              <Typography variant="h6">
-                Selecionar Profissional
-              </Typography>
-              <Chip 
-                label={`${profissionaisSelecionados.length} selecionados`}
-                color={profissionaisSelecionados.length > 0 ? 'success' : 'warning'}
-                size="small"
-              />
-            </Box>
-
-            <List>
-              {profissionaisFiltrados.map((profissional, index) => {
-                const disponivel = verificarDisponibilidade(profissional.id)
-                const custoMensal = calcularCustoMensal(profissional)
-                
-                return (
-                  <React.Fragment key={profissional.id}>
-                    <ListItem 
-                      selected={profissionaisSelecionados.includes(profissional.id)}
-                      onClick={() => toggleProfissional(profissional.id)}
-                      sx={{
-                        border: profissionaisSelecionados.includes(profissional.id) ? 2 : 1,
-                        borderColor: profissionaisSelecionados.includes(profissional.id) ? 'primary.main' : 'divider',
-                        borderRadius: 1,
-                        mb: 1
-                      }}
-                    >
-                      <ListItemText
-                        primary={
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Typography variant="subtitle1" fontWeight="bold">
-                              {profissional.nome}
-                            </Typography>
-                            {disponivel ? (
-                              <Chip label="Disponível" color="success" size="small" />
-                            ) : (
-                              <Chip label="Ocupado" color="warning" size="small" />
-                            )}
-                          </Box>
-                        }
-                        secondary={
-                          <Box>
-                            <Typography variant="body2" color="text.secondary">
-                              {profissional.especialidade}
-                            </Typography>
-                            <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
-                              <Typography variant="body2">
-                                Tipo: {profissional.tipoContrato === 'hora' ? 'Por Hora' : 'Valor Fechado'}
-                              </Typography>
-                              <Typography variant="body2">
-                                Custo: {formatCurrency(custoMensal)}/mês
-                              </Typography>
-                            </Box>
-                          </Box>
-                        }
-                      />
-                      <ListItemSecondaryAction>
-                        {profissionaisSelecionados.includes(profissional.id) && (
-                          <CheckCircle color="primary" />
-                        )}
-                      </ListItemSecondaryAction>
-                    </ListItem>
-                    {index < profissionaisFiltrados.length - 1 && <Divider />}
-                  </React.Fragment>
-                )
-              })}
-            </List>
-
-            {profissionaisFiltrados.length === 0 && (
-              <Alert severity="info">
-                Nenhum profissional encontrado com os filtros atuais.
-              </Alert>
-            )}
-          </>
-        ) : (
-          // Sugestões Automáticas
-          <>
-            {loading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-                <CircularProgress />
-              </Box>
-            ) : (
-              <>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                  <Typography variant="h6">
-                    Melhores Sugestões
-                  </Typography>
-                                <Chip 
-                label={`${profissionaisSelecionados.length} selecionados`}
-                color={profissionaisSelecionados.length > 0 ? 'success' : 'warning'}
-                size="small"
-              />
-                </Box>
-
-                <List>
-                  {sugestoes.map((sugestao, index) => (
-                    <React.Fragment key={sugestao.profissional.id}>
-                      <ListItem 
-                        selected={profissionaisSelecionados.includes(sugestao.profissional.id)}
-                        onClick={() => toggleProfissional(sugestao.profissional.id)}
-                        sx={{
-                          border: profissionaisSelecionados.includes(sugestao.profissional.id) ? 2 : 1,
-                          borderColor: profissionaisSelecionados.includes(sugestao.profissional.id) ? 'primary.main' : 'divider',
-                          borderRadius: 1,
-                          mb: 1
-                        }}
-                      >
-                        <ListItemText
-                          primary={
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Typography variant="subtitle1" fontWeight="bold">
-                                {sugestao.profissional.nome}
-                              </Typography>
-                              {sugestao.disponivel ? (
-                                <Chip label="Disponível" color="success" size="small" />
-                              ) : (
-                                <Chip label="Ocupado" color="warning" size="small" />
-                              )}
-                              {index < quantidadeProfissionais && (
-                                <Chip label="Top" color="primary" size="small" />
-                              )}
-                            </Box>
-                          }
-                          secondary={
-                            <Box>
-                              <Typography variant="body2" color="text.secondary">
-                                {sugestao.especialidade}
-                              </Typography>
-                              <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
-                                <Typography variant="body2">
-                                  Custo: {formatCurrency(sugestao.custoMensal)}/mês
-                                </Typography>
-                                <Typography 
-                                  variant="body2" 
-                                  color={sugestao.margem >= 0 ? 'success.main' : 'error.main'}
-                                  sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
-                                >
-                                  {sugestao.margem >= 0 ? <TrendingUp fontSize="small" /> : <TrendingDown fontSize="small" />}
-                                  Margem: {formatCurrency(sugestao.margem)} ({sugestao.percentualMargem.toFixed(1)}%)
-                                </Typography>
-                              </Box>
-                            </Box>
-                          }
-                        />
-                        <ListItemSecondaryAction>
-                          {profissionaisSelecionados.includes(sugestao.profissional.id) && (
-                            <CheckCircle color="primary" />
-                          )}
-                        </ListItemSecondaryAction>
-                      </ListItem>
-                      {index < sugestoes.length - 1 && <Divider />}
-                    </React.Fragment>
-                  ))}
-                </List>
-
-                {sugestoes.length === 0 && (
-                  <Alert severity="warning">
-                    Nenhuma sugestão encontrada com os critérios atuais. Tente ajustar os filtros ou a margem mínima.
-                  </Alert>
-                )}
-              </>
-            )}
-          </>
-        )}
-      </DialogContent>
-
-      <DialogActions>
-        <Button onClick={onClose}>
-          Cancelar
-        </Button>
+    <Modal
+      open={open}
+      onCancel={onClose}
+      width={900}
+      title={
+        <Space>
+          <ThunderboltOutlined />
+          <Typography.Title level={4} style={{ margin: 0 }}>Adicionar Profissional</Typography.Title>
+        </Space>
+      }
+      footer={[
+        <Button key="cancel" onClick={onClose}>Cancelar</Button>,
         <Button
-          variant="contained"
+          key="apply"
+          type="primary"
           onClick={aplicarSugestao}
           disabled={profissionaisSelecionados.length === 0}
-          startIcon={<CheckCircle />}
+          icon={<CheckCircleOutlined />}
         >
           Adicionar Profissional ({profissionaisSelecionados.length})
         </Button>
-      </DialogActions>
-    </Dialog>
+      ]}
+    >
+      {/* Tabs */}
+      <Tabs
+        activeKey={tabAtiva}
+        onChange={(k) => setTabAtiva(k as 'manual' | 'sugestoes')}
+        items={[
+          { key: 'manual', label: 'Seleção Manual' },
+          { key: 'sugestoes', label: 'Sugestões Automáticas' }
+        ]}
+      />
+
+      {/* Resumo do Contrato */}
+      <Card style={{ marginBottom: 16 }}>
+        <Typography.Title level={5} style={{ marginTop: 0 }}>Resumo do Contrato</Typography.Title>
+        <Row gutter={[16, 16]}>
+          <Col xs={12} md={6}>
+            <Space direction="vertical" size={0}>
+              <Typography.Text type="secondary">Valor do Contrato</Typography.Text>
+              <Typography.Text strong>{formatCurrency(valorContrato)}</Typography.Text>
+            </Space>
+          </Col>
+          <Col xs={12} md={6}>
+            <Space direction="vertical" size={0}>
+              <Typography.Text type="secondary">Impostos</Typography.Text>
+              <Typography.Text strong type="danger">{formatCurrency(valorImpostos)}</Typography.Text>
+            </Space>
+          </Col>
+          <Col xs={12} md={6}>
+            <Space direction="vertical" size={0}>
+              <Typography.Text type="secondary">Valor Líquido</Typography.Text>
+              <Typography.Text strong type="success">{formatCurrency(valorLiquido)}</Typography.Text>
+            </Space>
+          </Col>
+          <Col xs={12} md={6}>
+            <Space direction="vertical" size={0}>
+              <Typography.Text type="secondary">Orçamento Disponível</Typography.Text>
+              <Typography.Text strong>{formatCurrency(orcamentoDisponivel)}</Typography.Text>
+            </Space>
+          </Col>
+        </Row>
+        <Divider style={{ margin: '12px 0' }} />
+        <Row gutter={[16, 16]}>
+          <Col xs={12} md={8}>
+            <Space direction="vertical" size={0}>
+              <Typography.Text type="secondary">Selecionados</Typography.Text>
+              <Typography.Text strong>{profissionaisSelecionados.length}</Typography.Text>
+            </Space>
+          </Col>
+          <Col xs={12} md={8}>
+            <Space direction="vertical" size={0}>
+              <Typography.Text type="secondary">Custo Profissionais (Mensal)</Typography.Text>
+              <Typography.Text strong>{formatCurrency(custoSelecionadosMensal)}</Typography.Text>
+            </Space>
+          </Col>
+          <Col xs={24} md={8}>
+            <Space direction="vertical" size={0}>
+              <Typography.Text type="secondary">Líquido - Profissionais (Mensal)</Typography.Text>
+              <Typography.Text strong type={resultadoAtual >= 0 ? 'success' : 'danger'}>{formatCurrency(resultadoAtual)}</Typography.Text>
+            </Space>
+          </Col>
+        </Row>
+      </Card>
+
+      {/* Filtros */}
+      <Card size="small" style={{ marginBottom: 16 }}>
+        <Row gutter={[12, 12]} align="middle">
+          <Col xs={24} md={12}>
+            <Space>
+              <Typography.Text>Especialidade:</Typography.Text>
+              <Select
+                value={filtroEspecialidade}
+                onChange={setFiltroEspecialidade}
+                style={{ minWidth: 240 }}
+                options={[{ label: 'Todas as Especialidades', value: 'todas' }, ...especialidades.map(e => ({ label: e, value: e }))]}
+              />
+            </Space>
+          </Col>
+          <Col xs={24} md={12}>
+            {tabAtiva === 'manual' ? (
+              <Input
+                placeholder="Buscar por Nome"
+                prefix={<SearchOutlined />}
+                value={buscaManual}
+                onChange={(e) => setBuscaManual(e.target.value)}
+                allowClear
+              />
+            ) : (
+              <Space>
+                <Typography.Text>Margem Mínima (%):</Typography.Text>
+                <InputNumber
+                  min={-100}
+                  max={100}
+                  value={margemDesejada}
+                  onChange={(v) => setMargemDesejada(Number(v || 0))}
+                />
+                {loading && <Spin indicator={<LoadingOutlined spin />} size="small" />}
+              </Space>
+            )}
+          </Col>
+        </Row>
+      </Card>
+
+      {/* Conteúdo */}
+      {tabAtiva === 'manual' ? (
+        <>
+          <Space style={{ marginBottom: 8 }}>
+            <Typography.Title level={5} style={{ margin: 0 }}>Selecionar Profissional</Typography.Title>
+            <Tag color={profissionaisSelecionados.length > 0 ? 'green' : 'orange'}>
+              {profissionaisSelecionados.length} selecionados
+            </Tag>
+          </Space>
+
+          <List
+            itemLayout="horizontal"
+            dataSource={profissionaisFiltrados}
+            renderItem={(profissional) => {
+              const disponivel = verificarDisponibilidade(profissional.id)
+              const custoMensal = calcularCustoMensal(profissional)
+              const selecionado = profissionaisSelecionados.includes(profissional.id)
+              return (
+                <List.Item
+                  onClick={() => toggleProfissional(profissional.id)}
+                  style={{
+                    border: `1px solid ${selecionado ? '#1677ff' : '#f0f0f0'}`,
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                    padding: 12,
+                    marginBottom: 8
+                  }}
+                >
+                  <List.Item.Meta
+                    title={
+                      <Space>
+                        <Typography.Text strong>{profissional.nome}</Typography.Text>
+                        <Badge status={disponivel ? 'success' : 'warning'} text={disponivel ? 'Disponível' : 'Ocupado'} />
+                      </Space>
+                    }
+                    description={
+                      <Row gutter={12} wrap align="middle">
+                        <Col>
+                          <Typography.Text type="secondary">{profissional.especialidade}</Typography.Text>
+                        </Col>
+                        <Col>
+                          <Typography.Text>Tipo: {profissional.tipoContrato === 'hora' ? 'Por Hora' : 'Valor Fechado'}</Typography.Text>
+                        </Col>
+                        <Col>
+                          <Typography.Text>Custo: {formatCurrency(custoMensal)}/mês</Typography.Text>
+                        </Col>
+                      </Row>
+                    }
+                  />
+                  {selecionado && <CheckCircleOutlined style={{ color: '#1677ff' }} />}
+                </List.Item>
+              )
+            }}
+          />
+
+          {profissionaisFiltrados.length === 0 && (
+            <Alert type="info" message="Nenhum profissional encontrado com os filtros atuais." />
+          )}
+        </>
+      ) : (
+        <>
+          {loading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}>
+              <Spin size="large" />
+            </div>
+          ) : (
+            <>
+              <Space style={{ marginBottom: 8 }}>
+                <Typography.Title level={5} style={{ margin: 0 }}>Melhores Sugestões</Typography.Title>
+                <Tag color={profissionaisSelecionados.length > 0 ? 'green' : 'orange'}>
+                  {profissionaisSelecionados.length} selecionados
+                </Tag>
+              </Space>
+
+              <List
+                itemLayout="horizontal"
+                dataSource={sugestoes}
+                renderItem={(sugestao, index) => {
+                  const selecionado = profissionaisSelecionados.includes(sugestao.profissional.id)
+                  return (
+                    <List.Item
+                      onClick={() => toggleProfissional(sugestao.profissional.id)}
+                      style={{
+                        border: `1px solid ${selecionado ? '#1677ff' : '#f0f0f0'}`,
+                        borderRadius: 8,
+                        cursor: 'pointer',
+                        padding: 12,
+                        marginBottom: 8
+                      }}
+                    >
+                      <List.Item.Meta
+                        title={
+                          <Space>
+                            <Typography.Text strong>{sugestao.profissional.nome}</Typography.Text>
+                            {index < quantidadeProfissionais && <Tag color="blue">Top</Tag>}
+                          </Space>
+                        }
+                        description={
+                          <Row gutter={12} wrap align="middle">
+                            <Col>
+                              <Typography.Text type="secondary">{sugestao.especialidade}</Typography.Text>
+                            </Col>
+                            <Col>
+                              <Typography.Text>Custo: {formatCurrency(sugestao.custoMensal)}/mês</Typography.Text>
+                            </Col>
+                            <Col>
+                              <Typography.Text type={sugestao.margem >= 0 ? 'success' : 'danger'}>
+                                Margem: {formatCurrency(sugestao.margem)} ({sugestao.percentualMargem.toFixed(1)}%)
+                              </Typography.Text>
+                            </Col>
+                          </Row>
+                        }
+                      />
+                      {selecionado && <CheckCircleOutlined style={{ color: '#1677ff' }} />}
+                    </List.Item>
+                  )
+                }}
+              />
+
+              {sugestoes.length === 0 && (
+                <Alert type="warning" message="Nenhuma sugestão encontrada com os critérios atuais. Ajuste os filtros ou a margem mínima." />
+              )}
+            </>
+          )}
+        </>
+      )}
+    </Modal>
   )
 }
 

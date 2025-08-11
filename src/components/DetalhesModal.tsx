@@ -6,8 +6,6 @@ import {
   Row,
   Col,
   Tag,
-  Divider,
-  List,
   Table,
   Space,
   Card,
@@ -17,18 +15,14 @@ import {
 import {
   UserOutlined,
   TeamOutlined,
-  RiseOutlined,
   MailOutlined,
   PhoneOutlined,
   EnvironmentOutlined,
   ClockCircleOutlined,
-  DollarOutlined,
   FileTextOutlined,
-  UnorderedListOutlined,
-  CloseOutlined,
   DownloadOutlined,
 } from '@ant-design/icons'
-import { formatCurrency } from '../utils/formatters'
+// cálculos mensais removidos conforme solicitado
 import * as XLSX from 'xlsx'
 
 const { Title, Text } = Typography
@@ -279,7 +273,7 @@ const DetalhesModal: React.FC<DetalhesModalProps> = ({
                 {profissional.tipoContrato === 'hora' ? (
                   <Statistic
                     title="Valor por Hora"
-                    value={profissional.valorHora}
+                    value={Number(profissional.valorHora) || 0}
                     precision={2}
                     prefix="R$"
                     valueStyle={{ color: '#3f8600' }}
@@ -287,7 +281,7 @@ const DetalhesModal: React.FC<DetalhesModalProps> = ({
                 ) : (
                   <Statistic
                     title="Valor Fechado"
-                    value={profissional.valorFechado}
+                    value={Number(profissional.valorFechado) || 0}
                     precision={2}
                     prefix="R$"
                     valueStyle={{ color: '#3f8600' }}
@@ -509,21 +503,21 @@ const DetalhesModal: React.FC<DetalhesModalProps> = ({
               <Space direction="vertical" style={{ width: '100%' }}>
                 <Statistic
                   title="Valor do Contrato"
-                  value={contrato.valorContrato}
+                  value={Number(contrato.valorContrato) || 0}
                   precision={2}
                   prefix="R$"
                   valueStyle={{ color: '#3f8600' }}
                 />
                 <Statistic
                   title="Impostos"
-                  value={contrato.valorImpostos}
+                  value={Number(contrato.valorImpostos) || 0}
                   precision={2}
                   prefix="R$"
                   valueStyle={{ color: '#cf1322' }}
                 />
                 <Statistic
                   title="Valor Líquido"
-                  value={contrato.valorContrato - contrato.valorImpostos}
+                  value={(Number(contrato.valorContrato) || 0) - (Number(contrato.valorImpostos) || 0)}
                   precision={2}
                   prefix="R$"
                   valueStyle={{ color: '#1890ff' }}

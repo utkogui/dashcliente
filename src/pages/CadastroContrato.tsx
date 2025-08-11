@@ -18,7 +18,7 @@ import {
   List,
   Tag
 } from 'antd'
-import { ArrowLeftOutlined, SaveOutlined, PlusOutlined, DeleteOutlined, BulbOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, SaveOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext'
 import type { NovoContrato } from '../contexts/DataContext'
@@ -54,28 +54,49 @@ const CadastroContrato = () => {
     valor: string
   }>>([])
 
-  // Função para calcular resumo em tempo real
+  // Função para calcular resumo em tempo real (base mensal)
   const calcularResumo = () => {
     try {
       const formValues = form.getFieldsValue()
       
-      // Calcular valor do contrato
+      // Calcular valor do contrato (total informado)
       let valorContrato = 0
       if (formValues.tipoContrato === 'hora') {
         const quantidadeHoras = parseFloat(formValues.quantidadeHoras) || 0
         const valorHora = parseFloat(formValues.valorHora) || 0
         valorContrato = quantidadeHoras * valorHora
         if (formValues.valorContratoMensal && formValues.contratoIndeterminado) {
+          // Se o usuário marcou como mensal + indeterminado, considera 12 meses no total
           valorContrato = valorContrato * 12
         }
       } else {
-        // Para contratos fechados, o valor já é o valor total
         valorContrato = parseFloat(formValues.valorContrato) || 0
       }
 
-      // Calcular impostos
+      // Base mensal para impostos e líquido
+      let valorMensalBase = 0
+      if (formValues.tipoContrato === 'hora') {
+        const quantidadeHoras = parseFloat(formValues.quantidadeHoras) || 0
+        const valorHora = parseFloat(formValues.valorHora) || 0
+        valorMensalBase = quantidadeHoras * valorHora
+      } else {
+        const contratoMensal = !!formValues.valorContratoMensal
+        if (contratoMensal) {
+          valorMensalBase = parseFloat(formValues.valorContrato) || 0
+        } else {
+          // Converter total em mensal
+          const inicio = formValues.dataInicio ? dayjs(formValues.dataInicio) : null
+          const fim = formValues.dataFim ? dayjs(formValues.dataFim) : null
+          const meses = formValues.contratoIndeterminado || !inicio
+            ? 12
+            : Math.max(1, (fim && inicio) ? (fim.year() - inicio.year()) * 12 + (fim.month() - inicio.month()) : 12)
+          valorMensalBase = (parseFloat(formValues.valorContrato) || 0) / meses
+        }
+      }
+
+      // Calcular impostos (mensal)
       const percentualImpostos = parseFloat(formValues.percentualImpostos) || 0
-      const valorImpostos = valorContrato * (percentualImpostos / 100)
+      const valorImpostos = valorMensalBase * (percentualImpostos / 100)
 
       // Calcular custo dos profissionais
       const custoProfissionais = profissionaisSelecionados.reduce((total, prof) => {
@@ -85,13 +106,7 @@ const CadastroContrato = () => {
         if (profissional.tipoContrato === 'hora') {
           const valorHora = parseFloat(prof.valorHora) || 0
           const horasMensais = parseFloat(prof.horasMensais) || 0
-          const custoMensal = valorHora * horasMensais
-          
-          // Se contrato é mensal e indeterminado, multiplicar por 12
-          if (formValues.valorContratoMensal && formValues.contratoIndeterminado) {
-            return total + (custoMensal * 12)
-          }
-          return total + custoMensal
+          return total + (valorHora * horasMensais)
         } else {
           const valorFechado = parseFloat(prof.valorFechado) || 0
           return total + valorFechado
@@ -103,8 +118,8 @@ const CadastroContrato = () => {
         return total + (parseFloat(despesa.valor) || 0)
       }, 0)
 
-      // Calcular margem
-      const valorLiquido = valorContrato - valorImpostos
+      // Calcular margem (mensal)
+      const valorLiquido = valorMensalBase - valorImpostos
       const margem = valorLiquido - custoProfissionais - totalDespesasAdicionais
       const percentualMargem = valorLiquido > 0 ? (margem / valorLiquido) * 100 : 0
 
@@ -175,15 +190,7 @@ const CadastroContrato = () => {
 
 
 
-  const handleAddProfissional = () => {
-    setProfissionaisSelecionados(prev => [...prev, {
-      profissionalId: '',
-      valorHora: '',
-      horasMensais: '',
-      valorFechado: '',
-      periodoFechado: 'mensal'
-    }])
-  }
+  // handleAddProfissional removido (não utilizado)
 
   // Função para preencher automaticamente os campos do profissional baseado no tipo de contrato
   const preencherCamposProfissional = (profissionalId: string, index: number) => {
@@ -400,7 +407,6 @@ const CadastroContrato = () => {
                 onFinish={handleSubmit}
                 initialValues={{
                   tipoContrato: 'hora',
-                  status: 'ativo',
                   contratoIndeterminado: false,
                   valorContratoMensal: false,
                   quantidadeProfissionais: '1'
@@ -412,16 +418,7 @@ const CadastroContrato = () => {
             </Title>
 
             <Row gutter={[16, 16]}>
-              <Col xs={24} md={12}>
-                <Form.Item
-                  name="nomeProjeto"
-                  label="Nome do Projeto"
-                  rules={[{ required: true, message: 'Nome do projeto é obrigatório' }]}
-                >
-                  <Input placeholder="Digite o nome do projeto" />
-                </Form.Item>
-              </Col>
-
+              {/* Cliente primeiro */}
               <Col xs={24} md={12}>
                 <Form.Item
                   name="clienteId"
@@ -438,6 +435,18 @@ const CadastroContrato = () => {
                 </Form.Item>
               </Col>
 
+              {/* Nome do Projeto */}
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="nomeProjeto"
+                  label="Nome do Projeto"
+                  rules={[{ required: true, message: 'Nome do projeto é obrigatório' }]}
+                >
+                  <Input placeholder="Digite o nome do projeto" />
+                </Form.Item>
+              </Col>
+
+              {/* Código e Data de Início */}
               <Col xs={24} md={12}>
                 <Form.Item
                   name="codigoContrato"
@@ -461,6 +470,17 @@ const CadastroContrato = () => {
                 </Form.Item>
               </Col>
 
+              {/* Contrato indeterminado antes da Data de Fim */}
+              <Col xs={24}>
+                <Form.Item
+                  name="contratoIndeterminado"
+                  valuePropName="checked"
+                >
+                  <Checkbox>Contrato Indeterminado</Checkbox>
+                </Form.Item>
+              </Col>
+
+              {/* Data de Fim (quando não indeterminado) */}
               <Col xs={24} md={12}>
                 <Form.Item
                   name="dataFim"
@@ -483,15 +503,6 @@ const CadastroContrato = () => {
                     format="DD/MM/YYYY"
                     disabled={form.getFieldValue('contratoIndeterminado')}
                   />
-                </Form.Item>
-              </Col>
-
-              <Col xs={24}>
-                <Form.Item
-                  name="contratoIndeterminado"
-                  valuePropName="checked"
-                >
-                  <Checkbox>Contrato Indeterminado</Checkbox>
                 </Form.Item>
               </Col>
             </Row>
@@ -648,21 +659,27 @@ const CadastroContrato = () => {
                     onClick={() => {
                       const formValues = form.getFieldsValue()
                       const percentualImpostos = parseFloat(formValues.percentualImpostos) || 0
-                      let valorContrato = 0
-                      
+                      // Calcular base mensal para impostos
+                      let valorMensalBase = 0
                       if (formValues.tipoContrato === 'hora') {
                         const quantidadeHoras = parseFloat(formValues.quantidadeHoras) || 0
                         const valorHora = parseFloat(formValues.valorHora) || 0
-                        valorContrato = quantidadeHoras * valorHora
-                        if (formValues.valorContratoMensal && formValues.contratoIndeterminado) {
-                          valorContrato = valorContrato * 12
-                        }
+                        valorMensalBase = quantidadeHoras * valorHora
                       } else {
-                        // Para contratos fechados, o valor já é o valor total
-                        valorContrato = parseFloat(formValues.valorContrato) || 0
+                        const contratoMensal = !!formValues.valorContratoMensal
+                        if (contratoMensal) {
+                          valorMensalBase = parseFloat(formValues.valorContrato) || 0
+                        } else {
+                          const inicio = formValues.dataInicio ? dayjs(formValues.dataInicio) : null
+                          const fim = formValues.dataFim ? dayjs(formValues.dataFim) : null
+                          const meses = formValues.contratoIndeterminado || !inicio
+                            ? 12
+                            : Math.max(1, (fim && inicio) ? (fim.year() - inicio.year()) * 12 + (fim.month() - inicio.month()) : 12)
+                          valorMensalBase = (parseFloat(formValues.valorContrato) || 0) / meses
+                        }
                       }
-                      
-                      const valorImpostos = valorContrato * (percentualImpostos / 100)
+
+                      const valorImpostos = valorMensalBase * (percentualImpostos / 100)
                       form.setFieldValue('valorImpostos', valorImpostos.toFixed(2))
                     }}
                     style={{ width: '100%', height: '32px' }}
@@ -883,34 +900,7 @@ const CadastroContrato = () => {
 
             <Divider />
 
-            {/* Status e Observações */}
-            <Row gutter={[16, 16]}>
-              <Col xs={24} md={12}>
-                <Form.Item
-                  name="status"
-                  label="Status"
-                  rules={[{ required: true, message: 'Status é obrigatório' }]}
-                >
-                  <Select placeholder="Selecione o status">
-                    <Option value="ativo">Ativo</Option>
-                    <Option value="encerrado">Encerrado</Option>
-                    <Option value="pendente">Pendente</Option>
-                  </Select>
-                </Form.Item>
-              </Col>
-
-              <Col xs={24} md={12}>
-                <Form.Item
-                  name="observacoes"
-                  label="Observações"
-                >
-                  <TextArea 
-                    rows={3} 
-                    placeholder="Observações sobre o contrato"
-                  />
-                </Form.Item>
-              </Col>
-            </Row>
+            {/* Status e Observações removidos conforme especificação da terceira dobra */}
 
             <Divider />
 

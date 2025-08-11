@@ -60,10 +60,12 @@ const Dashboard = () => {
   const [modalType, setModalType] = useState<'profissional' | 'cliente' | 'contrato'>('profissional')
   const [modalData, setModalData] = useState<any>(null)
   const [showAllContratos, setShowAllContratos] = useState(false)
+  // Removido controle de encerrados da primeira dobra
   // Lista paginada substitui o botão "ver mais" para profissionais
   const [showAllClientes, setShowAllClientes] = useState(false)
   const [profPage, setProfPage] = useState(1)
   const pageSize = 10
+  const CARD_HEIGHT = 240
 
   // Função para exportar dados para Excel
   const exportToExcel = () => {
@@ -225,7 +227,7 @@ const Dashboard = () => {
         hoverable
         style={{ 
           cursor: 'pointer', 
-          height: '200px', // Altura fixa para todos os cards
+          height: `${CARD_HEIGHT}px`, // Altura fixa e igual para todos os cards
           display: 'flex',
           flexDirection: 'column',
           ...cardStyle 
@@ -242,7 +244,7 @@ const Dashboard = () => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 2, marginBottom: 4 }}>
-                <Text strong style={{ fontSize: 16 }}>
+                <Text strong style={{ fontSize: 16, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
                   {isContrato ? data.nomeProjeto : isProfissional ? data.nome : data.empresa}
                 </Text>
                 {isContrato && statusColor && (
@@ -432,16 +434,7 @@ const Dashboard = () => {
             </Card>
           </Col>
           
-          <Col xs={24} sm={12} lg={6}>
-            <Card>
-              <Statistic
-                title="Contratos Encerrados"
-                value={contratosEncerrados.length}
-                prefix={<FileTextOutlined />}
-                valueStyle={{ color: '#9ca3af' }}
-              />
-            </Card>
-          </Col>
+          {/* Removido card de Contratos Encerrados da primeira dobra */}
           
           <Col xs={24} sm={12} lg={6}>
             <Card>
@@ -551,21 +544,7 @@ const Dashboard = () => {
               ))}
             </Row>
             
-            {/* Contratos Encerrados */}
-            {contratosEncerrados.length > 0 && (
-              <>
-                <Title level={4} style={{ margin: '24px 0 16px 0', color: '#9ca3af' }}>
-                  Contratos Encerrados ({contratosEncerrados.length})
-                </Title>
-                <Row gutter={[16, 16]}>
-                  {(showAllContratos ? contratosEncerrados : contratosEncerrados.slice(0, 2)).map((contrato) => (
-                    <Col xs={24} sm={12} md={8} lg={6} key={contrato.id}>
-                      {renderCard('contrato', contrato)}
-                    </Col>
-                  ))}
-                </Row>
-              </>
-            )}
+            {/* Encerrados não exibidos nesta seção */}
             
             {contratosAtivos.length > 4 && (
               <div style={{ textAlign: 'center', marginTop: 16 }}>
@@ -596,6 +575,7 @@ const Dashboard = () => {
             </div>
 
             <List
+              grid={{ gutter: 12, column: 2, xs: 1, sm: 2, md: 2, lg: 2, xl: 2 }}
               itemLayout="horizontal"
               dataSource={profissionais
                 .slice()

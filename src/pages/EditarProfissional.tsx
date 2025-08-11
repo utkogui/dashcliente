@@ -46,6 +46,8 @@ const EditarProfissional = () => {
     'Desenvolvedor Frontend',
     'Desenvolvedor Backend',
     'UX/UI Designer',
+    'Pesquisador',
+    'UX Writer',
     'DevOps Engineer',
     'Product Manager',
     'Service Designer',

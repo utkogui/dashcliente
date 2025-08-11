@@ -37,21 +37,28 @@ export const TABELA_PRECOS: TabelaPrecos = {
   },
 };
 
+// Aliases para especialidades (sinônimos e variações comuns)
+const ESPECIALIDADE_ALIASES: Record<string, string> = {
+  'PESQUISADOR': 'RESEARCH',
+  'UX WRITTER': 'UX WRITER',
+};
+
 // Função para obter valor por hora baseado no perfil e especialidade
 export const obterValorHora = (perfil: string, especialidade: string): number | null => {
   const perfilUpper = perfil.toUpperCase();
   const especialidadeUpper = especialidade.toUpperCase();
+  const especialidadeNormalizada = ESPECIALIDADE_ALIASES[especialidadeUpper] || especialidadeUpper;
   
   // Busca exata
-  if (TABELA_PRECOS[perfilUpper] && TABELA_PRECOS[perfilUpper][especialidadeUpper]) {
-    return TABELA_PRECOS[perfilUpper][especialidadeUpper];
+  if (TABELA_PRECOS[perfilUpper] && TABELA_PRECOS[perfilUpper][especialidadeNormalizada]) {
+    return TABELA_PRECOS[perfilUpper][especialidadeNormalizada];
   }
   
   // Busca por similaridade na especialidade
   for (const [perfilKey, especialidades] of Object.entries(TABELA_PRECOS)) {
     if (perfilKey === perfilUpper) {
       for (const [espKey, valor] of Object.entries(especialidades)) {
-        if (espKey.includes(especialidadeUpper) || especialidadeUpper.includes(espKey)) {
+        if (espKey.includes(especialidadeNormalizada) || especialidadeNormalizada.includes(espKey)) {
           return valor;
         }
       }

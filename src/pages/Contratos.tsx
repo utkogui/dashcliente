@@ -28,7 +28,14 @@ import { useData } from '../contexts/DataContext'
 import { useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { formatCurrency, calcularValoresAgregados } from '../utils/formatters'
+import { 
+  formatCurrency, 
+  calcularValoresAgregados,
+  calcularValorMensal,
+  calcularImpostosMensais,
+  calcularCustoMensal,
+  calcularMargemMensal
+} from '../utils/formatters'
 
 const { Title, Text } = Typography
 const { Search } = Input
@@ -268,12 +275,7 @@ const Contratos = () => {
       title: 'Impostos',
       key: 'impostos',
       render: (record: any) => {
-        const valorMensal = !record.dataFim ? (record.valorContrato / 12) : 
-          (record.valorContrato / Math.max(1, 
-            (new Date(record.dataFim).getFullYear() - new Date(record.dataInicio).getFullYear()) * 12 + 
-            (new Date(record.dataFim).getMonth() - new Date(record.dataInicio).getMonth())
-          ))
-        const impostosMensais = valorMensal * ((record.percentualImpostos || 13.0) / 100)
+        const impostosMensais = calcularImpostosMensais(record)
         return (
           <Text strong style={{ color: '#f5222d', fontSize: 13 }}>
             R$ {impostosMensais.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
@@ -281,21 +283,26 @@ const Contratos = () => {
         )
       },
       sorter: (a: any, b: any) => {
-        const valorA = !a.dataFim ? (a.valorContrato / 12) : 
-          (a.valorContrato / Math.max(1, 
-            (new Date(a.dataFim).getFullYear() - new Date(a.dataInicio).getFullYear()) * 12 + 
-            (new Date(a.dataFim).getMonth() - new Date(a.dataInicio).getMonth())
-          ))
-        const impostosA = valorA * ((a.percentualImpostos || 13.0) / 100)
-        const valorB = !b.dataFim ? (b.valorContrato / 12) : 
-          (b.valorContrato / Math.max(1, 
-            (new Date(b.dataFim).getFullYear() - new Date(b.dataInicio).getFullYear()) * 12 + 
-            (new Date(b.dataFim).getMonth() - new Date(b.dataInicio).getMonth())
-          ))
-        const impostosB = valorB * ((b.percentualImpostos || 13.0) / 100)
+        const impostosA = calcularImpostosMensais(a)
+        const impostosB = calcularImpostosMensais(b)
         return impostosA - impostosB
       },
       width: 120,
+    },
+    {
+      title: 'Resultado Mensal',
+      key: 'resultadoMensal',
+      render: (record: any) => {
+        const margemMensal = calcularMargemMensal(record)
+        const color = margemMensal >= 0 ? '#52c41a' : '#cf1322'
+        return (
+          <Text strong style={{ color, fontSize: 13 }}>
+            R$ {margemMensal.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+          </Text>
+        )
+      },
+      sorter: (a: any, b: any) => calcularMargemMensal(a) - calcularMargemMensal(b),
+      width: 140,
     },
     {
       title: 'Profissionais',

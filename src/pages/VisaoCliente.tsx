@@ -105,13 +105,30 @@ const VisaoCliente = () => {
     .sort((a, b) => {
       const infoA = getProfissionalInfo(a)
       const infoB = getProfissionalInfo(b)
-      
-      // Primeiro os ativos, depois os aguardando
-      if (infoA.status === 'ativo' && infoB.status === 'aguardando') return -1
-      if (infoA.status === 'aguardando' && infoB.status === 'ativo') return 1
-      
-      // Se ambos têm o mesmo status, ordenar por nome
-      return a.nome.localeCompare(b.nome)
+
+      // Ativos sempre antes de aguardando
+      if (infoA.status === 'ativo' && infoB.status !== 'ativo') return -1
+      if (infoB.status === 'ativo' && infoA.status !== 'ativo') return 1
+
+      // Ambos aguardando: ordenar por nome
+      if (infoA.status !== 'ativo' && infoB.status !== 'ativo') {
+        return a.nome.localeCompare(b.nome)
+      }
+
+      // Ambos ativos: ordenar por prazo (menor para maior)
+      const projetoA = infoA.projetos[0]
+      const projetoB = infoB.projetos[0]
+
+      const diasA = projetoA ? calcularDiasRestantes(projetoA.contrato) : null
+      const diasB = projetoB ? calcularDiasRestantes(projetoB.contrato) : null
+
+      // Regras: vencidos (dias <= 0) primeiro, depois com menor dias, depois indeterminados (null)
+      const rank = (dias: number | null) => {
+        if (dias === null) return Number.POSITIVE_INFINITY // Indeterminado vai para o fim
+        return dias // números menores (inclui negativos) vêm primeiro
+      }
+
+      return rank(diasA) - rank(diasB)
     })
 
   const especialidades = [...new Set(profissionais.map(p => p.especialidade))]

@@ -69,6 +69,8 @@ const especialidades = [
   'Desenvolvedor Frontend',
   'Desenvolvedor Backend',
   'UX/UI Designer',
+  'Pesquisador',
+  'UX Writer',
   'DevOps Engineer',
   'Data Scientist',
   'Product Manager',
