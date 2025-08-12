@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import {
   Box,
   Typography,
@@ -32,17 +32,26 @@ import {
   Chat,
   Close
 } from '@mui/icons-material'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext'
+import { useAuth } from '../contexts/AuthContext'
 import { calcularDiasRestantes, getCardStyle } from '../utils/formatters'
 import logoFtdMatilha from '../assets/logo_ftd_matilha.png'
 
 const VisaoCliente = () => {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { profissionais, contratos, clientes } = useData()
+  const { sessionId } = useAuth()
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('todos')
   const [filterEspecialidade, setFilterEspecialidade] = useState('todas')
+  const [filterPrazo, setFilterPrazo] = useState<'todos' | '<15' | '<30' | '<60' | 'indeterminado'>('todos')
+  const [filterSenioridade, setFilterSenioridade] = useState('todas')
+  const [orderBy, setOrderBy] = useState<'prazo' | 'status'>('prazo')
+  const [interestLoading, setInterestLoading] = useState(false)
+  const [interestMessage, setInterestMessage] = useState<string | null>(null)
+  const [interestError, setInterestError] = useState<string | null>(null)
   const [selectedProfissionalId, setSelectedProfissionalId] = useState<string | null>(null)
 
   // Obter informações do profissional
@@ -100,38 +109,89 @@ const VisaoCliente = () => {
         filterEspecialidade === 'todas' || 
         profissional.especialidade === filterEspecialidade
 
-      return matchesSearch && matchesStatus && matchesEspecialidade
+      // Filtro por senioridade/nível (perfil)
+      const matchesSenioridade =
+        filterSenioridade === 'todas' ||
+        (profissional.perfil || '') === filterSenioridade
+
+      // Filtro por prazo
+      const projeto = info.projetos[0]
+      const dias = projeto ? calcularDiasRestantes(projeto.contrato) : null
+      const matchesPrazo = (() => {
+        if (filterPrazo === 'todos') return true
+        if (filterPrazo === 'indeterminado') return dias === null
+        if (dias === null) return false
+        switch (filterPrazo) {
+          case '<15': return dias < 15 && dias >= 0
+          case '<30': return dias < 30 && dias >= 0
+          case '<60': return dias < 60 && dias >= 0
+          default: return true
+        }
+      })()
+
+      return matchesSearch && matchesStatus && matchesEspecialidade && matchesSenioridade && matchesPrazo
     })
     .sort((a, b) => {
       const infoA = getProfissionalInfo(a)
       const infoB = getProfissionalInfo(b)
 
-      // Ativos sempre antes de aguardando
-      if (infoA.status === 'ativo' && infoB.status !== 'ativo') return -1
-      if (infoB.status === 'ativo' && infoA.status !== 'ativo') return 1
-
-      // Ambos aguardando: ordenar por nome
-      if (infoA.status !== 'ativo' && infoB.status !== 'ativo') {
+      if (orderBy === 'status') {
+        if (infoA.status === 'ativo' && infoB.status !== 'ativo') return -1
+        if (infoB.status === 'ativo' && infoA.status !== 'ativo') return 1
         return a.nome.localeCompare(b.nome)
       }
 
-      // Ambos ativos: ordenar por prazo (menor para maior)
+      // orderBy === 'prazo'
+      if (infoA.status === 'ativo' && infoB.status !== 'ativo') return -1
+      if (infoB.status === 'ativo' && infoA.status !== 'ativo') return 1
       const projetoA = infoA.projetos[0]
       const projetoB = infoB.projetos[0]
-
       const diasA = projetoA ? calcularDiasRestantes(projetoA.contrato) : null
       const diasB = projetoB ? calcularDiasRestantes(projetoB.contrato) : null
-
-      // Regras: vencidos (dias <= 0) primeiro, depois com menor dias, depois indeterminados (null)
       const rank = (dias: number | null) => {
-        if (dias === null) return Number.POSITIVE_INFINITY // Indeterminado vai para o fim
-        return dias // números menores (inclui negativos) vêm primeiro
+        if (dias === null) return Number.POSITIVE_INFINITY
+        return dias
       }
-
       return rank(diasA) - rank(diasB)
     })
 
   const especialidades = [...new Set(profissionais.map(p => p.especialidade))]
+  const senioridades = [...new Set(profissionais.map(p => p.perfil).filter(Boolean))] as string[]
+
+  const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || (
+    process.env.NODE_ENV === 'production'
+      ? 'https://dashcliente.onrender.com/api'
+      : 'http://localhost:3001/api'
+  )
+
+  // Inicializar filtros a partir da URL
+  useEffect(() => {
+    const q = searchParams.get('q') || ''
+    const st = searchParams.get('status') || 'todos'
+    const esp = searchParams.get('esp') || 'todas'
+    const prazo = (searchParams.get('prazo') as any) || 'todos'
+    const sen = searchParams.get('sen') || 'todas'
+    const ord = (searchParams.get('ord') as any) || 'prazo'
+    setSearchTerm(q)
+    setFilterStatus(st)
+    setFilterEspecialidade(esp)
+    setFilterPrazo(prazo)
+    setFilterSenioridade(sen)
+    setOrderBy(ord)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Persistir filtros na URL
+  useEffect(() => {
+    const params: Record<string, string> = {}
+    if (searchTerm) params.q = searchTerm
+    if (filterStatus !== 'todos') params.status = filterStatus
+    if (filterEspecialidade !== 'todas') params.esp = filterEspecialidade
+    if (filterPrazo !== 'todos') params.prazo = filterPrazo
+    if (filterSenioridade !== 'todas') params.sen = filterSenioridade
+    if (orderBy !== 'prazo') params.ord = orderBy
+    setSearchParams(params, { replace: true })
+  }, [searchTerm, filterStatus, filterEspecialidade, filterPrazo, filterSenioridade, orderBy, setSearchParams])
 
   const getDiasRestantes = (projeto: any) => {
     if (!projeto.dataFim) return null
@@ -139,11 +199,12 @@ const VisaoCliente = () => {
   }
 
   const getDiasRestantesColor = (dias: number | null) => {
-    if (dias === null) return '#22c55e' // Verde para indeterminado
-    if (dias > 60) return '#22c55e' // Verde
-    if (dias > 30) return '#fbbf24' // Amarelo
-    if (dias > 0) return '#ef4444' // Vermelho
-    return '#dc2626' // Vermelho escuro para vencido
+    // Cores com melhor contraste AA em textos sobre fundo branco
+    if (dias === null) return '#166534' // verde-800
+    if (dias > 60) return '#166534'    // verde-800
+    if (dias > 30) return '#92400e'    // amber-800
+    if (dias > 0) return '#b91c1c'     // red-700
+    return '#7f1d1d'                   // red-900 (vencido)
   }
 
   const getDiasRestantesText = (dias: number | null) => {
@@ -154,19 +215,7 @@ const VisaoCliente = () => {
 
   // Estilo do modal: linha superior fixa e fundo igual ao card da frente
   const modalTopBarColor = '#22c55e'
-  const selectedBgColor = useMemo(() => {
-    const fallback = 'rgba(34, 197, 94, 0.08)'
-    if (!selectedProfissionalId) return fallback
-    const prof = profissionais.find(p => p.id === selectedProfissionalId)
-    if (!prof) return fallback
-    const info = getProfissionalInfo(prof)
-    const proj = info.projetos[0]
-    if (proj && proj.contrato) {
-      const style = getCardStyle(proj.contrato) as any
-      return (style && style.backgroundColor) || fallback
-    }
-    return fallback
-  }, [selectedProfissionalId, profissionais, contratos, clientes])
+  // removido selectedBgColor não utilizado
 
   const selectedCardStyle = useMemo(() => {
     const fallback = {
@@ -296,6 +345,69 @@ const VisaoCliente = () => {
                 </Select>
               </FormControl>
             </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Prazo</InputLabel>
+                <Select
+                  value={filterPrazo}
+                  onChange={(e) => setFilterPrazo(e.target.value as any)}
+                  sx={{ borderRadius: 2, bgcolor: '#f8fafc', '&:hover': { bgcolor: '#f1f5f9' }, '&.Mui-focused': { bgcolor: 'white' } }}
+                >
+                  <MenuItem value="todos">Todos</MenuItem>
+                  <MenuItem value="<60">Menos de 60 dias</MenuItem>
+                  <MenuItem value="<30">Menos de 30 dias</MenuItem>
+                  <MenuItem value="<15">Menos de 15 dias</MenuItem>
+                  <MenuItem value="indeterminado">Indeterminado</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Senioridade</InputLabel>
+                <Select
+                  value={filterSenioridade}
+                  onChange={(e) => setFilterSenioridade(e.target.value)}
+                  sx={{ borderRadius: 2, bgcolor: '#f8fafc', '&:hover': { bgcolor: '#f1f5f9' }, '&.Mui-focused': { bgcolor: 'white' } }}
+                >
+                  <MenuItem value="todas">Todas</MenuItem>
+                  {senioridades.map(level => (
+                    <MenuItem key={level} value={level as string}>
+                      {level}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Ordenar por</InputLabel>
+                <Select
+                  value={orderBy}
+                  onChange={(e) => setOrderBy(e.target.value as any)}
+                  sx={{ borderRadius: 2, bgcolor: '#f8fafc', '&:hover': { bgcolor: '#f1f5f9' }, '&.Mui-focused': { bgcolor: 'white' } }}
+                >
+                  <MenuItem value="prazo">Prazo (menor→maior)</MenuItem>
+                  <MenuItem value="status">Status (ativos primeiro)</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12}>
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <Button
+                  variant="outlined"
+                  onClick={() => {
+                    setSearchTerm('')
+                    setFilterStatus('todos')
+                    setFilterEspecialidade('todas')
+                    setFilterPrazo('todos')
+                    setFilterSenioridade('todas')
+                    setOrderBy('prazo')
+                  }}
+                >
+                  Limpar filtros
+                </Button>
+              </Box>
+            </Grid>
           </Grid>
         </Paper>
 
@@ -319,7 +431,7 @@ const VisaoCliente = () => {
                   <Card 
                     onClick={() => setSelectedProfissionalId(profissional.id)}
                     sx={{ 
-                      height: '100%',
+                      height: 380,
                       display: 'flex',
                       flexDirection: 'column',
                       transition: 'all 0.3s ease',
@@ -332,7 +444,9 @@ const VisaoCliente = () => {
                       ...(info.status === 'ativo' && projetoAtivo ? getCardStyle(projetoAtivo.contrato) : {})
                     }}
                   >
-                    <CardContent sx={{ flexGrow: 1, p: 3, minHeight: 320, display: 'flex', flexDirection: 'column' }}>
+                    {/* faixa de status no topo */}
+                    <Box sx={{ height: 6, width: '100%', bgcolor: diasColor, borderTopLeftRadius: 12, borderTopRightRadius: 12 }} />
+                    <CardContent sx={{ flexGrow: 1, p: 3, display: 'flex', flexDirection: 'column' }}>
                         <>
                           {/* TOPO - 35% */}
                           <Box sx={{ flex: '0 0 35%', display: 'flex', flexDirection: 'column' }}>
@@ -343,9 +457,14 @@ const VisaoCliente = () => {
                                 {profissional.nome}
                               </Typography>
                             </Box>
-                            <Typography variant="caption" color={emProjeto ? 'success.main' : 'error.main'} sx={{ fontWeight: 700 }}>
-                              {emProjeto ? 'Em projeto' : 'Disponível'}
-                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography variant="caption" color={emProjeto ? 'success.main' : 'warning.main'} sx={{ fontWeight: 700 }}>
+                                {emProjeto ? 'Em projeto' : 'Disponível'}
+                              </Typography>
+                              {info.projetos.length > 1 && (
+                                <Chip size="small" label="Multi-projeto" color="info" sx={{ height: 18, fontSize: '0.65rem' }} />
+                              )}
+                            </Box>
                             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                               {profissional.especialidade}
                             </Typography>
@@ -556,6 +675,160 @@ const VisaoCliente = () => {
                       <Typography variant="body2"><strong>Código da vaga:</strong> CON-FTD-UX-9876</Typography>
                       <Typography variant="body2"><strong>Data emissão NF:</strong> 10/08/2025</Typography>
                       <Typography variant="caption" color="text.secondary">Dados mockados para layout</Typography>
+                    </Paper>
+                  </Grid>
+
+                  {/* Linha do tempo do contrato (UI simples) */}
+                  <Grid item xs={12}>
+                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                      <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                        Linha do tempo do contrato
+                      </Typography>
+                      {projetoSel ? (
+                        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                          <Chip label={`Início: ${new Date(projetoSel.dataInicio).toLocaleDateString('pt-BR')}`} size="small" />
+                          <Chip label={`Término: ${projetoSel.dataFim ? new Date(projetoSel.dataFim).toLocaleDateString('pt-BR') : 'Indeterminado'}`} size="small" />
+                          <Chip label="Renovações: 0 (mock)" size="small" color="default" />
+                        </Box>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">Sem dados de contrato</Typography>
+                      )}
+                    </Paper>
+                  </Grid>
+
+                  {/* Ações de interesse do cliente (UI) */}
+                  <Grid item xs={12} md={6}>
+                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                      <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                        Ações
+                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <Button variant="outlined" size="small" disabled={interestLoading}
+                          onClick={async () => {
+                            if (!projetoSel) return
+                            try {
+                              setInterestLoading(true); setInterestError(null); setInterestMessage(null)
+                              const resp = await fetch(`${API_BASE_URL}/client-actions/interest`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionId}` },
+                                body: JSON.stringify({ interesse: 'RENOVAR', comentario: null, contratoId: projetoSel.contrato.id, profissionalId: profissionalSel.id })
+                              })
+                              const data = await resp.json()
+                              if (!resp.ok) throw new Error(data.error || 'Falha ao registrar interesse')
+                              setInterestMessage('Interesse registrado: Renovar')
+                            } catch (e: any) {
+                              setInterestError(e.message)
+                            } finally { setInterestLoading(false) }
+                          }}
+                        >Renovar</Button>
+                        <Button variant="outlined" size="small" disabled={interestLoading}
+                          onClick={async () => {
+                            if (!projetoSel) return
+                            try {
+                              setInterestLoading(true); setInterestError(null); setInterestMessage(null)
+                              const resp = await fetch(`${API_BASE_URL}/client-actions/interest`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionId}` },
+                                body: JSON.stringify({ interesse: 'REDUZIR', comentario: null, contratoId: projetoSel.contrato.id, profissionalId: profissionalSel.id })
+                              })
+                              const data = await resp.json()
+                              if (!resp.ok) throw new Error(data.error || 'Falha ao registrar interesse')
+                              setInterestMessage('Interesse registrado: Reduzir')
+                            } catch (e: any) {
+                              setInterestError(e.message)
+                            } finally { setInterestLoading(false) }
+                          }}
+                        >Reduzir</Button>
+                        <Button variant="outlined" size="small" disabled={interestLoading}
+                          onClick={async () => {
+                            if (!projetoSel) return
+                            try {
+                              setInterestLoading(true); setInterestError(null); setInterestMessage(null)
+                              const resp = await fetch(`${API_BASE_URL}/client-actions/interest`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionId}` },
+                                body: JSON.stringify({ interesse: 'TROCAR', comentario: null, contratoId: projetoSel.contrato.id, profissionalId: profissionalSel.id })
+                              })
+                              const data = await resp.json()
+                              if (!resp.ok) throw new Error(data.error || 'Falha ao registrar interesse')
+                              setInterestMessage('Interesse registrado: Trocar')
+                            } catch (e: any) {
+                              setInterestError(e.message)
+                            } finally { setInterestLoading(false) }
+                          }}
+                        >Trocar</Button>
+                        {(diasSel !== null && diasSel <= 60) && (
+                          <Button variant="outlined" size="small" color="warning" disabled={interestLoading}
+                            onClick={async () => {
+                              if (!projetoSel) return
+                              try {
+                                setInterestLoading(true); setInterestError(null); setInterestMessage(null)
+                                const resp = await fetch(`${API_BASE_URL}/client-actions/interest`, {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionId}` },
+                                  body: JSON.stringify({ interesse: 'ESPERAR', comentario: null, contratoId: projetoSel.contrato.id, profissionalId: profissionalSel.id })
+                                })
+                                const data = await resp.json()
+                                if (!resp.ok) throw new Error(data.error || 'Falha ao registrar interesse')
+                                setInterestMessage('Interesse registrado: Esperar')
+                              } catch (e: any) {
+                                setInterestError(e.message)
+                              } finally { setInterestLoading(false) }
+                            }}
+                          >Esperar</Button>
+                        )}
+                        {interestLoading && <Typography variant="caption" color="text.secondary">Enviando...</Typography>}
+                        {interestMessage && <Typography variant="caption" color="success.main">{interestMessage}</Typography>}
+                        {interestError && <Typography variant="caption" color="error.main">{interestError}</Typography>}
+                      </Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                        “Esperar” aparece apenas para contratos com ≤ 60 dias.
+                      </Typography>
+                    </Paper>
+                  </Grid>
+
+                  {/* Anotações do cliente (UI) */}
+                  <Grid item xs={12} md={6}>
+                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                      <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                        Anotações do cliente
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        placeholder="Escreva uma anotação..."
+                        multiline
+                        minRows={3}
+                        value={noteText}
+                        onChange={(e) => { setNoteText(e.target.value); setNoteError(null); setNoteSaved(false) }}
+                        error={Boolean(noteError)}
+                        helperText={noteError || (noteSaved ? 'Anotação salva' : ' ')}
+                      />
+                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                        <Button 
+                          variant="contained" 
+                          size="small"
+                          onClick={async () => {
+                            if (!noteText.trim()) { setNoteError('Digite uma anotação antes de salvar'); return }
+                            if (!projetoSel) return
+                            try {
+                              const resp = await fetch(`${API_BASE_URL}/notes`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionId}` },
+                                body: JSON.stringify({ contratoId: projetoSel.contrato.id, profissionalId: profissionalSel.id, texto: noteText.trim() })
+                              })
+                              const data = await resp.json()
+                              if (!resp.ok) throw new Error(data.error || 'Falha ao salvar anotação')
+                              setNoteSaved(true)
+                              setNoteError(null)
+                            } catch (e: any) {
+                              setNoteError(e.message)
+                              setNoteSaved(false)
+                            }
+                          }}
+                        >
+                          Salvar
+                        </Button>
+                      </Box>
                     </Paper>
                   </Grid>
                 </Grid>

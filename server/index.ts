@@ -790,6 +790,124 @@ app.get('/api/auth/me', verificarSessao, async (req, res) => {
   }
 })
 
+// ===== ROTAS: Interações do Cliente (Visão do Cliente) =====
+// Registrar interesse do cliente
+app.post('/api/client-actions/interest', verificarSessao, async (req: any, res) => {
+  try {
+    const { interesse, comentario, contratoId, profissionalId } = req.body
+    const usuario = req.usuario
+    if (!interesse || !contratoId || !profissionalId) {
+      return res.status(400).json({ error: 'Campos obrigatórios ausentes' })
+    }
+    // Apenas cliente pode registrar
+    if (!usuario.clienteId) {
+      return res.status(403).json({ error: 'Apenas usuários cliente podem registrar interesse' })
+    }
+    const created = await prisma.clienteInteresse.create({
+      data: {
+        clienteId: usuario.clienteId,
+        contratoId,
+        profissionalId,
+        interesse,
+        comentario: comentario || null
+      }
+    })
+    res.json({ ok: true, id: created.id })
+  } catch (error) {
+    console.error('Erro ao registrar interesse:', error)
+    res.status(500).json({ error: 'Erro ao registrar interesse' })
+  }
+})
+
+// Registrar anotação do cliente
+app.post('/api/notes', verificarSessao, async (req: any, res) => {
+  try {
+    const { contratoId, profissionalId, texto } = req.body
+    const usuario = req.usuario
+    if (!texto || !contratoId || !profissionalId) {
+      return res.status(400).json({ error: 'Campos obrigatórios ausentes' })
+    }
+    if (!usuario.clienteId) {
+      return res.status(403).json({ error: 'Apenas usuários cliente podem anotar' })
+    }
+    const created = await prisma.clienteNota.create({
+      data: {
+        clienteId: usuario.clienteId,
+        contratoId,
+        profissionalId,
+        texto
+      }
+    })
+    res.json({ ok: true, id: created.id })
+  } catch (error) {
+    console.error('Erro ao registrar anotação:', error)
+    res.status(500).json({ error: 'Erro ao registrar anotação' })
+  }
+})
+
+// Solicitar novo profissional
+app.post('/api/requests/new-professional', verificarSessao, async (req: any, res) => {
+  try {
+    const { especialidade, senioridade, descricao } = req.body
+    const usuario = req.usuario
+    if (!especialidade) {
+      return res.status(400).json({ error: 'Especialidade é obrigatória' })
+    }
+    if (!usuario.clienteId) {
+      return res.status(403).json({ error: 'Apenas usuários cliente podem solicitar' })
+    }
+    const created = await prisma.solicitacaoProfissional.create({
+      data: {
+        clienteId: usuario.clienteId,
+        especialidade,
+        senioridade: senioridade || null,
+        descricao: descricao || null
+      }
+    })
+    res.json({ ok: true, id: created.id })
+  } catch (error) {
+    console.error('Erro ao solicitar profissional:', error)
+    res.status(500).json({ error: 'Erro ao solicitar profissional' })
+  }
+})
+
+// Histórico de alocação por profissional
+app.get('/api/allocations/history', verificarSessao, async (req: any, res) => {
+  try {
+    const { profissionalId } = req.query as { profissionalId?: string }
+    const usuario = req.usuario
+    if (!profissionalId) {
+      return res.status(400).json({ error: 'profissionalId é obrigatório' })
+    }
+
+    const whereClause: any = {
+      profissionais: {
+        some: { profissionalId }
+      }
+    }
+    // Se não é admin, filtrar por cliente do sistema
+    if (usuario.tipo !== 'admin') {
+      whereClause.clienteSistemaId = usuario.clienteId
+    }
+
+    const historico = await prisma.contrato.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        nomeProjeto: true,
+        dataInicio: true,
+        dataFim: true,
+        cliente: { select: { empresa: true } }
+      },
+      orderBy: { dataInicio: 'desc' }
+    })
+    res.json(historico)
+  } catch (error) {
+    console.error('Erro ao obter histórico de alocação:', error)
+    res.status(500).json({ error: 'Erro ao obter histórico de alocação' })
+  }
+})
+
 // Rota de health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'API funcionando!' })

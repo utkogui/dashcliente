@@ -147,6 +147,52 @@ model ClienteSistema {
   profissionais Profissional[]
   clientes    Cliente[]
   contratos   Contrato[]
+  interesses  ClienteInteresse[]
+  notas       ClienteNota[]
+  solicitacoes SolicitacaoProfissional[]
 
   @@map("clientes_sistema")
+}
+
+// ===== TABELAS PARA INTERAÇÕES DO CLIENTE (Visão do Cliente) =====
+
+model ClienteInteresse {
+  id            String   @id @default(cuid())
+  clienteId     String
+  contratoId    String
+  profissionalId String
+  interesse     String   // RENOVAR | REDUZIR | TROCAR | ESPERAR
+  comentario    String?
+  createdAt     DateTime @default(now())
+
+  cliente       ClienteSistema @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  @@map("cliente_interesses")
+}
+
+model ClienteNota {
+  id            String   @id @default(cuid())
+  clienteId     String
+  contratoId    String
+  profissionalId String
+  texto         String
+  createdAt     DateTime @default(now())
+
+  cliente       ClienteSistema @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  @@map("cliente_notas")
+}
+
+model SolicitacaoProfissional {
+  id            String   @id @default(cuid())
+  clienteId     String
+  especialidade String
+  senioridade   String?
+  descricao     String?
+  status        String   @default("aberta")
+  createdAt     DateTime @default(now())
+
+  cliente       ClienteSistema @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  @@map("solicitacoes_profissional")
 }
