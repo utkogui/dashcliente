@@ -53,6 +53,9 @@ const VisaoCliente = () => {
   const [interestMessage, setInterestMessage] = useState<string | null>(null)
   const [interestError, setInterestError] = useState<string | null>(null)
   const [selectedProfissionalId, setSelectedProfissionalId] = useState<string | null>(null)
+  const [noteText, setNoteText] = useState('')
+  const [noteError, setNoteError] = useState<string | null>(null)
+  const [noteSaved, setNoteSaved] = useState(false)
 
   // Obter informações do profissional
   const getProfissionalInfo = (profissional: any) => {
