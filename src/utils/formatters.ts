@@ -259,3 +259,20 @@ export const getStatusBadgeColor = (contrato: any): string => {
       return '#6b7280'
   }
 } 
+
+// Novo helper para cores de risco unificadas (barra superior e fundo do card)
+export const getRiskColors = (diasRestantes: number | null): { barBg: string; cardBg: string; text: string } => {
+  if (diasRestantes === null) {
+    return { barBg: '#166534', cardBg: 'rgba(22, 101, 52, 0.06)', text: '#166534' }
+  }
+  if (diasRestantes > 60) {
+    return { barBg: '#166534', cardBg: 'rgba(22, 101, 52, 0.06)', text: '#166534' } // verde
+  }
+  if (diasRestantes > 30) {
+    return { barBg: '#92400e', cardBg: 'rgba(146, 64, 14, 0.06)', text: '#92400e' } // amarelo escuro
+  }
+  if (diasRestantes > 0) {
+    return { barBg: '#b91c1c', cardBg: 'rgba(185, 28, 28, 0.06)', text: '#b91c1c' } // vermelho
+  }
+  return { barBg: '#7f1d1d', cardBg: 'rgba(127, 29, 29, 0.08)', text: '#7f1d1d' } // vencido
+}

@@ -4,7 +4,7 @@ import { UserOutlined, SearchOutlined, FieldTimeOutlined, CalendarOutlined, Filt
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext'
 import { useAuth } from '../contexts/AuthContext'
-import { calcularDiasRestantes, getCardStyle } from '../utils/formatters'
+import { calcularDiasRestantes, getCardStyle, getRiskColors } from '../utils/formatters'
 import logoFtdMatilha from '../assets/logo_ftd_matilha.png'
 import { track } from '../utils/telemetry'
 
@@ -242,7 +242,7 @@ const VisaoClienteAnt = () => {
               const info = getProfissionalInfo(profissional)
               const projetoAtivo = info.projetos[0]
               const diasRestantes = projetoAtivo ? calcularDiasRestantes(projetoAtivo.contrato) : null
-              const diasColor = getDiasRestantesColor(diasRestantes)
+              const risk = getRiskColors(diasRestantes)
               const emProjeto = info.status === 'ativo' && Boolean(projetoAtivo)
               const disponibilidadeCor = emProjeto ? '#22c55e' : '#ff9aa2'
 
@@ -253,10 +253,10 @@ const VisaoClienteAnt = () => {
                     tabIndex={0}
                     onKeyDown={(e) => { if (e.key === 'Enter') { setSelectedProfissionalId(profissional.id); track({ type: 'card_open', profissionalId: profissional.id }) } }}
                     onClick={() => { setSelectedProfissionalId(profissional.id); track({ type: 'card_open', profissionalId: profissional.id }) }}
-                    style={{ height: 380, display: 'flex', flexDirection: 'column', borderRadius: 12, boxShadow: '0 4px 20px rgba(0,0,0,0.08)', ...(info.status === 'ativo' && projetoAtivo ? getCardStyle(projetoAtivo.contrato) : {}) }}
+                    style={{ height: 380, display: 'flex', flexDirection: 'column', borderRadius: 12, boxShadow: '0 4px 20px rgba(0,0,0,0.08)', background: risk.cardBg }}
                     bodyStyle={{ display: 'flex', flexDirection: 'column', height: '100%', padding: 16 }}
                   >
-                    <div style={{ height: 6, width: '100%', background: diasColor, borderTopLeftRadius: 12, borderTopRightRadius: 12, position: 'absolute', left: 0, top: 0 }} />
+                    <div style={{ height: 6, width: '100%', background: risk.barBg, borderTopLeftRadius: 12, borderTopRightRadius: 12, position: 'absolute', left: 0, top: 0 }} />
                     <div style={{ flex: '0 0 35%', display: 'flex', flexDirection: 'column' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <div style={{ width: 12, height: 12, borderRadius: '50%', background: disponibilidadeCor, boxShadow: `0 0 0 3px ${emProjeto ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.12)'}` }} />
@@ -319,9 +319,9 @@ const VisaoClienteAnt = () => {
                               )
                             })()}
                           </Space>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 12, marginTop: 6, background: `${diasColor}10`, borderRadius: 8, border: `1px solid ${diasColor}30` }}>
-                            <FieldTimeOutlined style={{ color: diasColor }} />
-                            <Text strong style={{ color: diasColor }}>{getDiasRestantesText(diasRestantes)}</Text>
+                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 12, marginTop: 6, background: risk.cardBg, borderRadius: 8, border: `1px solid ${risk.barBg}30` }}>
+                            <FieldTimeOutlined style={{ color: risk.text }} />
+                            <Text strong style={{ color: risk.text }}>{getDiasRestantesText(diasRestantes)}</Text>
                           </div>
                         </div>
                       ) : (
