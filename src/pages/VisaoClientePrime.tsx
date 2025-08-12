@@ -11,6 +11,7 @@ import { Dropdown } from 'primereact/dropdown'
 import { Button } from 'primereact/button'
 import { Dialog } from 'primereact/dialog'
 import { Tag } from 'primereact/tag'
+import { Card } from 'primereact/card'
 import { Skeleton } from 'primereact/skeleton'
 import { Paginator } from 'primereact/paginator'
 
@@ -190,19 +191,20 @@ const VisaoClientePrime = () => {
 
               return (
                 <div className="col-12 sm:col-6 md:col-4 lg:col-3" key={profissional.id}>
-                  <div className="p-card" style={{ height: 380, borderRadius: 12, position: 'relative', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }} onClick={() => { setSelectedProfissionalId(profissional.id); track({ type: 'card_open', profissionalId: profissional.id }) }}>
-                    <div style={{ height: 6, width: '100%', background: diasColor, position: 'absolute', top: 0, left: 0 }} />
-                    <div className="p-card-body" style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: 16 }}>
+                  <Card
+                    className="shadow-2 border-round surface-card"
+                    style={{ height: 380, position: 'relative', overflow: 'hidden' }}
+                    header={<div style={{ height: 6, width: '100%', background: diasColor }} />}
+                    onClick={() => { setSelectedProfissionalId(profissional.id); track({ type: 'card_open', profissionalId: profissional.id }) }}
+                  >
+                    <div className="flex flex-column h-full" style={{ gap: 8 }}>
                       <div style={{ flex: '0 0 35%' }}>
                         <div className="flex align-items-center gap-2">
-                          <div style={{ width: 12, height: 12, borderRadius: '50%', background: disponibilidadeCor, boxShadow: `0 0 0 3px ${emProjeto ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.12)'}` }} />
-                          <span className="font-bold" title={profissional.nome}>{profissional.nome}</span>
-                        </div>
-                        <div className="flex align-items-center gap-2">
-                          <span className="font-bold" style={{ color: emProjeto ? '#1677ff' : '#faad14' }}>{emProjeto ? 'Em projeto' : 'Disponível'}</span>
+                          <div style={{ width: 10, height: 10, borderRadius: '50%', background: disponibilidadeCor }} />
+                          <span className="text-xl font-semibold text-900" title={profissional.nome}>{profissional.nome}</span>
                           {info.projetos.length > 1 && <Tag value="Multi-projeto" severity="info" />}
                         </div>
-                        <div className="text-500" style={{ marginTop: 4 }}>{profissional.especialidade}</div>
+                        <div className="text-700" style={{ marginTop: 2 }}>{profissional.especialidade}</div>
                         {profissional.tags && (
                           <div className="flex flex-wrap gap-2 mt-2">
                             {profissional.tags.split(',').map((tag: string, index: number) => {
@@ -212,20 +214,20 @@ const VisaoClientePrime = () => {
                           </div>
                         )}
                       </div>
-                      <div className="p-divider p-component" style={{ margin: '12px 0' }} />
-                      <div style={{ flex: '1 0 0', display: 'flex', flexDirection: 'column', justifyContent: (info.status === 'aguardando' || !projetoAtivo) ? 'center' : 'flex-start' }}>
+                      <div className="p-divider p-component" />
+                      <div className="flex flex-column" style={{ flex: '1 0 0' }}>
                         {info.status === 'aguardando' ? (
-                          <div className="flex flex-column align-items-center justify-content-center p-3" style={{ background: '#fffbe6', borderRadius: 8, border: '1px solid #ffe58f', textAlign: 'center' }}>
-                            <span className="font-bold mb-2">Aguardando contrato</span>
+                          <div className="flex flex-column align-items-center justify-content-center p-3 surface-50 border-round">
+                            <span className="font-medium text-800 mb-2">Aguardando contrato</span>
                             <Button label="Alocar este profissional" onClick={(e) => { e.stopPropagation(); navigate('/cadastro-contrato') }} />
                           </div>
                         ) : projetoAtivo ? (
                           <div className="flex flex-column" style={{ gap: 6 }}>
-                            <span className="font-bold" title={projetoAtivo.nome}>{projetoAtivo.nome}</span>
-                            <span className="text-500">{projetoAtivo.cliente}</span>
-                            <div className="flex align-items-center gap-2">
+                            <span className="text-lg font-semibold text-900" title={projetoAtivo.nome}>{projetoAtivo.nome}</span>
+                            <span className="text-700">{projetoAtivo.cliente}</span>
+                            <div className="flex align-items-center gap-2 text-700">
                               <i className="pi pi-calendar" />
-                              <span className="text-500">{new Date(projetoAtivo.dataInicio).toLocaleDateString('pt-BR')}{projetoAtivo.dataFim && ` - ${new Date(projetoAtivo.dataFim).toLocaleDateString('pt-BR')}`}</span>
+                              <span>{new Date(projetoAtivo.dataInicio).toLocaleDateString('pt-BR')}{projetoAtivo.dataFim && ` - ${new Date(projetoAtivo.dataFim).toLocaleDateString('pt-BR')}`}</span>
                             </div>
                             <div className="flex align-items-center gap-2 flex-wrap mt-2">
                               {(() => {
@@ -244,20 +246,20 @@ const VisaoClientePrime = () => {
                                 )
                               })()}
                             </div>
-                            <div className="flex align-items-center gap-2 p-2 mt-2" style={{ background: `${diasColor}10`, borderRadius: 8, border: `1px solid ${diasColor}30` }}>
+                            <div className="flex align-items-center gap-2 p-2 mt-2 border-round" style={{ background: `${diasColor}10`, border: `1px solid ${diasColor}30` }}>
                               <i className="pi pi-clock" style={{ color: diasColor }} />
-                              <span className="font-bold" style={{ color: diasColor }}>{diasRestantes === null ? 'Indeterminado' : diasRestantes > 0 ? `${diasRestantes} dias` : 'Vencido'}</span>
+                              <span className="font-medium" style={{ color: diasColor }}>{diasRestantes === null ? 'Indeterminado' : diasRestantes > 0 ? `${diasRestantes} dias` : 'Vencido'}</span>
                             </div>
                           </div>
                         ) : (
-                          <div className="flex flex-column align-items-center justify-content-center p-3" style={{ background: '#fafafa', borderRadius: 8, textAlign: 'center' }}>
-                            <span className="text-500 mb-2">Sem projeto ativo</span>
+                          <div className="flex flex-column align-items-center justify-content-center p-3 surface-50 border-round">
+                            <span className="text-700 mb-2">Sem projeto ativo</span>
                             <Button label="Alocar este profissional" onClick={(e) => { e.stopPropagation(); navigate('/cadastro-contrato') }} />
                           </div>
                         )}
                       </div>
                     </div>
-                  </div>
+                  </Card>
                 </div>
               )
             })}
