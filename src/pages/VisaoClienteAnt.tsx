@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { calcularDiasRestantes, getCardStyle, getRiskColors } from '../utils/formatters'
 import logoFtdMatilha from '../assets/logo_ftd_matilha.png'
 import { track } from '../utils/telemetry'
+import ProfessionalCard from '../components/cliente/ProfessionalCard'
 
 const { Text, Title } = Typography
 
@@ -244,94 +245,20 @@ const VisaoClienteAnt = () => {
               const diasRestantes = projetoAtivo ? calcularDiasRestantes(projetoAtivo.contrato) : null
               const risk = getRiskColors(diasRestantes)
               const emProjeto = info.status === 'ativo' && Boolean(projetoAtivo)
-              const disponibilidadeCor = emProjeto ? '#22c55e' : '#ff9aa2'
 
               return (
                 <Col xs={24} sm={12} md={8} lg={6} key={profissional.id}>
-                  <Card
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => { if (e.key === 'Enter') { setSelectedProfissionalId(profissional.id); track({ type: 'card_open', profissionalId: profissional.id }) } }}
-                    onClick={() => { setSelectedProfissionalId(profissional.id); track({ type: 'card_open', profissionalId: profissional.id }) }}
-                    style={{ height: 380, display: 'flex', flexDirection: 'column', borderRadius: 12, boxShadow: '0 4px 20px rgba(0,0,0,0.08)', background: risk.cardBg }}
-                    bodyStyle={{ display: 'flex', flexDirection: 'column', height: '100%', padding: 16 }}
-                  >
-                    <div style={{ height: 6, width: '100%', background: risk.barBg, borderTopLeftRadius: 12, borderTopRightRadius: 12, position: 'absolute', left: 0, top: 0 }} />
-                    <div style={{ flex: '0 0 35%', display: 'flex', flexDirection: 'column' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ width: 12, height: 12, borderRadius: '50%', background: disponibilidadeCor, boxShadow: `0 0 0 3px ${emProjeto ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.12)'}` }} />
-                        <Title level={5} style={{ margin: 0 }} title={profissional.nome}>{profissional.nome}</Title>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Text strong style={{ color: emProjeto ? '#1677ff' : '#faad14' }}>{emProjeto ? 'Em projeto' : 'Disponível'}</Text>
-                        {info.projetos.length > 1 && <Tag color="geekblue">Multi-projeto</Tag>}
-                      </div>
-                      <Text type="secondary" style={{ marginTop: 4 }}>{profissional.especialidade}</Text>
-                      {profissional.tags && (
-                        <Space size={[4, 4]} wrap style={{ marginTop: 8 }}>
-                          {profissional.tags.split(',').map((tag: string, index: number) => {
-                            const t = tag.trim()
-                            if (!t) return null
-                            let color: string | undefined
-                            if (t.toLowerCase().includes('alocação') || t.toLowerCase().includes('alocacao')) color = 'blue'
-                            else if (t.toLowerCase().includes('projeto')) color = 'green'
-                            else if (t.toLowerCase().includes('bodyshop')) color = 'orange'
-                            else if (t.toLowerCase().includes('freelancer')) color = 'cyan'
-                            else if (t.toLowerCase().includes('clt')) color = 'purple'
-                            else if (t.toLowerCase().includes('pj')) color = 'red'
-                            return <Tag key={index} color={color}>{t}</Tag>
-                          })}
-                        </Space>
-                      )}
-                    </div>
-                    <Divider style={{ margin: '12px 0' }} />
-                    <div style={{ flex: '1 0 0', display: 'flex', flexDirection: 'column', justifyContent: (info.status === 'aguardando' || !projetoAtivo) ? 'center' : 'flex-start' }}>
-                      {info.status === 'aguardando' ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 16, background: '#fffbe6', borderRadius: 8, border: '1px solid #ffe58f', textAlign: 'center' }}>
-                          <Text strong style={{ marginBottom: 8 }}>Aguardando contrato</Text>
-                          <Button type="primary" onClick={(e) => { e.stopPropagation(); navigate('/cadastro-contrato') }}>Alocar este profissional</Button>
-                        </div>
-                      ) : projetoAtivo ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                          <Title level={5} style={{ margin: 0 }} title={projetoAtivo.nome}>{projetoAtivo.nome}</Title>
-                          <Text type="secondary">{projetoAtivo.cliente}</Text>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <CalendarOutlined style={{ color: 'rgba(0,0,0,0.45)' }} />
-                            <Text type="secondary">{new Date(projetoAtivo.dataInicio).toLocaleDateString('pt-BR')}{projetoAtivo.dataFim && ` - ${new Date(projetoAtivo.dataFim).toLocaleDateString('pt-BR')}`}</Text>
-                          </div>
-                          <Space size={[8, 8]} wrap style={{ marginTop: 6 }}>
-                            {(() => {
-                              const cliente = clientes.find(c => c.empresa === projetoAtivo.cliente)
-                              const contatoNome = cliente?.nome
-                              const contatoEmail = cliente?.email
-                              const contatoTelefone = (() => {
-                                const prof = profissionais.find(p => p.id === profissional.id)
-                                return prof?.contatoClienteTelefone || cliente?.telefone || undefined
-                              })()
-                              const teamsHref = contatoEmail ? `https://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(contatoEmail)}` : undefined
-                              return (
-                                <>
-                                  {contatoNome && <Tag icon={<UserOutlined />}>{`Contato: ${contatoNome}`}</Tag>}
-                                  {contatoEmail && <Button type="link" icon={<MessageOutlined />} href={teamsHref} target="_blank" onClick={(e) => e.stopPropagation()}>Teams</Button>}
-                                  {contatoEmail && <Button type="link" icon={<MailOutlined />} href={`mailto:${contatoEmail}`} onClick={(e) => e.stopPropagation()}>Email</Button>}
-                                  {contatoTelefone && <Tag icon={<PhoneOutlined />}>{contatoTelefone}</Tag>}
-                                </>
-                              )
-                            })()}
-                          </Space>
-                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 12, marginTop: 6, background: risk.cardBg, borderRadius: 8, border: `1px solid ${risk.barBg}30` }}>
-                            <FieldTimeOutlined style={{ color: risk.text }} />
-                            <Text strong style={{ color: risk.text }}>{getDiasRestantesText(diasRestantes)}</Text>
-                          </div>
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 16, background: '#fafafa', borderRadius: 8, textAlign: 'center' }}>
-                          <Text type="secondary" style={{ marginBottom: 8 }}>Sem projeto ativo</Text>
-                          <Button type="primary" onClick={(e) => { e.stopPropagation(); navigate('/cadastro-contrato') }}>Alocar este profissional</Button>
-                        </div>
-                      )}
-                    </div>
-                  </Card>
+                  <ProfessionalCard
+                    profissional={profissional}
+                    projeto={projetoAtivo || null}
+                    diasRestantes={diasRestantes}
+                    contatoCliente={{
+                      nome: clientes.find(c => c.empresa === (projetoAtivo?.cliente || ''))?.nome,
+                      email: clientes.find(c => c.empresa === (projetoAtivo?.cliente || ''))?.email,
+                      telefone: (profissionais.find(p => p.id === profissional.id)?.contatoClienteTelefone) || clientes.find(c => c.empresa === (projetoAtivo?.cliente || ''))?.telefone
+                    }}
+                    onOpen={() => { setSelectedProfissionalId(profissional.id); track({ type: 'card_open', profissionalId: profissional.id }) }}
+                  />
                 </Col>
               )
             })}
