@@ -25,6 +25,13 @@ model Profissional {
   periodoFechado    String?    // mensal, trimestral, semestral, anual
   valorPago         Float      // Valor bruto pago ao profissional
   tags              String?    // Tags separadas por vírgula (ex: "Alocação,Projetos,Bodyshop")
+  // Canais de contato do profissional
+  contatoClienteEmail    String?
+  contatoClienteTeams    String?
+  contatoClienteTelefone String?
+  contatoMatilhaEmail    String?
+  contatoMatilhaTeams    String?
+  contatoMatilhaTelefone String?
   clienteId         String     // Cliente do sistema que possui este profissional
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt

@@ -91,7 +91,13 @@ const EditarProfissional = () => {
           valorFechado: profissional.valorFechado?.toString() || '',
           periodoFechado: profissional.periodoFechado || 'mensal',
           valorPago: profissional.valorPago?.toString() || '',
-          status: profissional.status || 'ativo'
+          status: profissional.status || 'ativo',
+          contatoClienteEmail: profissional.contatoClienteEmail || '',
+          contatoClienteTeams: profissional.contatoClienteTeams || '',
+          contatoClienteTelefone: profissional.contatoClienteTelefone || '',
+          contatoMatilhaEmail: profissional.contatoMatilhaEmail || '',
+          contatoMatilhaTeams: profissional.contatoMatilhaTeams || '',
+          contatoMatilhaTelefone: profissional.contatoMatilhaTelefone || ''
         })
         
         // Atualizar especialidades disponíveis para o perfil
@@ -146,7 +152,13 @@ const EditarProfissional = () => {
         periodoFechado: values.tipoContrato === 'fechado' ? values.periodoFechado : null,
         valorPago: values.tipoContrato === 'fechado' ? parseFloat(values.valorFechado) : null, // Para valor fechado, o valor pago é o mesmo do valor fechado
         status: values.status,
-        tags: tags.join(',')
+        tags: tags.join(','),
+        contatoClienteEmail: values.contatoClienteEmail || null,
+        contatoClienteTeams: values.contatoClienteTeams || null,
+        contatoClienteTelefone: values.contatoClienteTelefone || null,
+        contatoMatilhaEmail: values.contatoMatilhaEmail || null,
+        contatoMatilhaTeams: values.contatoMatilhaTeams || null,
+        contatoMatilhaTelefone: values.contatoMatilhaTelefone || null
       }
 
       if (id) {
@@ -436,6 +448,42 @@ const EditarProfissional = () => {
                     <Option value="inativo">Inativo</Option>
                     <Option value="ferias">Férias</Option>
                   </Select>
+                </Form.Item>
+              </Col>
+
+              {/* Canais de Contato */}
+              <Col span={24}>
+                <Divider />
+                <Title level={4} style={{ margin: 0 }}>Canais de Contato</Title>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item name="contatoClienteEmail" label="Email (Cliente)">
+                  <Input type="email" placeholder="email@cliente.com" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item name="contatoClienteTeams" label="Teams (Cliente)">
+                  <Input placeholder="https://teams.microsoft.com/..." />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item name="contatoClienteTelefone" label="Telefone (Cliente)">
+                  <Input placeholder="(11) 99999-9999" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item name="contatoMatilhaEmail" label="Email (Matilha)">
+                  <Input type="email" placeholder="email@matilha.com" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item name="contatoMatilhaTeams" label="Teams (Matilha)">
+                  <Input placeholder="https://teams.microsoft.com/..." />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item name="contatoMatilhaTelefone" label="Telefone (Matilha)">
+                  <Input placeholder="(11) 99999-9999" />
                 </Form.Item>
               </Col>
 

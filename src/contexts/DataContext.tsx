@@ -17,6 +17,16 @@ interface Profissional {
   periodoFechado: string | null
   valorPago: number
   tags: string | null
+  // Canais de contato
+  contatoClienteEmail?: string | null
+  contatoClienteTeams?: string | null
+  contatoClienteTelefone?: string | null
+  contatoMatilhaEmail?: string | null
+  contatoMatilhaTeams?: string | null
+  contatoMatilhaTelefone?: string | null
+  clienteId: string
+  createdAt?: string
+  updatedAt?: string
 }
 
 interface Cliente {

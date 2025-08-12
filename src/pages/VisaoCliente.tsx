@@ -592,6 +592,11 @@ const VisaoCliente = () => {
                                     const cliente = clientes.find(c => c.empresa === projetoAtivo.cliente)
                                     const contatoNome = cliente?.nome
                                     const contatoEmail = cliente?.email
+                                    const contatoTelefone = (() => {
+                                      // Busca telefone do próprio profissional quando disponível
+                                      const prof = profissionais.find(p => p.id === profissional.id)
+                                      return prof?.contatoClienteTelefone || cliente?.telefone || undefined
+                                    })()
                                     const teamsHref = contatoEmail ? `https://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(contatoEmail)}` : undefined
                                     return (
                                       <>
@@ -607,6 +612,9 @@ const VisaoCliente = () => {
                                           <Button component="a" size="small" variant="text" startIcon={<Email />} href={`mailto:${contatoEmail}`} onClick={(e) => e.stopPropagation()}>
                                             Email
                                           </Button>
+                                        )}
+                                        {contatoTelefone && (
+                                          <Chip label={contatoTelefone} size="small" />
                                         )}
                                       </>
                                     )

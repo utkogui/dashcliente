@@ -51,7 +51,14 @@ const CadastroProfissional = () => {
     periodoFechado: 'mensal',
     valorPago: '',
     status: 'ativo' as 'ativo' | 'inativo' | 'ferias',
-    tags: [] as string[]
+    tags: [] as string[],
+    // Canais de contato
+    contatoClienteEmail: '',
+    contatoClienteTeams: '',
+    contatoClienteTelefone: '',
+    contatoMatilhaEmail: '',
+    contatoMatilhaTeams: '',
+    contatoMatilhaTelefone: ''
   })
 
   const [newTag, setNewTag] = useState('')
@@ -212,7 +219,13 @@ const CadastroProfissional = () => {
         periodoFechado: formData.tipoContrato === 'fechado' ? formData.periodoFechado : null,
         valorPago: parseFloat(formData.valorPago),
         status: formData.status,
-        tags: formData.tags.join(',')
+        tags: formData.tags.join(','),
+        contatoClienteEmail: formData.contatoClienteEmail || null,
+        contatoClienteTeams: formData.contatoClienteTeams || null,
+        contatoClienteTelefone: formData.contatoClienteTelefone || null,
+        contatoMatilhaEmail: formData.contatoMatilhaEmail || null,
+        contatoMatilhaTeams: formData.contatoMatilhaTeams || null,
+        contatoMatilhaTelefone: formData.contatoMatilhaTelefone || null
       }
 
       await addProfissional(profissionalData)
@@ -554,6 +567,71 @@ const CadastroProfissional = () => {
                   </Box>
                 )}
               </Box>
+            </Grid>
+
+            {/* Canais de Contato */}
+            <Grid item xs={12}>
+              <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
+                Canais de Contato
+              </Typography>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Email (Cliente)"
+                type="email"
+                value={formData.contatoClienteEmail}
+                onChange={(e) => handleInputChange('contatoClienteEmail', e.target.value)}
+                disabled={submitting}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Teams (Cliente)"
+                placeholder="https://teams.microsoft.com/..."
+                value={formData.contatoClienteTeams}
+                onChange={(e) => handleInputChange('contatoClienteTeams', e.target.value)}
+                disabled={submitting}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Telefone (Cliente)"
+                value={formData.contatoClienteTelefone}
+                onChange={(e) => handleInputChange('contatoClienteTelefone', e.target.value)}
+                disabled={submitting}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Email (Matilha)"
+                type="email"
+                value={formData.contatoMatilhaEmail}
+                onChange={(e) => handleInputChange('contatoMatilhaEmail', e.target.value)}
+                disabled={submitting}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Teams (Matilha)"
+                placeholder="https://teams.microsoft.com/..."
+                value={formData.contatoMatilhaTeams}
+                onChange={(e) => handleInputChange('contatoMatilhaTeams', e.target.value)}
+                disabled={submitting}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Telefone (Matilha)"
+                value={formData.contatoMatilhaTelefone}
+                onChange={(e) => handleInputChange('contatoMatilhaTelefone', e.target.value)}
+                disabled={submitting}
+              />
             </Grid>
 
             {/* Botões */}
