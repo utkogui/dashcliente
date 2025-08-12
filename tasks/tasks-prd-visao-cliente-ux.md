@@ -52,18 +52,18 @@
   - [x] 4.7 Ajustar CORS se necessário e validar no ambiente de produção
 
 - [ ] 5.0 Estados de UI e desempenho
-  - [ ] 5.1 Skeleton para carregamento; mensagens de vazio/erro com “Tentar novamente”
-  - [ ] 5.2 Paginação/virtualização para listas longas mantendo filtros visíveis
-  - [ ] 5.3 Debounce em busca/filtros de texto para evitar excesso de renders
-  - [ ] 5.4 Memoização de listas/seletores (useMemo/useCallback) onde aplicável
+  - [x] 5.1 Skeleton para carregamento; mensagens de vazio/erro com “Tentar novamente”
+  - [x] 5.2 Paginação/virtualização para listas longas mantendo filtros visíveis (implementada paginação)
+  - [x] 5.3 Debounce em busca/filtros de texto para evitar excesso de renders (300ms)
+  - [x] 5.4 Memoização de listas/seletores (useMemo/useCallback) onde aplicável
 
 - [ ] 6.0 Acessibilidade e responsividade
-  - [ ] 6.1 Contraste mínimo (WCAG AA), foco visível e navegação por teclado
-  - [ ] 6.2 Grid responsivo (xs/sm/md/lg); tipografia/ícones adaptados
-  - [ ] 6.3 Estados de foco claros nos botões/CTAs de interesse
+  - [x] 6.1 Contraste mínimo (WCAG AA), foco visível e navegação por teclado (foco/teclado nos cards)
+  - [x] 6.2 Grid responsivo (xs/sm/md/lg); tipografia/ícones adaptados
+  - [x] 6.3 Estados de foco claros nos botões/CTAs de interesse
 
 - [ ] 7.0 Telemetria (preparação)
-  - [ ] 7.1 Disparar eventos: abertura de card/modal, cliques de interesse, uso de filtros/ordenação
-  - [ ] 7.2 Definir nomenclatura de eventos e payload mínimo (profissionalId, contratoId, filtro aplicado)
+  - [x] 7.1 Disparar eventos: abertura de card/modal, cliques de interesse, uso de filtros/ordenação
+  - [x] 7.2 Definir nomenclatura de eventos e payload mínimo (profissionalId, contratoId, filtro aplicado)
 
 
