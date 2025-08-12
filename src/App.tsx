@@ -15,7 +15,7 @@ import Contratos from './pages/Contratos'
 import CadastroContrato from './pages/CadastroContrato'
 import DatabaseViewer from './pages/DatabaseViewer'
 import Clientes from './pages/Clientes'
-import VisaoCliente from './pages/VisaoCliente'
+import VisaoCliente from './pages/VisaoClienteAnt'
 import Timeline from './pages/Timeline'
 import GestaoUsuarios from './pages/GestaoUsuarios'
 
