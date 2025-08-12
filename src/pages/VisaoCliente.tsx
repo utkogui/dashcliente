@@ -7,6 +7,7 @@ import {
   Grid,
   Chip,
   Paper,
+  Skeleton,
   TextField,
   InputAdornment,
   FormControl,
@@ -16,6 +17,7 @@ import {
   Alert,
   Divider,
   Button,
+  Pagination,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -37,11 +39,12 @@ import { useData } from '../contexts/DataContext'
 import { useAuth } from '../contexts/AuthContext'
 import { calcularDiasRestantes, getCardStyle } from '../utils/formatters'
 import logoFtdMatilha from '../assets/logo_ftd_matilha.png'
+import { track } from '../utils/telemetry'
 
 const VisaoCliente = () => {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { profissionais, contratos, clientes } = useData()
+  const { profissionais, contratos, clientes, loading, error, reload } = useData()
   const { sessionId } = useAuth()
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('todos')
@@ -56,6 +59,16 @@ const VisaoCliente = () => {
   const [noteText, setNoteText] = useState('')
   const [noteError, setNoteError] = useState<string | null>(null)
   const [noteSaved, setNoteSaved] = useState(false)
+  // Debounce da busca
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  useEffect(() => {
+    const h = setTimeout(() => setDebouncedSearch(searchTerm), 300)
+    return () => clearTimeout(h)
+  }, [searchTerm])
+
+  // Paginação simples
+  const [page, setPage] = useState(1)
+  const pageSize = 12
 
   // Obter informações do profissional
   const getProfissionalInfo = (profissional: any) => {
@@ -96,10 +109,13 @@ const VisaoCliente = () => {
       const info = getProfissionalInfo(profissional)
       
       // Filtro por busca
+      const searchLc = (debouncedSearch || '').toLowerCase()
+      const nomeLc = (profissional.nome || '').toLowerCase()
+      const espLc = (profissional.especialidade || '').toLowerCase()
       const matchesSearch = 
-        profissional.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        profissional.especialidade.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        info.projetos.some(p => p.nome.toLowerCase().includes(searchTerm.toLowerCase()))
+        nomeLc.includes(searchLc) ||
+        espLc.includes(searchLc) ||
+        info.projetos.some(p => (p.nome || '').toLowerCase().includes(searchLc))
 
       // Filtro por status
       const matchesStatus = 
@@ -158,8 +174,19 @@ const VisaoCliente = () => {
       return rank(diasA) - rank(diasB)
     })
 
-  const especialidades = [...new Set(profissionais.map(p => p.especialidade))]
-  const senioridades = [...new Set(profissionais.map(p => p.perfil).filter(Boolean))] as string[]
+  // Ajustar página quando filtros mudarem
+  useEffect(() => {
+    setPage(1)
+  }, [debouncedSearch, filterStatus, filterEspecialidade, filterPrazo, filterSenioridade, orderBy])
+
+  const totalPages = Math.max(1, Math.ceil(filteredProfissionais.length / pageSize))
+  const paginatedProfissionais = useMemo(() => {
+    const start = (page - 1) * pageSize
+    return filteredProfissionais.slice(start, start + pageSize)
+  }, [filteredProfissionais, page])
+
+  const especialidades = [...new Set(profissionais.map(p => p.especialidade || '').filter(Boolean))] as string[]
+  const senioridades = [...new Set(profissionais.map(p => p.perfil || '').filter(Boolean))] as string[]
 
   const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || (
     process.env.NODE_ENV === 'production'
@@ -414,14 +441,35 @@ const VisaoCliente = () => {
           </Grid>
         </Paper>
 
-        {/* Cards dos Profissionais */}
-        {filteredProfissionais.length === 0 ? (
+        {/* Erro com retry */}
+        {error && (
+          <Alert severity="error" sx={{ borderRadius: 2, mb: 2 }}
+            action={<Button color="inherit" size="small" onClick={() => reload()}>Tentar novamente</Button>}>
+            {error}
+          </Alert>
+        )}
+
+        {/* Loading skeleton */}
+        {loading ? (
+          <Grid container spacing={3}>
+            {Array.from({ length: pageSize }).map((_, idx) => (
+              <Grid item xs={12} sm={6} md={4} lg={3} key={idx}>
+                <Paper sx={{ p: 2, borderRadius: 3 }}>
+                  <Skeleton variant="rectangular" height={6} sx={{ mb: 2 }} />
+                  <Skeleton variant="text" height={28} width="60%" />
+                  <Skeleton variant="text" height={20} width="40%" />
+                  <Skeleton variant="rectangular" height={180} sx={{ mt: 1 }} />
+                </Paper>
+              </Grid>
+            ))}
+          </Grid>
+        ) : filteredProfissionais.length === 0 ? (
           <Alert severity="info" sx={{ borderRadius: 2 }}>
             Nenhum profissional encontrado com os filtros aplicados.
           </Alert>
         ) : (
           <Grid container spacing={3}>
-            {filteredProfissionais.map((profissional) => {
+            {paginatedProfissionais.map((profissional) => {
               const info = getProfissionalInfo(profissional)
               const projetoAtivo = info.projetos[0] // Primeiro projeto ativo
               const diasRestantes = projetoAtivo ? getDiasRestantes(projetoAtivo) : null
@@ -432,7 +480,10 @@ const VisaoCliente = () => {
               return (
                 <Grid item xs={12} sm={6} md={4} lg={3} key={profissional.id}>
                   <Card 
-                    onClick={() => setSelectedProfissionalId(profissional.id)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { setSelectedProfissionalId(profissional.id); track({ type: 'card_open', profissionalId: profissional.id }) } }}
+                    onClick={() => { setSelectedProfissionalId(profissional.id); track({ type: 'card_open', profissionalId: profissional.id }) }}
                     sx={{ 
                       height: 380,
                       display: 'flex',
@@ -440,6 +491,8 @@ const VisaoCliente = () => {
                       transition: 'all 0.3s ease',
                       borderRadius: 3,
                       boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                      outline: '0px solid transparent',
+                      '&:focus-visible': { outline: '3px solid rgba(25, 118, 210, 0.6)' },
                       '&:hover': {
                         transform: 'translateY(-8px)',
                         boxShadow: '0 8px 32px rgba(0,0,0,0.12)'
@@ -585,6 +638,20 @@ const VisaoCliente = () => {
             })}
           </Grid>
         )}
+
+        {/* Paginação */}
+        {!loading && filteredProfissionais.length > pageSize && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+            <Pagination
+              count={totalPages}
+              page={page}
+              onChange={(_, p) => setPage(p)}
+              color="primary"
+              showFirstButton
+              showLastButton
+            />
+          </Box>
+        )}
       </Box>
 
       {/* Modal de detalhes (verso) */}
@@ -718,7 +785,8 @@ const VisaoCliente = () => {
                               })
                               const data = await resp.json()
                               if (!resp.ok) throw new Error(data.error || 'Falha ao registrar interesse')
-                              setInterestMessage('Interesse registrado: Renovar')
+                              setInterestMessage('Interesse registrada: Renovar')
+                              track({ type: 'interest_click', profissionalId: profissionalSel.id, contratoId: projetoSel.contrato.id, acao: 'RENOVAR' })
                             } catch (e: any) {
                               setInterestError(e.message)
                             } finally { setInterestLoading(false) }
@@ -736,7 +804,8 @@ const VisaoCliente = () => {
                               })
                               const data = await resp.json()
                               if (!resp.ok) throw new Error(data.error || 'Falha ao registrar interesse')
-                              setInterestMessage('Interesse registrado: Reduzir')
+                              setInterestMessage('Interesse registrada: Reduzir')
+                              track({ type: 'interest_click', profissionalId: profissionalSel.id, contratoId: projetoSel.contrato.id, acao: 'REDUZIR' })
                             } catch (e: any) {
                               setInterestError(e.message)
                             } finally { setInterestLoading(false) }
@@ -754,7 +823,8 @@ const VisaoCliente = () => {
                               })
                               const data = await resp.json()
                               if (!resp.ok) throw new Error(data.error || 'Falha ao registrar interesse')
-                              setInterestMessage('Interesse registrado: Trocar')
+                              setInterestMessage('Interesse registrada: Trocar')
+                              track({ type: 'interest_click', profissionalId: profissionalSel.id, contratoId: projetoSel.contrato.id, acao: 'TROCAR' })
                             } catch (e: any) {
                               setInterestError(e.message)
                             } finally { setInterestLoading(false) }
@@ -773,7 +843,8 @@ const VisaoCliente = () => {
                                 })
                                 const data = await resp.json()
                                 if (!resp.ok) throw new Error(data.error || 'Falha ao registrar interesse')
-                                setInterestMessage('Interesse registrado: Esperar')
+                                setInterestMessage('Interesse registrada: Esperar')
+                                track({ type: 'interest_click', profissionalId: profissionalSel.id, contratoId: projetoSel.contrato.id, acao: 'ESPERAR' })
                               } catch (e: any) {
                                 setInterestError(e.message)
                               } finally { setInterestLoading(false) }

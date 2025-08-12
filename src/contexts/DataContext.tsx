@@ -112,6 +112,7 @@ interface DataContextType {
   // Estado de carregamento
   loading: boolean
   error: string | null
+  reload: () => Promise<void>
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined)
@@ -204,6 +205,33 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
     loadData()
   }, [sessionId])
+
+  // Recarregar dados sob demanda (retry)
+  const reload = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      if (!sessionId) {
+        setProfissionais([])
+        setClientes([])
+        setContratos([])
+        return
+      }
+      const [profData, cliData, conData] = await Promise.all([
+        apiCall('/profissionais', {}, sessionId),
+        apiCall('/clientes', {}, sessionId),
+        apiCall('/contratos', {}, sessionId)
+      ])
+      setProfissionais(profData)
+      setClientes(cliData)
+      setContratos(conData)
+    } catch (err: any) {
+      console.error('Erro ao recarregar dados:', err)
+      setError(err.message || 'Erro ao recarregar dados do servidor')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // Funções para Profissionais
   const addProfissional = async (profissional: Omit<Profissional, 'id'>) => {
@@ -348,7 +376,8 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     updateContrato,
     deleteContrato,
     loading,
-    error
+    error,
+    reload
   }
 
   return (
