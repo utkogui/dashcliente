@@ -4,6 +4,8 @@ import { ThemeProvider, createTheme } from '@mui/material/styles'
 import CssBaseline from '@mui/material/CssBaseline'
 // PrimeReact (removido desta rota) permanece instalado, mas não usamos estilos globais aqui
 import { HashRouter } from 'react-router-dom'
+import { ConfigProvider } from 'antd'
+import 'antd/dist/reset.css'
 import App from './App.tsx'
 
 const theme = createTheme({
@@ -28,8 +30,19 @@ const theme = createTheme({
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <ThemeProvider theme={theme}>
     <CssBaseline />
-    <HashRouter>
-      <App />
-    </HashRouter>
+    <ConfigProvider
+      theme={{
+        token: {
+          fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
+          fontSize: 14,
+          fontWeightStrong: 600,
+          borderRadiusLG: 12,
+        },
+      }}
+    >
+      <HashRouter>
+        <App />
+      </HashRouter>
+    </ConfigProvider>
   </ThemeProvider>,
 )

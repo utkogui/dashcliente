@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Row, Col, Card, Tag, Input, Select, Alert, Divider, Button, Modal, Typography, Skeleton, Pagination, Space } from 'antd'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Row, Col, Card, Tag, Input, Select, Alert, Divider, Button, Modal, Typography, Skeleton, Pagination, Space, Spin, FloatButton } from 'antd'
 import { UserOutlined, SearchOutlined, FieldTimeOutlined, CalendarOutlined, FilterOutlined, MailOutlined, MessageOutlined, PhoneOutlined } from '@ant-design/icons'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext'
 import { useAuth } from '../contexts/AuthContext'
-import { calcularDiasRestantes, getCardStyle, getRiskColors } from '../utils/formatters'
+import { calcularDiasRestantes } from '../utils/formatters'
 import logoFtdMatilha from '../assets/logo_ftd_matilha.png'
 import { track } from '../utils/telemetry'
 import ProfessionalCard from '../components/cliente/ProfessionalCard'
@@ -31,6 +31,9 @@ const VisaoClienteAnt = () => {
   const [noteText, setNoteText] = useState('')
   const [noteError, setNoteError] = useState<string | null>(null)
   const [noteSaved, setNoteSaved] = useState(false)
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyError, setHistoryError] = useState<string | null>(null)
+  const [historyItems, setHistoryItems] = useState<Array<{ cliente: string; projeto: string; inicio: string; fim?: string | null }>>([])
 
   // Debounce busca
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -42,6 +45,9 @@ const VisaoClienteAnt = () => {
   // Paginação
   const [page, setPage] = useState(1)
   const pageSize = 12
+  const supportsIO = typeof window !== 'undefined' && 'IntersectionObserver' in window
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
+  const ioLockRef = useRef<boolean>(false)
 
   const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || (
     process.env.NODE_ENV === 'production' ? 'https://dashcliente.onrender.com/api' : 'http://localhost:3001/api'
@@ -108,17 +114,49 @@ const VisaoClienteAnt = () => {
       return rank(diasA) - rank(diasB)
     })
 
-  useEffect(() => { setPage(1) }, [debouncedSearch, filterStatus, filterEspecialidade, filterPrazo, filterSenioridade, orderBy])
+  useEffect(() => { setPage(1); try { window.scrollTo({ top: 0, behavior: 'smooth' }) } catch (_) {} }, [debouncedSearch, filterStatus, filterEspecialidade, filterPrazo, filterSenioridade, orderBy])
   const totalPages = Math.max(1, Math.ceil(filteredProfissionais.length / pageSize))
-  const paginatedProfissionais = useMemo(() => {
+  // Dados exibidos: se há IO, mostramos acumulado até page*pageSize; senão, apenas a página atual
+  const visibleProfissionais = useMemo(() => {
+    return filteredProfissionais.slice(0, page * pageSize)
+  }, [filteredProfissionais, page])
+  const pagedProfissionais = useMemo(() => {
     const start = (page - 1) * pageSize
     return filteredProfissionais.slice(start, start + pageSize)
   }, [filteredProfissionais, page])
+  const hasMore = (page * pageSize) < filteredProfissionais.length
+
+  // Infinite scroll com IntersectionObserver
+  useEffect(() => {
+    if (!supportsIO) return
+    if (!sentinelRef.current) return
+    const observer = new IntersectionObserver((entries) => {
+      const entry = entries[0]
+      if (entry.isIntersecting && hasMore && !loading && !ioLockRef.current) {
+        ioLockRef.current = true
+        setPage((p) => p + 1)
+        setTimeout(() => { ioLockRef.current = false }, 250)
+      }
+    }, { rootMargin: '200px 0px 0px 0px', threshold: 0.01 })
+    observer.observe(sentinelRef.current)
+    return () => observer.disconnect()
+  }, [supportsIO, sentinelRef, hasMore, loading])
 
   const especialidades = [...new Set(profissionais.map(p => p.especialidade || '').filter(Boolean))] as string[]
   const senioridades = [...new Set(profissionais.map(p => p.perfil || '').filter(Boolean))] as string[]
 
   // URL params
+  const syncUrlParams = (state: { q?: string; status?: string; esp?: string; prazo?: string; sen?: string; ord?: string }) => {
+    const params: Record<string, string> = {}
+    if (state.q) params.q = state.q
+    if (state.status && state.status !== 'todos') params.status = state.status
+    if (state.esp && state.esp !== 'todas') params.esp = state.esp
+    if (state.prazo && state.prazo !== 'todos') params.prazo = state.prazo
+    if (state.sen && state.sen !== 'todas') params.sen = state.sen
+    if (state.ord && state.ord !== 'prazo') params.ord = state.ord
+    setSearchParams(params, { replace: true })
+    track({ type: 'filters_change', payload: params })
+  }
   useEffect(() => {
     const q = searchParams.get('q') || ''
     const st = searchParams.get('status') || 'todos'
@@ -136,16 +174,31 @@ const VisaoClienteAnt = () => {
   }, [])
 
   useEffect(() => {
-    const params: Record<string, string> = {}
-    if (searchTerm) params.q = searchTerm
-    if (filterStatus !== 'todos') params.status = filterStatus
-    if (filterEspecialidade !== 'todas') params.esp = filterEspecialidade
-    if (filterPrazo !== 'todos') params.prazo = filterPrazo
-    if (filterSenioridade !== 'todas') params.sen = filterSenioridade
-    if (orderBy !== 'prazo') params.ord = orderBy
-    setSearchParams(params, { replace: true })
-    track({ type: 'filters_change', payload: params })
-  }, [searchTerm, filterStatus, filterEspecialidade, filterPrazo, filterSenioridade, orderBy, setSearchParams])
+    syncUrlParams({ q: searchTerm, status: filterStatus, esp: filterEspecialidade, prazo: filterPrazo, sen: filterSenioridade, ord: orderBy })
+  }, [searchTerm, filterStatus, filterEspecialidade, filterPrazo, filterSenioridade, orderBy])
+
+  // Buscar histórico ao abrir modal
+  useEffect(() => {
+    const run = async () => {
+      if (!selectedProfissionalId) return
+      setHistoryLoading(true); setHistoryError(null); setHistoryItems([])
+      try {
+        const resp = await fetch(`${API_BASE_URL}/allocations/history?profissionalId=${encodeURIComponent(selectedProfissionalId)}`, {
+          headers: { 'Authorization': `Bearer ${sessionId}` }
+        })
+        const data = await resp.json()
+        if (!resp.ok) throw new Error(data?.error || 'Falha ao carregar histórico')
+        const items = Array.isArray(data) ? data : (data?.items || [])
+        setHistoryItems(items)
+      } catch (e: any) {
+        setHistoryError(e.message)
+      } finally {
+        setHistoryLoading(false)
+      }
+    }
+    run()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProfissionalId])
 
   const getDiasRestantesText = (dias: number | null) => {
     if (dias === null) return 'Indeterminado'
@@ -161,14 +214,26 @@ const VisaoClienteAnt = () => {
     return '#7f1d1d'
   }
 
+  const getDuracaoMesesVisual = (contrato: any): number => {
+    if (!contrato) return 0
+    if (!contrato.dataFim) return 12
+    const inicio = new Date(contrato.dataInicio)
+    const fim = new Date(contrato.dataFim)
+    const meses = Math.max(1, (fim.getFullYear() - inicio.getFullYear()) * 12 + (fim.getMonth() - inicio.getMonth()))
+    return meses
+  }
+
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
       {/* Header */}
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 80, background: 'rgb(0,49,188)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, boxShadow: 'rgba(0,0,0,0.15) 0 2px 8px' }}>
-        <img src={logoFtdMatilha} alt="FTD Matilha" style={{ height: 50, width: 'auto', objectFit: 'contain' }} />
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 120, background: 'rgb(0,49,188)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, boxShadow: 'rgba(0,0,0,0.15) 0 2px 8px' }}>
+        {/* Overlays de borda sobre o azul existente */}
+        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 120, pointerEvents: 'none', background: 'linear-gradient(to right, rgba(255,255,255,0.12), rgba(255,255,255,0))' }} />
+        <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 120, pointerEvents: 'none', background: 'linear-gradient(to left, rgba(255,255,255,0.12), rgba(255,255,255,0))' }} />
+        <img src={logoFtdMatilha} alt="FTD Matilha" style={{ height: 75, width: 'auto', objectFit: 'contain' }} />
       </div>
 
-      <div style={{ paddingTop: 120, paddingBottom: 24, paddingLeft: 24, paddingRight: 24 }}>
+      <div style={{ paddingTop: 140, paddingBottom: 24, paddingLeft: 24, paddingRight: 24 }}>
         {/* Filtros */}
         <div style={{ padding: 16, marginBottom: 32, borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.08)', background: '#fff' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
@@ -238,12 +303,12 @@ const VisaoClienteAnt = () => {
         ) : filteredProfissionais.length === 0 ? (
           <Alert type="info" style={{ borderRadius: 8 }} message="Nenhum profissional encontrado com os filtros aplicados." />
         ) : (
+          <>
           <Row gutter={[16, 16]}>
-            {paginatedProfissionais.map((profissional) => {
+            {(supportsIO ? visibleProfissionais : pagedProfissionais).map((profissional) => {
               const info = getProfissionalInfo(profissional)
               const projetoAtivo = info.projetos[0]
               const diasRestantes = projetoAtivo ? calcularDiasRestantes(projetoAtivo.contrato) : null
-              const risk = getRiskColors(diasRestantes)
               const emProjeto = info.status === 'ativo' && Boolean(projetoAtivo)
 
               return (
@@ -263,9 +328,19 @@ const VisaoClienteAnt = () => {
               )
             })}
           </Row>
+          {supportsIO && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 12 }}>
+              {hasMore ? (
+                <div ref={sentinelRef} style={{ height: 48 }} />
+              ) : (
+                <Text type="secondary">Fim da lista</Text>
+              )}
+            </div>
+          )}
+          </>
         )}
 
-        {!loading && filteredProfissionais.length > pageSize && (
+        {!loading && !supportsIO && filteredProfissionais.length > pageSize && (
           <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
             <Pagination total={filteredProfissionais.length} pageSize={pageSize} current={page} onChange={(p) => setPage(p)} showSizeChanger={false} showQuickJumper />
           </div>
@@ -278,6 +353,7 @@ const VisaoClienteAnt = () => {
         footer={null}
         width={1000}
         styles={{ content: { borderRadius: 12 } }}
+        keyboard
         title={(() => profissionais.find(p => p.id === selectedProfissionalId)?.nome || '')()}
       >
         {(() => {
@@ -304,7 +380,7 @@ const VisaoClienteAnt = () => {
                           <FieldTimeOutlined style={{ color: diasSelColor }} />
                           <Text style={{ color: diasSelColor }}>{getDiasRestantesText(diasSel)}</Text>
                         </div>
-                        <Text type="secondary" style={{ marginTop: 8, display: 'block' }}>Outras infos (mock): Squad Ecommerce, Regime Híbrido, 3 reuniões semanais</Text>
+                        {/* removido conteúdo mockado */}
                       </>
                     ) : (
                       <Text type="secondary">Sem alocação atual</Text>
@@ -313,36 +389,85 @@ const VisaoClienteAnt = () => {
                 </Col>
                 <Col xs={24} md={12}>
                   <Card size="small" style={{ borderRadius: 8 }}>
-                    <Text strong>Projetos futuros (previstos)</Text>
+                    <Text strong>Histórico de alocação recente</Text>
                     <Divider style={{ margin: '8px 0' }} />
-                    <Space direction="vertical" size={4}>
-                      <div>• Portal Pedagógico - UX Review — Previsto: 01/09/2025</div>
-                      <div>• App Leitura FTD - Fase 2 — Previsto: 15/10/2025</div>
-                      <div>• Design System v2 — Previsto: 01/11/2025</div>
+                    {historyLoading ? (
+                      <Skeleton active paragraph={{ rows: 3 }} />
+                    ) : historyError ? (
+                      <Alert type="error" message={historyError} />
+                    ) : historyItems.length === 0 ? (
+                      <Text type="secondary">Sem histórico recente</Text>
+                    ) : (
+                      <Space direction="vertical" size={6} style={{ width: '100%' }}>
+                        {historyItems.map((h, idx) => {
+                          const clienteLabel = ((): string => {
+                            const v: any = (h as any).cliente
+                            if (v == null) return 'Cliente não informado'
+                            if (typeof v === 'string') return v
+                            if (typeof v === 'object') return v.empresa || v.nome || 'Cliente'
+                            return String(v)
+                          })()
+                          const projetoLabel = ((): string => {
+                            const v: any = (h as any).projeto
+                            if (v == null) return 'Projeto não informado'
+                            if (typeof v === 'string') return v
+                            if (typeof v === 'object') return v.nome || v.titulo || 'Projeto'
+                            return String(v)
+                          })()
+                          return (
+                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                              <span>{projetoLabel} — {clienteLabel}</span>
+                              <span>{new Date(h.inicio).toLocaleDateString('pt-BR')}{h.fim ? ` → ${new Date(h.fim).toLocaleDateString('pt-BR')}` : ''}</span>
+                            </div>
+                          )
+                        })}
+                      </Space>
+                    )}
+                  </Card>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Card size="small" style={{ borderRadius: 8 }}>
+                    <Text strong>Canais de contato</Text>
+                    <Divider style={{ margin: '8px 0' }} />
+                    <Space direction="vertical" size={6}>
+                      <div>
+                        <Text strong>Cliente</Text>
+                        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                          {(() => {
+                            const contatoEmail = profissionalSel.contatoClienteEmail
+                            const contatoTelefone = profissionalSel.contatoClienteTelefone
+                            const teamsHref = contatoEmail ? `https://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(contatoEmail)}` : undefined
+                            return (
+                              <>
+                                {contatoEmail && <Button size="small" icon={<MessageOutlined />} href={teamsHref} target="_blank">Teams</Button>}
+                                {contatoEmail && <Button size="small" icon={<MailOutlined />} href={`mailto:${contatoEmail}`}>Email</Button>}
+                                {contatoTelefone && <Tag icon={<PhoneOutlined />}>{contatoTelefone}</Tag>}
+                              </>
+                            )
+                          })()}
+                        </div>
+                      </div>
+                      <div>
+                        <Text strong>Matilha</Text>
+                        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                          {(() => {
+                            const contatoEmail = profissionalSel.contatoMatilhaEmail
+                            const contatoTelefone = profissionalSel.contatoMatilhaTelefone
+                            const teamsHref = contatoEmail ? `https://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(contatoEmail)}` : undefined
+                            return (
+                              <>
+                                {contatoEmail && <Button size="small" icon={<MessageOutlined />} href={teamsHref} target="_blank">Teams</Button>}
+                                {contatoEmail && <Button size="small" icon={<MailOutlined />} href={`mailto:${contatoEmail}`}>Email</Button>}
+                                {contatoTelefone && <Tag icon={<PhoneOutlined />}>{contatoTelefone}</Tag>}
+                              </>
+                            )
+                          })()}
+                        </div>
+                      </div>
                     </Space>
                   </Card>
                 </Col>
-                <Col xs={24} md={12}>
-                  <Card size="small" style={{ borderRadius: 8 }}>
-                    <Text strong>Informações Matilha</Text>
-                    <Divider style={{ margin: '8px 0' }} />
-                    <div><strong>Gestor interno:</strong> Bruno Silva</div>
-                    <div><strong>Tempo de casa:</strong> 1 ano e 3 meses</div>
-                    <div><strong>Cargo:</strong> {profissionalSel.especialidade}</div>
-                    <div><strong>Skills:</strong> {profissionalSel.tags || 'UX, UI, Prototipação'}</div>
-                    <Text type="secondary" style={{ marginTop: 8, display: 'block' }}>Notas (mock): Disponível para workshops; excelente comunicação</Text>
-                  </Card>
-                </Col>
-                <Col xs={24} md={12}>
-                  <Card size="small" style={{ borderRadius: 8 }}>
-                    <Text strong>Informações financeiras</Text>
-                    <Divider style={{ margin: '8px 0' }} />
-                    <div><strong>Nº da vaga:</strong> FTD-2025-UX-123</div>
-                    <div><strong>Código da vaga:</strong> CON-FTD-UX-9876</div>
-                    <div><strong>Data emissão NF:</strong> 10/08/2025</div>
-                    <Text type="secondary">Dados mockados para layout</Text>
-                  </Card>
-                </Col>
+                {/* removido card de informações financeiras (mock) */}
                 <Col span={24}>
                   <Card size="small" style={{ borderRadius: 8 }}>
                     <Text strong>Linha do tempo do contrato</Text>
@@ -351,7 +476,8 @@ const VisaoClienteAnt = () => {
                       <Space size={[8, 8]} wrap>
                         <Tag>{`Início: ${new Date(projetoSel.dataInicio).toLocaleDateString('pt-BR')}`}</Tag>
                         <Tag>{`Término: ${projetoSel.dataFim ? new Date(projetoSel.dataFim).toLocaleDateString('pt-BR') : 'Indeterminado'}`}</Tag>
-                        <Tag>Renovações: 0 (mock)</Tag>
+                        <Tag>{`Duração ${projetoSel.dataFim ? '' : 'visual '}: ${getDuracaoMesesVisual(projetoSel.contrato)} meses`}</Tag>
+                        {/* renovações removido (sem dados reais) */}
                       </Space>
                     ) : (
                       <Text type="secondary">Sem dados de contrato</Text>
@@ -377,34 +503,6 @@ const VisaoClienteAnt = () => {
                           track({ type: 'interest_click', profissionalId: profissionalSel.id, contratoId: projetoSel.contrato.id, acao: 'RENOVAR' })
                         } catch (e: any) { setInterestError(e.message) } finally { setInterestLoading(false) }
                       }}>Renovar</Button>
-                      <Button size="small" disabled={interestLoading} onClick={async () => {
-                        if (!projetoSel) return
-                        try {
-                          setInterestLoading(true); setInterestError(null); setInterestMessage(null)
-                          const resp = await fetch(`${API_BASE_URL}/client-actions/interest`, {
-                            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionId}` },
-                            body: JSON.stringify({ interesse: 'REDUZIR', comentario: null, contratoId: projetoSel.contrato.id, profissionalId: profissionalSel.id })
-                          })
-                          const data = await resp.json()
-                          if (!resp.ok) throw new Error(data.error || 'Falha ao registrar interesse')
-                          setInterestMessage('Interesse registrada: Reduzir')
-                          track({ type: 'interest_click', profissionalId: profissionalSel.id, contratoId: projetoSel.contrato.id, acao: 'REDUZIR' })
-                        } catch (e: any) { setInterestError(e.message) } finally { setInterestLoading(false) }
-                      }}>Reduzir</Button>
-                      <Button size="small" disabled={interestLoading} onClick={async () => {
-                        if (!projetoSel) return
-                        try {
-                          setInterestLoading(true); setInterestError(null); setInterestMessage(null)
-                          const resp = await fetch(`${API_BASE_URL}/client-actions/interest`, {
-                            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionId}` },
-                            body: JSON.stringify({ interesse: 'TROCAR', comentario: null, contratoId: projetoSel.contrato.id, profissionalId: profissionalSel.id })
-                          })
-                          const data = await resp.json()
-                          if (!resp.ok) throw new Error(data.error || 'Falha ao registrar interesse')
-                          setInterestMessage('Interesse registrada: Trocar')
-                          track({ type: 'interest_click', profissionalId: profissionalSel.id, contratoId: projetoSel.contrato.id, acao: 'TROCAR' })
-                        } catch (e: any) { setInterestError(e.message) } finally { setInterestLoading(false) }
-                      }}>Trocar</Button>
                       {(diasSel !== null && diasSel <= 60) && (
                         <Button size="small" danger disabled={interestLoading} onClick={async () => {
                           if (!projetoSel) return
@@ -460,6 +558,7 @@ const VisaoClienteAnt = () => {
           )
         })()}
       </Modal>
+      <FloatButton.BackTop visibilityHeight={300} />
     </div>
   )
 }

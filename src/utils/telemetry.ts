@@ -5,7 +5,11 @@ type TelemetryEvent =
 
 export function track(event: TelemetryEvent) {
   try {
-    // Placeholder: por enquanto apenas loga no console. Futuro: enviar para API/analytics.
+    const isProd = (import.meta as any).env?.PROD === true
+    const flag = (import.meta as any).env?.VITE_TELEMETRY_ENABLED
+    const enabled = isProd ? flag === 'true' : true
+    if (!enabled) return
+    // Futuro: enviar para API/analytics.
     // eslint-disable-next-line no-console
     console.debug('[telemetry]', event)
   } catch {

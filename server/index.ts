@@ -803,18 +803,24 @@ app.post('/api/client-actions/interest', verificarSessao, async (req: any, res) 
     if (!usuario.clienteId) {
       return res.status(403).json({ error: 'Apenas usuários cliente podem registrar interesse' })
     }
+    // Validar tipos permitidos para clientes (PRD)
+    const interesseUpper = String(interesse).toUpperCase()
+    const allowedForClient = ['RENOVAR', 'ESPERAR']
+    if (usuario.tipo !== 'admin' && !allowedForClient.includes(interesseUpper)) {
+      return res.status(400).json({ error: 'Interesse inválido. Permitidos: RENOVAR, ESPERAR' })
+    }
     const created = await prisma.clienteInteresse.create({
       data: {
         clienteId: usuario.clienteId,
         contratoId,
         profissionalId,
-        interesse,
+        interesse: interesseUpper,
         comentario: comentario || null
       }
     })
     res.json({ ok: true, id: created.id })
   } catch (error) {
-    console.error('Erro ao registrar interesse:', error)
+    console.error('Erro ao registrar interesse:', { route: '/api/client-actions/interest', error })
     res.status(500).json({ error: 'Erro ao registrar interesse' })
   }
 })
@@ -840,7 +846,7 @@ app.post('/api/notes', verificarSessao, async (req: any, res) => {
     })
     res.json({ ok: true, id: created.id })
   } catch (error) {
-    console.error('Erro ao registrar anotação:', error)
+    console.error('Erro ao registrar anotação:', { route: '/api/notes', error })
     res.status(500).json({ error: 'Erro ao registrar anotação' })
   }
 })
@@ -901,9 +907,16 @@ app.get('/api/allocations/history', verificarSessao, async (req: any, res) => {
       },
       orderBy: { dataInicio: 'desc' }
     })
-    res.json(historico)
+    const flattened = historico.map(h => ({
+      id: h.id,
+      projeto: h.nomeProjeto,
+      inicio: h.dataInicio,
+      fim: h.dataFim,
+      cliente: h.cliente?.empresa || 'Cliente'
+    }))
+    res.json(flattened)
   } catch (error) {
-    console.error('Erro ao obter histórico de alocação:', error)
+    console.error('Erro ao obter histórico de alocação:', { route: '/api/allocations/history', error })
     res.status(500).json({ error: 'Erro ao obter histórico de alocação' })
   }
 })
