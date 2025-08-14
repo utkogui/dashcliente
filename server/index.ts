@@ -123,17 +123,27 @@ const seedDatabase = async () => {
       }
     })
 
-    // Criar usuário cliente para FTD
+    // Criar usuários cliente para FTD
     const senhaFtd = await criptografarSenha('ftd123')
-    
-    await prisma.usuario.create({
-      data: {
-        email: 'ftd@ftd.com',
-        senha: senhaFtd,
-        tipo: 'cliente',
-        clienteId: ftd.id,
-        ativo: true
-      }
+    const senhaMarcus = await criptografarSenha('ftd2025')
+    await prisma.usuario.createMany({
+      data: [
+        {
+          email: 'ftd@ftd.com',
+          senha: senhaFtd,
+          tipo: 'cliente',
+          clienteId: ftd.id,
+          ativo: true
+        },
+        {
+          email: 'marcus@ftd.com.br',
+          senha: senhaMarcus,
+          tipo: 'cliente',
+          clienteId: ftd.id,
+          ativo: true
+        }
+      ],
+      skipDuplicates: true
     })
 
     // Criar profissionais
@@ -353,6 +363,17 @@ app.post('/api/profissionais', verificarSessao, async (req, res) => {
 
 app.put('/api/profissionais/:id', async (req, res) => {
   try {
+    // Proteger por sessão e escopo de cliente
+    const sessionId = req.headers.authorization?.replace('Bearer ', '')
+    if (!sessionId || !sessions.has(sessionId)) return res.status(401).json({ error: 'Não autorizado' })
+    const usuario: any = sessions.get(sessionId)
+
+    // Se não for admin, garantir que o profissional pertence ao mesmo cliente
+    if (usuario.tipo !== 'admin') {
+      const existente = await prisma.profissional.findFirst({ where: { id: req.params.id, clienteId: usuario.clienteId } })
+      if (!existente) return res.status(404).json({ error: 'Profissional não encontrado' })
+    }
+
     const profissional = await prisma.profissional.update({
       where: { id: req.params.id },
       data: req.body
@@ -368,6 +389,16 @@ app.put('/api/profissionais/:id', async (req, res) => {
 
 app.delete('/api/profissionais/:id', async (req, res) => {
   try {
+    // Proteger por sessão e escopo de cliente
+    const sessionId = req.headers.authorization?.replace('Bearer ', '')
+    if (!sessionId || !sessions.has(sessionId)) return res.status(401).json({ error: 'Não autorizado' })
+    const usuario: any = sessions.get(sessionId)
+
+    if (usuario.tipo !== 'admin') {
+      const existente = await prisma.profissional.findFirst({ where: { id: req.params.id, clienteId: usuario.clienteId } })
+      if (!existente) return res.status(404).json({ error: 'Profissional não encontrado' })
+    }
+
     // Primeiro deleta os relacionamentos em ContratoProfissional
     await prisma.contratoProfissional.deleteMany({
       where: { profissionalId: req.params.id }

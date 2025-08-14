@@ -87,13 +87,12 @@ const Sidebar = () => {
 
   // Filtrar itens do menu baseado no tipo de usuário
   const filteredMenuItems = menuItems.filter(item => {
-    // Se é admin, mostrar apenas gestão de empresas
+    // Admin: apenas gestão de empresas
     if (usuario?.tipo === 'admin') {
       return item.key === '/gestao-usuarios'
     }
-    
-    // Se é cliente, mostrar todas as opções exceto gestão de usuários
-    return item.key !== '/gestao-usuarios'
+    // Cliente: não deve ver itens do dashboard (apenas Visão do Cliente)
+    return item.key === '/visao-cliente'
   })
 
   return (

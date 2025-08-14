@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, type ReactNode }
 import { useNavigate } from 'react-router-dom'
 
 // Configuração da API
-const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || (
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (
   process.env.NODE_ENV === 'production'
     ? 'https://dashcliente.onrender.com/api'
     : 'http://localhost:3001/api'
@@ -32,6 +32,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext)
   if (!context) {
@@ -80,6 +81,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const data = await response.json()
         setUsuario(data.usuario)
         setSessionId(savedSessionId)
+        // Se estiver logado como cliente e estiver em rota admin, poderíamos forçar navegação (opcional)
       } else {
         // Sessão inválida, limpar dados
         localStorage.removeItem('sessionId')
@@ -118,7 +120,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (data.usuario.tipo === 'admin') {
           navigate('/gestao-usuarios')
         } else {
-          navigate('/')
+          navigate('/visao-cliente')
         }
       } else {
         console.error('Erro no login:', data.error)
