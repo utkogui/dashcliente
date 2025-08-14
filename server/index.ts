@@ -821,6 +821,50 @@ app.get('/api/auth/me', verificarSessao, async (req, res) => {
   }
 })
 
+// Impersonação: admin assume sessão de um cliente existente
+app.post('/api/auth/impersonate', verificarSessao, async (req: any, res) => {
+  try {
+    const { clienteId } = req.body as { clienteId?: string }
+    const usuarioAdmin = req.usuario
+    if (usuarioAdmin.tipo !== 'admin') {
+      return res.status(403).json({ error: 'Apenas administradores podem impersonar' })
+    }
+    if (!clienteId) {
+      return res.status(400).json({ error: 'clienteId é obrigatório' })
+    }
+    const userCliente = await prisma.usuario.findFirst({
+      where: { clienteId, tipo: 'cliente', ativo: true },
+      include: { cliente: true }
+    })
+    if (!userCliente) {
+      return res.status(404).json({ error: 'Usuário do cliente não encontrado' })
+    }
+    const sessionId = Math.random().toString(36).substring(2) + Date.now().toString(36)
+    sessions.set(sessionId, {
+      id: userCliente.id,
+      email: userCliente.email,
+      tipo: 'cliente',
+      clienteId: userCliente.clienteId,
+      cliente: userCliente.cliente,
+      impersonatedBy: usuarioAdmin.email
+    })
+    return res.json({
+      usuario: {
+        id: userCliente.id,
+        email: userCliente.email,
+        tipo: 'cliente',
+        clienteId: userCliente.clienteId,
+        cliente: userCliente.cliente,
+        impersonatedBy: usuarioAdmin.email
+      },
+      sessionId
+    })
+  } catch (error) {
+    console.error('Erro na impersonação:', error)
+    res.status(500).json({ error: 'Erro na impersonação' })
+  }
+})
+
 // ===== ROTAS: Interações do Cliente (Visão do Cliente) =====
 // Registrar interesse do cliente
 app.post('/api/client-actions/interest', verificarSessao, async (req: any, res) => {

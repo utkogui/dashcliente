@@ -27,9 +27,10 @@ import {
   Edit as EditIcon
 } from '@mui/icons-material'
 import { useAuth } from '../contexts/AuthContext'
+import { useNavigate } from 'react-router-dom'
 
 // Configuração da API
-const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || (
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (
   process.env.NODE_ENV === 'production'
     ? 'https://dashcliente.onrender.com/api'
     : 'http://localhost:3001/api'
@@ -53,6 +54,7 @@ interface Usuario {
 
 const GestaoUsuarios = () => {
   const { usuario } = useAuth()
+  const navigate = useNavigate()
   const [clientes, setClientes] = useState<ClienteSistema[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -104,6 +106,27 @@ const GestaoUsuarios = () => {
       setError('Erro de conexão')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const impersonate = async (clienteId: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/impersonate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('sessionId')}`
+        },
+        body: JSON.stringify({ clienteId })
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Falha ao impersonar')
+      // Salvar nova sessão de cliente e ir para visão do cliente
+      localStorage.setItem('sessionId', data.sessionId)
+      window.location.hash = '#/visao-cliente'
+      window.location.reload()
+    } catch (err) {
+      setError((err as any).message || 'Erro na impersonação')
     }
   }
 
@@ -282,6 +305,9 @@ const GestaoUsuarios = () => {
                     color={cliente.nome === 'Matilha' ? 'primary' : 'secondary'}
                     size="small"
                   />
+                  <Button variant="outlined" size="small" onClick={() => impersonate(cliente.id)}>
+                    Impersonar
+                  </Button>
                 </Box>
               </CardContent>
             </Card>
