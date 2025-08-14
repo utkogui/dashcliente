@@ -97,7 +97,7 @@ const seedDatabase = async () => {
       })
     }
 
-    // Criar usuário admin padrão
+    // Criar usuário admin padrão (super admin sem cliente)
     const { criptografarSenha } = await import('./utils/auth.js')
     const senhaAdmin = await criptografarSenha('admin123')
     
@@ -106,7 +106,8 @@ const seedDatabase = async () => {
         email: 'admin@matilha.com',
         senha: senhaAdmin,
         tipo: 'admin',
-        ativo: true
+        ativo: true,
+        clienteId: null
       }
     })
 
@@ -1389,6 +1390,30 @@ const startServer = async () => {
       }
     } catch (e) {
       console.error('Erro garantindo usuário Marcus:', e)
+    }
+
+    // Garantir usuário Admin FTD solicitado (admin@ftd.com.br / ftd2025) vinculado ao cliente FTD
+    try {
+      const adminFtd = await prisma.usuario.findUnique({ where: { email: 'admin@ftd.com.br' } })
+      if (!adminFtd) {
+        const { criptografarSenha } = await import('./utils/auth.js')
+        const senhaAdminFtd = await criptografarSenha('ftd2025')
+        const ftd = await prisma.clienteSistema.findFirst({ where: { nome: 'FTD' } })
+        await prisma.usuario.create({
+          data: {
+            email: 'admin@ftd.com.br',
+            senha: senhaAdminFtd,
+            tipo: 'admin',
+            clienteId: ftd?.id || null,
+            ativo: true
+          }
+        })
+        console.log('👤 Usuário Admin FTD criado (admin@ftd.com.br)')
+      } else {
+        console.log('👤 Usuário Admin FTD já existe (admin@ftd.com.br)')
+      }
+    } catch (e) {
+      console.error('Erro garantindo Admin FTD:', e)
     }
   } catch (error) {
     console.error('❌ Erro ao popular banco:', error)

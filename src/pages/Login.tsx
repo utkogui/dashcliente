@@ -1,50 +1,19 @@
 import React, { useState } from 'react'
-import {
-  Box,
-  Card,
-  TextField,
-  Button,
-  Typography,
-  Alert,
-  CircularProgress,
-  Container,
-  Paper
-} from '@mui/material'
-import { LockOutlined } from '@mui/icons-material'
-import { useNavigate } from 'react-router-dom'
+import { Card, Typography, Form, Input, Button, Alert } from 'antd'
 import { useAuth } from '../contexts/AuthContext'
+import logoAzul from '../assets/logo_azul.png'
 
 const Login = () => {
-  const navigate = useNavigate()
   const { login } = useAuth()
-  const [formData, setFormData] = useState({
-    email: '',
-    senha: ''
-  })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }))
-    // Limpar erro quando o usuário começar a digitar
-    if (error) {
-      setError(null)
-    }
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleFinish = async (values: { email: string; senha: string }) => {
     setLoading(true)
     setError(null)
 
     try {
-      await login(formData.email, formData.senha)
-      // Login bem-sucedido
-      navigate('/')
+      await login(values.email, values.senha)
     } catch (err) {
       console.error('Erro ao fazer login:', err)
       if (err instanceof Error) {
@@ -57,125 +26,64 @@ const Login = () => {
     }
   }
 
+  const { Title, Text } = Typography
+
   return (
-    <Container maxWidth="sm">
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          py: 4
-        }}
-      >
-        <Paper
-          elevation={8}
-          sx={{
-            p: 4,
-            width: '100%',
-            maxWidth: 400,
-            borderRadius: 2
-          }}
-        >
-          <Box sx={{ textAlign: 'center', mb: 3 }}>
-            <Box
-              sx={{
-                width: 64,
-                height: 64,
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 16px'
-              }}
-            >
-              <LockOutlined sx={{ fontSize: 32, color: 'white' }} />
-            </Box>
-            <Typography variant="h4" component="h1" gutterBottom>
-              Login
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Acesse sua conta para continuar
-            </Typography>
-          </Box>
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: '#0031BC',
+      padding: 16
+    }}>
+      <Card style={{ width: '100%', maxWidth: 420, borderRadius: 12 }} bodyStyle={{ padding: 24 }}>
+        <div style={{ textAlign: 'center', marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+            <img src={logoAzul} alt="FTD" style={{ height: 56, width: 'auto' }} />
+          </div>
+          <Title level={3} style={{ marginBottom: 4 }}>Login</Title>
+          <Text type="secondary">Acesse sua conta para continuar</Text>
+        </div>
 
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
+        {error && (
+          <Alert type="error" message={error} showIcon style={{ marginBottom: 12 }} />
+        )}
 
-          <form onSubmit={handleSubmit}>
-            <TextField
-              fullWidth
-              label="Email"
-              name="email"
+        <Form layout="vertical" onFinish={handleFinish}>
+          <Form.Item label="Email" name="email" rules={[{ required: true, message: 'Informe o email' }]} style={{ marginBottom: 12 }}>
+            <Input
               type="email"
-              value={formData.email}
-              onChange={handleInputChange}
-              margin="normal"
-              required
+              size="large"
               autoComplete="email"
               autoFocus
               disabled={loading}
+              placeholder="seuemail@empresa.com"
             />
-
-            <TextField
-              fullWidth
-              label="Senha"
-              name="senha"
-              type="password"
-              value={formData.senha}
-              onChange={handleInputChange}
-              margin="normal"
-              required
+          </Form.Item>
+          <Form.Item label="Senha" name="senha" rules={[{ required: true, message: 'Informe a senha' }]} style={{ marginBottom: 4 }}>
+            <Input.Password
+              size="large"
               autoComplete="current-password"
               disabled={loading}
+              placeholder="••••••••"
             />
+          </Form.Item>
+          <Button
+            htmlType="submit"
+            type="primary"
+            size="large"
+            block
+            loading={loading}
+            style={{ marginTop: 8, background: '#0031BC' }}
+          >
+            Entrar
+          </Button>
+        </Form>
 
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              size="large"
-              disabled={loading}
-              sx={{
-                mt: 3,
-                mb: 2,
-                py: 1.5,
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                '&:hover': {
-                  background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)'
-                }
-              }}
-            >
-              {loading ? (
-                <CircularProgress size={24} color="inherit" />
-              ) : (
-                'Entrar'
-              )}
-            </Button>
-          </form>
-
-          <Box sx={{ mt: 2, textAlign: 'center' }}>
-            <Typography variant="body2" color="text.secondary">
-              Credenciais de teste:
-            </Typography>
-            <Typography variant="caption" color="text.secondary" display="block">
-              Admin: admin@matilha.com / admin123
-            </Typography>
-            <Typography variant="caption" color="text.secondary" display="block">
-              FTD: ftd@ftd.com / ftd123
-            </Typography>
-            <Typography variant="caption" color="text.secondary" display="block">
-              Matilha: matilha@matilha.com / matilha123
-            </Typography>
-          </Box>
-        </Paper>
-      </Box>
-    </Container>
+        
+      </Card>
+    </div>
   )
 }
 

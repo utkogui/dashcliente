@@ -38,7 +38,7 @@ const VisaoClienteAnt = () => {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const { profissionais, contratos, clientes, loading, error, reload } = useData()
-  const { sessionId } = useAuth()
+  const { sessionId, logout } = useAuth()
 
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('todos')
@@ -257,6 +257,9 @@ const VisaoClienteAnt = () => {
         <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 120, pointerEvents: 'none', background: 'linear-gradient(to right, rgba(255,255,255,0.12), rgba(255,255,255,0))' }} />
         <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 120, pointerEvents: 'none', background: 'linear-gradient(to left, rgba(255,255,255,0.12), rgba(255,255,255,0))' }} />
         <img src={logoFtdMatilha} alt="FTD Matilha" style={{ height: 75, width: 'auto', objectFit: 'contain' }} />
+        <div style={{ position: 'absolute', right: 16, top: 16 }}>
+          <Button size="small" onClick={() => logout()}>Sair</Button>
+        </div>
       </div>
 
       <div style={{ paddingTop: 140, paddingBottom: 24, paddingLeft: 24, paddingRight: 24 }}>

@@ -25,7 +25,7 @@ const AdminRedirect = () => {
   const { usuario } = useAuth()
   
   if (usuario?.tipo === 'admin') {
-    return <Navigate to="/gestao-usuarios" replace />
+    return <Navigate to="/dashboard" replace />
   }
   
   return <Navigate to="/visao-cliente" replace />
@@ -78,6 +78,7 @@ function App() {
                     >
                       <Routes>
                         <Route path="/" element={<AdminRedirect />} />
+                        <Route path="/dashboard" element={<Dashboard />} />
                         <Route path="/profissionais" element={<Profissionais />} />
                         <Route path="/cadastro-profissional" element={<CadastroProfissional />} />
                         <Route path="/editar-profissional/:id" element={<EditarProfissional />} />

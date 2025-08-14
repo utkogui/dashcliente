@@ -118,7 +118,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         // Redirecionar baseado no tipo de usuário
         if (data.usuario.tipo === 'admin') {
-          navigate('/gestao-usuarios')
+          navigate('/dashboard')
         } else {
           navigate('/visao-cliente')
         }

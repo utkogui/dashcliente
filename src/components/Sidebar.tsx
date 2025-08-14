@@ -19,10 +19,10 @@ const { Title, Text } = Typography
 
 const menuItems = [
   { 
-    key: '/', 
+    key: '/dashboard', 
     icon: <DashboardOutlined />, 
     label: 'Dashboard',
-    path: '/'
+    path: '/dashboard'
   },
   { 
     key: '/profissionais', 
@@ -76,22 +76,17 @@ const Sidebar = () => {
   const handleMenuClick = ({ key }: { key: string }) => {
     const item = menuItems.find(item => item.key === key)
     if (item) {
-      // Se é admin, sempre redirecionar para gestão de empresas
-      if (usuario?.tipo === 'admin') {
-        navigate('/gestao-usuarios')
-      } else {
-        navigate(item.path)
-      }
+      navigate(item.path)
     }
   }
 
   // Filtrar itens do menu baseado no tipo de usuário
   const filteredMenuItems = menuItems.filter(item => {
-    // Admin: apenas gestão de empresas
     if (usuario?.tipo === 'admin') {
-      return item.key === '/gestao-usuarios'
+      // Admin vê todo o painel (tudo exceto Visão do Cliente)
+      return item.key !== '/visao-cliente'
     }
-    // Cliente: não deve ver itens do dashboard (apenas Visão do Cliente)
+    // Cliente vê apenas Visão do Cliente
     return item.key === '/visao-cliente'
   })
 
