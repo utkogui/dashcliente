@@ -111,6 +111,7 @@ const GestaoUsuarios = () => {
 
   const impersonate = async (clienteId: string) => {
     try {
+      const prevSession = localStorage.getItem('sessionId') || ''
       const response = await fetch(`${API_BASE_URL}/auth/impersonate`, {
         method: 'POST',
         headers: {
@@ -119,9 +120,15 @@ const GestaoUsuarios = () => {
         },
         body: JSON.stringify({ clienteId })
       })
-      const data = await response.json()
-      if (!response.ok) throw new Error(data.error || 'Falha ao impersonar')
+      const raw = await response.text()
+      let data: any = null
+      try { data = raw ? JSON.parse(raw) : null } catch { /* resposta não-JSON (ex: HTML 404) */ }
+      if (!response.ok) {
+        const msg = (data && data.error) || `Falha ao impersonar (HTTP ${response.status})`
+        throw new Error(msg)
+      }
       // Salvar nova sessão de cliente e ir para visão do cliente
+      if (prevSession) localStorage.setItem('adminSessionId', prevSession)
       localStorage.setItem('sessionId', data.sessionId)
       window.location.hash = '#/visao-cliente'
       window.location.reload()

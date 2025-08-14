@@ -18,6 +18,16 @@ const Header = () => {
     }
   }
 
+  const handleBackToAdmin = () => {
+    const adminSession = localStorage.getItem('adminSessionId')
+    if (adminSession) {
+      localStorage.setItem('sessionId', adminSession)
+      localStorage.removeItem('adminSessionId')
+      window.location.hash = '#/gestao-usuarios'
+      window.location.reload()
+    }
+  }
+
   return (
     <AntHeader
       style={{
@@ -59,6 +69,15 @@ const Header = () => {
               </Typography.Text>
             )}
           </Space>
+          {localStorage.getItem('adminSessionId') && (
+            <Button
+              type="link"
+              style={{ color: 'white' }}
+              onClick={handleBackToAdmin}
+            >
+              Voltar ao Admin
+            </Button>
+          )}
           <Button
             type="text"
             icon={<LogoutOutlined />}
