@@ -36,23 +36,23 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ profissional, proje
       onFocus={() => setIsFocused(true)}
       onBlur={() => setIsFocused(false)}
       onClick={onOpen}
-      style={{ position: 'relative', height: 420, display: 'flex', flexDirection: 'column', borderRadius: 12, boxShadow: isFocused ? '0 0 0 3px rgba(24, 144, 255, 0.45), 0 4px 20px rgba(0,0,0,0.08)' : '0 4px 20px rgba(0,0,0,0.08)', background: risk.cardBg, outline: 'none', border: `1px solid ${risk.barBg}` }}
-      styles={{ body: { display: 'flex', flexDirection: 'column', height: '100%', padding: 40 } }}
+      style={{ position: 'relative', height: 336, display: 'flex', flexDirection: 'column', borderRadius: 12, boxShadow: isFocused ? '0 0 0 3px rgba(24, 144, 255, 0.45), 0 4px 20px rgba(0,0,0,0.08)' : '0 4px 20px rgba(0,0,0,0.08)', background: risk.cardBg, outline: 'none', border: `1px solid ${risk.barBg}` }}
+      styles={{ body: { display: 'flex', flexDirection: 'column', height: '100%', padding: 32 } }}
     >
       <div style={{ height: 6, width: '100%', background: risk.barBg, borderTopLeftRadius: 12, borderTopRightRadius: 12, position: 'absolute', left: 0, top: 0 }} />
 
       {/* Topo */}
-      <div style={{ flex: '0 0 35%' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 20 }}>
+      <div style={{ flex: '0 0 30%' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 16 }}>
           <Title level={5} style={{ margin: 0 }} title={profissional.nome}>{profissional.nome}</Title>
-          <div style={{ width: 12, height: 12, borderRadius: '50%', background: disponibilidadeCor }} />
+          <div style={{ width: 10, height: 10, borderRadius: '50%', background: disponibilidadeCor }} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <Text strong style={{ color: emProjeto ? '#1677ff' : '#faad14' }}>{emProjeto ? 'Em projeto' : 'Disponível'}</Text>
         </div>
-        <Text type="secondary" style={{ marginTop: 4 }}>{profissional.especialidade}</Text>
+        <Text type="secondary" style={{ marginTop: 3 }}>{profissional.especialidade}</Text>
         {profissional.tags && (
-          <Space size={[4, 4]} wrap style={{ marginTop: 8 }}>
+          <Space size={[4, 4]} wrap style={{ marginTop: 6 }}>
             {profissional.tags.split(',').slice(0, 5).map((tag: string, idx: number) => {
               const t = tag.trim()
               if (!t) return null
@@ -62,26 +62,40 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ profissional, proje
         )}
       </div>
 
-      <Divider style={{ margin: '12px 0' }} />
+      <Divider style={{ margin: '10px 0' }} />
 
       {/* Base */}
       <div style={{ flex: '1 0 0', display: 'flex', flexDirection: 'column', justifyContent: !emProjeto ? 'center' : 'flex-start' }}>
         {!emProjeto ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 16, background: '#fafafa', borderRadius: 8, textAlign: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 12, background: '#fafafa', borderRadius: 8, textAlign: 'center' }}>
             <Text type="secondary" style={{ marginBottom: 8 }}>Sem projeto ativo</Text>
             <Text type="secondary">Alocar este profissional</Text>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <Title level={5} style={{ margin: 0 }} title={projeto!.nome}>{projeto!.nome}</Title>
-            <Text type="secondary">{projeto!.cliente}</Text>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <CalendarOutlined style={{ color: 'rgba(0,0,0,0.45)' }} />
-              <Text type="secondary">{new Date(projeto!.dataInicio).toLocaleDateString('pt-BR')}{projeto!.dataFim && ` - ${new Date(projeto!.dataFim!).toLocaleDateString('pt-BR')}`}</Text>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, minWidth: 0 }}>
+              <Title level={5} style={{ margin: 0 }} title={projeto!.nome}>{projeto!.nome}</Title>
+              <Text type="secondary">{projeto!.cliente}</Text>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <CalendarOutlined style={{ color: 'rgba(0,0,0,0.45)' }} />
+                <Text type="secondary">{new Date(projeto!.dataInicio).toLocaleDateString('pt-BR')}{projeto!.dataFim && ` - ${new Date(projeto!.dataFim!).toLocaleDateString('pt-BR')}`}</Text>
+              </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 12, marginTop: 8, background: `${(risk as any).barBg}10`, borderRadius: 10, border: `1px solid ${risk.barBg}30`, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-              <FieldTimeOutlined style={{ color: risk.text }} />
-              <Text strong style={{ color: risk.text }}>{diasRestantes === null ? 'Indeterminado' : diasRestantes > 0 ? `${diasRestantes} dias` : 'Vencido'}</Text>
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '8px 10px',
+              background: `${(risk as any).barBg}10`,
+              borderRadius: 10,
+              border: `1px solid ${risk.barBg}30`,
+              minWidth: 70
+            }}>
+              <Text strong style={{ color: risk.text, fontSize: 28, lineHeight: 1 }}>
+                {diasRestantes === null ? '—' : Math.max(0, diasRestantes)}
+              </Text>
+              <Text type="secondary" style={{ marginTop: 2 }}>dias</Text>
             </div>
           </div>
         )}

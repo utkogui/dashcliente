@@ -1,237 +1,102 @@
-import React, { useState, useEffect } from 'react'
-import {
-  Box,
-  Typography,
-  TextField,
-  Button,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Radio,
-  RadioGroup,
-  FormControlLabel,
-  FormLabel,
-  Paper,
-  Grid,
-  Alert,
-  CircularProgress,
-  InputAdornment,
-  Chip,
-  Autocomplete
-} from '@mui/material'
-import { ArrowBack, Save, Add } from '@mui/icons-material'
+import React, { useEffect, useState } from 'react'
+import { Typography, Form, Input, Button, Select, Radio, Card, Alert, Space, Row, Col, Tag } from 'antd'
+import { ArrowLeftOutlined, SaveOutlined, PlusOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useData } from '../contexts/DataContext'
-import { 
-  obterPerfisDisponiveis, 
-  obterEspecialidadesPorPerfil, 
-  obterValorHora,
-  obterEspecialidadesDisponiveis 
-} from '../utils/tabelaPrecos'
+import { obterPerfisDisponiveis, obterEspecialidadesPorPerfil, obterValorHora, obterEspecialidadesDisponiveis } from '../utils/tabelaPrecos'
+import { useAuth } from '../contexts/AuthContext'
 
-import { validateEmail, validateRequired } from '../utils/validations'
+interface ProfissionalFormData {
+  nome: string
+  email: string
+  especialidade: string
+  perfil: string | null
+  especialidadeEspecifica: string | null
+  dataInicio: string
+  tipoContrato: 'hora' | 'fechado'
+  valorHora: number | null
+  valorFechado: number | null
+  periodoFechado: string | null
+  valorPago: number
+  status: 'ativo' | 'inativo' | 'ferias'
+  tags: string | null
+  clienteId: string
+  contatoClienteEmail: string | null
+  contatoClienteTeams: string | null
+  contatoClienteTelefone: string | null
+  contatoMatilhaEmail: string | null
+  contatoMatilhaTeams: string | null
+  contatoMatilhaTelefone: string | null
+}
 
-const CadastroProfissional = () => {
+const CadastroProfissional: React.FC = () => {
   const navigate = useNavigate()
+  const { usuario } = useAuth()
   const { addProfissional } = useData()
+  const [form] = Form.useForm()
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const [formData, setFormData] = useState({
-    nome: '',
-    email: '',
-    especialidade: '',
-    perfil: '',
-    especialidadeEspecifica: '',
-    dataInicio: '',
-    tipoContrato: 'hora' as 'hora' | 'fechado',
-    valorHora: '',
-    valorFechado: '',
-    periodoFechado: 'mensal',
-    valorPago: '',
-    status: 'ativo' as 'ativo' | 'inativo' | 'ferias',
-    tags: [] as string[],
-    // Canais de contato
-    contatoClienteEmail: '',
-    contatoClienteTeams: '',
-    contatoClienteTelefone: '',
-    contatoMatilhaEmail: '',
-    contatoMatilhaTeams: '',
-    contatoMatilhaTelefone: ''
-  })
-
+  const [formState, setFormState] = useState<{ tipoContrato: 'hora' | 'fechado'; perfil?: string; especialidadeEspecifica?: string; tags: string[] }>({ tipoContrato: 'hora', tags: [] })
   const [newTag, setNewTag] = useState('')
-  const [errors, setErrors] = useState<Record<string, string>>({})
-
-  // Estados para controle das especialidades
-  const [especialidadesDisponiveis, setEspecialidadesDisponiveis] = useState<string[]>([])
-  const [especialidadesPorPerfil, setEspecialidadesPorPerfil] = useState<string[]>([])
-
-  const [especialidadesCustom, setEspecialidadesCustom] = useState<string[]>([
-    'Desenvolvedor Full Stack',
-    'Desenvolvedor Frontend',
-    'Desenvolvedor Backend',
-    'UX/UI Designer',
-    'Pesquisador',
-    'UX Writer',
-    'DevOps Engineer',
-    'Product Manager',
-    'Service Designer',
-    'Content Ops',
-    'QA Engineer',
-    'Data Scientist'
-  ])
+  const [especialidadesCustom, setEspecialidadesCustom] = useState<string[]>(obterEspecialidadesDisponiveis())
+  const [especialidadesPerfil, setEspecialidadesPerfil] = useState<string[]>([])
   const [novaEspecialidade, setNovaEspecialidade] = useState('')
 
-  const tagsSugeridas = [
-    'Alocação',
-    'Projetos',
-    'Bodyshop',
-    'Freelancer',
-    'CLT',
-    'PJ',
-    'Remoto',
-    'Presencial',
-    'Híbrido',
-    'Senior',
-    'Pleno',
-    'Junior',
-    'Especialista',
-    'Consultor',
-    'Mentor'
-  ]
-
-  // Carregar especialidades disponíveis na tabela de preços
   useEffect(() => {
-    setEspecialidadesDisponiveis(obterEspecialidadesDisponiveis())
-  }, [])
-
-  // Atualizar especialidades quando o perfil mudar
-  useEffect(() => {
-    if (formData.perfil) {
-      const especialidadesDoPerfil = obterEspecialidadesPorPerfil(formData.perfil)
-      setEspecialidadesPorPerfil(especialidadesDoPerfil)
-      
-      // Se a especialidade específica atual não está disponível para o perfil, limpar
-      if (formData.especialidadeEspecifica && !especialidadesDoPerfil.includes(formData.especialidadeEspecifica)) {
-        setFormData(prev => ({ ...prev, especialidadeEspecifica: '', valorHora: '' }))
-      }
-    }
-  }, [formData.perfil])
-
-  // Atualizar valor por hora quando perfil ou especialidade específica mudar
-  useEffect(() => {
-    if (formData.perfil && formData.especialidadeEspecifica && formData.tipoContrato === 'hora') {
-      const valorHora = obterValorHora(formData.perfil, formData.especialidadeEspecifica)
-      if (valorHora) {
-        setFormData(prev => ({ ...prev, valorHora: valorHora.toString() }))
-      }
-    }
-  }, [formData.perfil, formData.especialidadeEspecifica, formData.tipoContrato])
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }))
-    }
-  }
-
-  const handleAddTag = () => {
-    if (newTag.trim() && !formData.tags.includes(newTag.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        tags: [...prev.tags, newTag.trim()]
-      }))
-      setNewTag('')
-    }
-  }
-
-  const handleRemoveTag = (tagToRemove: string) => {
-    setFormData(prev => ({
-      ...prev,
-      tags: prev.tags.filter(tag => tag !== tagToRemove)
-    }))
-  }
-
-  const handleKeyPress = (event: React.KeyboardEvent) => {
-    if (event.key === 'Enter') {
-      event.preventDefault()
-      handleAddTag()
-    }
-  }
-
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {}
-
-    if (!validateRequired(formData.nome)) {
-      newErrors.nome = 'Nome é obrigatório'
-    }
-
-    if (!validateEmail(formData.email)) {
-      newErrors.email = 'Email inválido'
-    }
-
-    if (!validateRequired(formData.especialidade)) {
-      newErrors.especialidade = 'Especialidade é obrigatória'
-    }
-
-    if (!validateRequired(formData.dataInicio)) {
-      newErrors.dataInicio = 'Data de início é obrigatória'
-    }
-
-    if (!validateRequired(formData.valorPago)) {
-      newErrors.valorPago = 'Valor pago é obrigatório'
-    }
-
-    if (formData.tipoContrato === 'hora' && !validateRequired(formData.valorHora)) {
-      newErrors.valorHora = 'Valor por hora é obrigatório para contratos por hora'
-    }
-
-    if (formData.tipoContrato === 'fechado' && !validateRequired(formData.valorFechado)) {
-      newErrors.valorFechado = 'Valor fechado é obrigatório para contratos fechados'
-    }
-
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
-
-    if (!validateForm()) {
+    if (!formState.perfil) {
+      setEspecialidadesPerfil([])
       return
     }
+    const esp = obterEspecialidadesPorPerfil(formState.perfil)
+    setEspecialidadesPerfil(esp)
+    // Ajustar valorHora recomendado quando aplicável
+    const perfil = form.getFieldValue('perfil')
+    const espEsp = form.getFieldValue('especialidadeEspecifica')
+    if (formState.tipoContrato === 'hora' && perfil && espEsp) {
+      const v = obterValorHora(perfil, espEsp)
+      if (v) form.setFieldValue('valorHora', v)
+    }
+  }, [formState.perfil, formState.tipoContrato])
 
+  const handleAddTag = () => {
+    const v = newTag.trim()
+    if (!v) return
+    if (!formState.tags.includes(v)) setFormState(prev => ({ ...prev, tags: [...prev.tags, v] }))
+    setNewTag('')
+  }
+
+  const handleRemoveTag = (tag: string) => setFormState(prev => ({ ...prev, tags: prev.tags.filter(t => t !== tag) }))
+
+  const onFinish = async (values: ProfissionalFormData) => {
+    setError(null)
     setSubmitting(true)
-
     try {
-      const profissionalData = {
-        nome: formData.nome,
-        email: formData.email,
-        especialidade: formData.especialidade,
-        perfil: formData.perfil,
-        especialidadeEspecifica: formData.especialidadeEspecifica,
-        dataInicio: formData.dataInicio,
-        tipoContrato: formData.tipoContrato,
-        valorHora: formData.tipoContrato === 'hora' ? parseFloat(formData.valorHora) : null,
-        valorFechado: formData.tipoContrato === 'fechado' ? parseFloat(formData.valorFechado) : null,
-        periodoFechado: formData.tipoContrato === 'fechado' ? formData.periodoFechado : null,
-        valorPago: parseFloat(formData.valorPago),
-        status: formData.status,
-        tags: formData.tags.join(','),
-        contatoClienteEmail: formData.contatoClienteEmail || null,
-        contatoClienteTeams: formData.contatoClienteTeams || null,
-        contatoClienteTelefone: formData.contatoClienteTelefone || null,
-        contatoMatilhaEmail: formData.contatoMatilhaEmail || null,
-        contatoMatilhaTeams: formData.contatoMatilhaTeams || null,
-        contatoMatilhaTelefone: formData.contatoMatilhaTelefone || null
+      const payload: ProfissionalFormData = {
+        nome: values.nome,
+        email: values.email,
+        especialidade: values.especialidade,
+        perfil: values.perfil || null,
+        especialidadeEspecifica: values.especialidadeEspecifica || null,
+        dataInicio: values.dataInicio,
+        tipoContrato: values.tipoContrato,
+        valorHora: values.tipoContrato === 'hora' ? parseFloat(values.valorHora?.toString() || '0') : null,
+        valorFechado: values.tipoContrato === 'fechado' ? parseFloat(values.valorFechado?.toString() || '0') : null,
+        periodoFechado: values.tipoContrato === 'fechado' ? values.periodoFechado : null,
+        valorPago: parseFloat(values.valorPago.toString()),
+        status: values.status,
+        tags: formState.tags.join(',') || null,
+        clienteId: usuario?.clienteId || 'ftd', // Usar o clienteId do usuário logado ou 'ftd' como padrão
+        contatoClienteEmail: values.contatoClienteEmail || null,
+        contatoClienteTeams: values.contatoClienteTeams || null,
+        contatoClienteTelefone: values.contatoClienteTelefone || null,
+        contatoMatilhaEmail: values.contatoMatilhaEmail || null,
+        contatoMatilhaTeams: values.contatoMatilhaTeams || null,
+        contatoMatilhaTelefone: values.contatoMatilhaTelefone || null,
       }
-
-      await addProfissional(profissionalData)
+      await addProfissional(payload)
       navigate('/profissionais')
-    } catch (err) {
+    } catch {
       setError('Erro ao cadastrar profissional. Tente novamente.')
     } finally {
       setSubmitting(false)
@@ -239,458 +104,173 @@ const CadastroProfissional = () => {
   }
 
   return (
-    <Box sx={{ p: 3, maxWidth: 800, mx: 'auto' }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-        <Button
-          startIcon={<ArrowBack />}
-          onClick={() => navigate('/profissionais')}
-          sx={{ mr: 2 }}
-        >
-          Voltar
-        </Button>
-        <Typography variant="h4" component="h1">
-          Cadastrar Profissional
-        </Typography>
-      </Box>
+    <div style={{ padding: 24, maxWidth: 960, margin: '0 auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16, gap: 8 }}>
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/profissionais')}>Voltar</Button>
+        <Typography.Title level={2} style={{ margin: 0 }}>Cadastrar Profissional</Typography.Title>
+      </div>
 
-      <Paper sx={{ p: 3 }}>
-        <form onSubmit={handleSubmit}>
-          <Grid container spacing={3}>
-            {/* Dados Pessoais */}
-            <Grid item xs={12}>
-              <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
-                Dados Pessoais
-              </Typography>
-            </Grid>
+      <Card>
+        <Form form={form} layout="vertical" onFinish={onFinish} initialValues={{ tipoContrato: 'hora', status: 'ativo', periodoFechado: 'mensal' }}>
+          <Row gutter={[16, 16]}>
+            <Col xs={24} md={12}>
+              <Form.Item name="nome" label="Nome Completo" rules={[{ required: true, message: 'Nome é obrigatório' }]}>
+                <Input placeholder="Nome completo" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="email" label="Email" rules={[{ required: true, message: 'Email é obrigatório' }, { type: 'email', message: 'Email inválido' }]}>
+                <Input type="email" placeholder="email@empresa.com" />
+              </Form.Item>
+            </Col>
 
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Nome Completo"
-                value={formData.nome}
-                onChange={(e) => handleInputChange('nome', e.target.value)}
-                error={!!errors.nome}
-                helperText={errors.nome}
-                disabled={submitting}
-              />
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
-                error={!!errors.email}
-                helperText={errors.email}
-                disabled={submitting}
-              />
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <FormControl fullWidth error={!!errors.especialidade}>
-                <InputLabel>Especialidade</InputLabel>
-                <Select
-                  value={formData.especialidade}
-                  onChange={(e) => handleInputChange('especialidade', e.target.value)}
-                  disabled={submitting}
-                >
-                  {especialidadesCustom.map((esp) => (
-                    <MenuItem key={esp} value={esp}>
-                      {esp}
-                    </MenuItem>
-                  ))}
+            <Col xs={24} md={12}>
+              <Form.Item name="especialidade" label="Especialidade" rules={[{ required: true, message: 'Especialidade é obrigatória' }]}>
+                <Select placeholder="Selecione">
+                  {especialidadesCustom.map(esp => (<Select.Option key={esp} value={esp}>{esp}</Select.Option>))}
                 </Select>
-                {errors.especialidade && (
-                  <Typography variant="caption" color="error">
-                    {errors.especialidade}
-                  </Typography>
-                )}
-                <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-                  <TextField
-                    size="small"
-                    fullWidth
-                    placeholder="Nova especialidade"
-                    value={novaEspecialidade}
-                    onChange={(e) => setNovaEspecialidade(e.target.value)}
-                    disabled={submitting}
-                  />
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    onClick={() => {
-                      const v = novaEspecialidade.trim()
-                      if (!v) return
-                      if (!especialidadesCustom.includes(v)) {
-                        setEspecialidadesCustom(prev => [...prev, v])
-                      }
-                      setFormData(prev => ({ ...prev, especialidade: v }))
-                      setNovaEspecialidade('')
-                    }}
-                    disabled={!novaEspecialidade.trim() || submitting}
-                  >
-                    Adicionar
-                  </Button>
-                </Box>
-              </FormControl>
-            </Grid>
+              </Form.Item>
+              <Space.Compact style={{ width: '100%', marginTop: -8 }}>
+                <Input placeholder="Nova especialidade" value={novaEspecialidade} onChange={e => setNovaEspecialidade(e.target.value)} />
+                <Button icon={<PlusOutlined />} onClick={() => {
+                  const v = novaEspecialidade.trim(); if (!v) return; if (!especialidadesCustom.includes(v)) setEspecialidadesCustom(prev => [...prev, v]); form.setFieldValue('especialidade', v); setNovaEspecialidade('')
+                }} disabled={!novaEspecialidade.trim()}>Adicionar</Button>
+              </Space.Compact>
+            </Col>
 
-            <Grid item xs={12} md={6}>
-              <FormControl fullWidth>
-                <InputLabel>Perfil</InputLabel>
-                <Select
-                  value={formData.perfil}
-                  onChange={(e) => handleInputChange('perfil', e.target.value)}
-                  disabled={submitting}
-                >
-                  {obterPerfisDisponiveis().map((perfil) => (
-                    <MenuItem key={perfil} value={perfil}>
-                      {perfil}
-                    </MenuItem>
-                  ))}
+            <Col xs={24} md={12}>
+              <Form.Item name="perfil" label="Perfil">
+                <Select placeholder="Selecione" onChange={(v) => setFormState(prev => ({ ...prev, perfil: v }))}>
+                  {obterPerfisDisponiveis().map(p => (<Select.Option key={p} value={p}>{p}</Select.Option>))}
                 </Select>
-              </FormControl>
-            </Grid>
+              </Form.Item>
+            </Col>
 
-            <Grid item xs={12} md={6}>
-              <FormControl fullWidth>
-                <InputLabel>Especialidade Específica</InputLabel>
-                <Select
-                  value={formData.especialidadeEspecifica}
-                  onChange={(e) => handleInputChange('especialidadeEspecifica', e.target.value)}
-                  disabled={submitting || !formData.perfil}
-                >
-                  {especialidadesPorPerfil.map((esp) => (
-                    <MenuItem key={esp} value={esp}>
-                      {esp}
-                    </MenuItem>
-                  ))}
+            <Col xs={24} md={12}>
+              <Form.Item name="especialidadeEspecifica" label="Especialidade Específica">
+                <Select placeholder="Selecione" disabled={!formState.perfil} onChange={(v) => setFormState(prev => ({ ...prev, especialidadeEspecifica: v }))}>
+                  {especialidadesPerfil.map(esp => (<Select.Option key={esp} value={esp}>{esp}</Select.Option>))}
                 </Select>
-              </FormControl>
-            </Grid>
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="dataInicio" label="Data de Início" rules={[{ required: true, message: 'Data de início é obrigatória' }]}>
+                <Input type="date" />
+              </Form.Item>
+            </Col>
 
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Data de Início"
-                type="date"
-                value={formData.dataInicio}
-                onChange={(e) => handleInputChange('dataInicio', e.target.value)}
-                error={!!errors.dataInicio}
-                helperText={errors.dataInicio}
-                disabled={submitting}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
+            <Col span={24}>
+              <Typography.Title level={4} style={{ marginBottom: 8, color: '#1890ff' }}>Tipo de Contrato</Typography.Title>
+              <Form.Item name="tipoContrato">
+                <Radio.Group onChange={(e) => setFormState(prev => ({ ...prev, tipoContrato: e.target.value }))}>
+                  <Radio value="hora">Por Hora</Radio>
+                  <Radio value="fechado">Por Valor Fechado</Radio>
+                </Radio.Group>
+              </Form.Item>
+            </Col>
 
-            {/* Tipo de Contrato */}
-            <Grid item xs={12}>
-              <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
-                Tipo de Contrato
-              </Typography>
-              <FormControl component="fieldset">
-                <FormLabel component="legend">Selecione o tipo de contrato:</FormLabel>
-                <RadioGroup
-                  row
-                  value={formData.tipoContrato}
-                  onChange={(e) => handleInputChange('tipoContrato', e.target.value)}
-                >
-                  <FormControlLabel
-                    value="hora"
-                    control={<Radio />}
-                    label="Por Hora"
-                    disabled={submitting}
-                  />
-                  <FormControlLabel
-                    value="fechado"
-                    control={<Radio />}
-                    label="Por Valor Fechado"
-                    disabled={submitting}
-                  />
-                </RadioGroup>
-              </FormControl>
-            </Grid>
-
-            {/* Valores */}
-            <Grid item xs={12}>
-              <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
-                Valores
-              </Typography>
-            </Grid>
-
-            {formData.tipoContrato === 'hora' ? (
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Valor por Hora"
-                  type="number"
-                  value={formData.valorHora}
-                  onChange={(e) => handleInputChange('valorHora', e.target.value)}
-                  error={!!errors.valorHora}
-                  helperText={
-                    formData.perfil && formData.especialidadeEspecifica 
-                      ? 'Valor da tabela de preços - será editável no contrato'
-                      : errors.valorHora || 'Ex: 100,00'
-                  }
-                  placeholder="100,00"
-                  disabled={submitting || (formData.perfil && formData.especialidadeEspecifica)}
-                  InputProps={{
-                    startAdornment: <InputAdornment position="start">R$</InputAdornment>,
-                  }}
-                />
-              </Grid>
+            {formState.tipoContrato === 'hora' ? (
+              <Col xs={24} md={12}>
+                <Form.Item name="valorHora" label="Valor por Hora" rules={[{ required: true, message: 'Informe o valor por hora' }]}>
+                  <Input type="number" prefix="R$" placeholder="100,00" />
+                </Form.Item>
+              </Col>
             ) : (
               <>
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    fullWidth
-                    label="Valor Fechado"
-                    type="number"
-                    value={formData.valorFechado}
-                    onChange={(e) => handleInputChange('valorFechado', e.target.value)}
-                    error={!!errors.valorFechado}
-                    helperText={errors.valorFechado || 'Ex: 5000,00'}
-                    placeholder="5000,00"
-                    disabled={submitting}
-                    InputProps={{
-                      startAdornment: <InputAdornment position="start">R$</InputAdornment>,
-                    }}
-                  />
-                </Grid>
-
-                <Grid item xs={12} md={6}>
-                  <FormControl fullWidth>
-                    <InputLabel id="periodo-label">Período</InputLabel>
-                    <Select
-                      labelId="periodo-label"
-                      value={formData.periodoFechado}
-                      onChange={(e) => handleInputChange('periodoFechado', e.target.value)}
-                      disabled={submitting}
-                    >
-                      <MenuItem value="mensal">Mensal</MenuItem>
-                      <MenuItem value="trimestral">Trimestral</MenuItem>
-                      <MenuItem value="semestral">Semestral</MenuItem>
-                      <MenuItem value="anual">Anual</MenuItem>
+                <Col xs={24} md={12}>
+                  <Form.Item name="valorFechado" label="Valor Fechado" rules={[{ required: true, message: 'Informe o valor fechado' }]}>
+                    <Input type="number" prefix="R$" placeholder="5000,00" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={12}>
+                  <Form.Item name="periodoFechado" label="Período">
+                    <Select>
+                      <Select.Option value="mensal">Mensal</Select.Option>
+                      <Select.Option value="trimestral">Trimestral</Select.Option>
+                      <Select.Option value="semestral">Semestral</Select.Option>
+                      <Select.Option value="anual">Anual</Select.Option>
                     </Select>
-                  </FormControl>
-                </Grid>
+                  </Form.Item>
+                </Col>
               </>
             )}
 
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Valor Bruto Pago ao Profissional"
-                type="number"
-                value={formData.valorPago}
-                onChange={(e) => handleInputChange('valorPago', e.target.value)}
-                error={!!errors.valorPago}
-                helperText={errors.valorPago || 'Ex: 4500,00'}
-                placeholder="4500,00"
-                disabled={submitting}
-                InputProps={{
-                  startAdornment: <InputAdornment position="start">R$</InputAdornment>,
-                }}
-              />
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <FormControl fullWidth>
-                <InputLabel id="status-label">Status</InputLabel>
-                <Select
-                  labelId="status-label"
-                  value={formData.status}
-                  onChange={(e) => handleInputChange('status', e.target.value)}
-                  disabled={submitting}
-                >
-                  <MenuItem value="ativo">Ativo</MenuItem>
-                  <MenuItem value="inativo">Inativo</MenuItem>
-                  <MenuItem value="ferias">Férias</MenuItem>
+            <Col xs={24} md={12}>
+              <Form.Item name="valorPago" label="Valor Bruto Pago ao Profissional" rules={[{ required: true, message: 'Informe o valor pago' }]}>
+                <Input type="number" prefix="R$" placeholder="4500,00" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="status" label="Status" initialValue="ativo">
+                <Select>
+                  <Select.Option value="ativo">Ativo</Select.Option>
+                  <Select.Option value="inativo">Inativo</Select.Option>
+                  <Select.Option value="ferias">Férias</Select.Option>
                 </Select>
-              </FormControl>
-            </Grid>
+              </Form.Item>
+            </Col>
 
-            {/* Tags */}
-            <Grid item xs={12}>
-              <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
-                Tags
-              </Typography>
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                  Adicione tags para categorizar o profissional (ex: Alocação, Projetos, Bodyshop)
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    placeholder="Digite uma tag e pressione Enter"
-                    value={newTag}
-                    onChange={(e) => setNewTag(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    disabled={submitting}
-                    InputProps={{
-                      endAdornment: (
-                        <Button
-                          onClick={handleAddTag}
-                          disabled={!newTag.trim() || submitting}
-                          size="small"
-                          sx={{ minWidth: 'auto' }}
-                        >
-                          <Add />
-                        </Button>
-                      ),
-                    }}
-                  />
-                </Box>
-                
-                {/* Tags Sugeridas */}
-                 <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                    Tags sugeridas:
-                  </Typography>
-                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                    {tagsSugeridas.map((tag) => (
-                      <Chip
-                        key={tag}
-                        label={tag}
-                        size="small"
-                        variant={formData.tags.includes(tag) ? "filled" : "outlined"}
-                        color={formData.tags.includes(tag) ? "primary" : "default"}
-                        onClick={() => {
-                          if (formData.tags.includes(tag)) {
-                            handleRemoveTag(tag)
-                          } else {
-                            setFormData(prev => ({
-                              ...prev,
-                              tags: [...prev.tags, tag]
-                            }))
-                          }
-                        }}
-                        sx={{ cursor: 'pointer' }}
-                      />
-                    ))}
-                  </Box>
-                </Box>
+            <Col span={24}>
+              <Typography.Title level={4} style={{ marginBottom: 8, color: '#1890ff' }}>Tags</Typography.Title>
+              <Space.Compact style={{ width: '100%', marginBottom: 8 }}>
+                <Input placeholder="Digite uma tag" value={newTag} onChange={e => setNewTag(e.target.value)} onPressEnter={handleAddTag} />
+                <Button icon={<PlusOutlined />} onClick={handleAddTag} disabled={!newTag.trim()}>Adicionar</Button>
+              </Space.Compact>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {formState.tags.map(tag => (
+                  <Tag key={tag} closable onClose={() => handleRemoveTag(tag)} color="blue">{tag}</Tag>
+                ))}
+              </div>
+            </Col>
 
-                {/* Tags Selecionadas */}
-                {formData.tags.length > 0 && (
-                  <Box>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                      Tags selecionadas:
-                    </Typography>
-                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                      {formData.tags.map((tag) => (
-                        <Chip
-                          key={tag}
-                          label={tag}
-                          size="small"
-                          color="primary"
-                          onDelete={() => handleRemoveTag(tag)}
-                          disabled={submitting}
-                        />
-                      ))}
-                    </Box>
-                  </Box>
-                )}
-              </Box>
-            </Grid>
+            <Col span={24}>
+              <Typography.Title level={4} style={{ marginBottom: 8, color: '#1890ff' }}>Canais de Contato</Typography.Title>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="contatoClienteEmail" label="Email (Cliente)">
+                <Input type="email" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="contatoClienteTeams" label="Teams (Cliente)">
+                <Input placeholder="https://teams.microsoft.com/..." />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="contatoClienteTelefone" label="Telefone (Cliente)">
+                <Input />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="contatoMatilhaEmail" label="Email (Matilha)">
+                <Input type="email" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="contatoMatilhaTeams" label="Teams (Matilha)">
+                <Input placeholder="https://teams.microsoft.com/..." />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item name="contatoMatilhaTelefone" label="Telefone (Matilha)">
+                <Input />
+              </Form.Item>
+            </Col>
 
-            {/* Canais de Contato */}
-            <Grid item xs={12}>
-              <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
-                Canais de Contato
-              </Typography>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Email (Cliente)"
-                type="email"
-                value={formData.contatoClienteEmail}
-                onChange={(e) => handleInputChange('contatoClienteEmail', e.target.value)}
-                disabled={submitting}
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Teams (Cliente)"
-                placeholder="https://teams.microsoft.com/..."
-                value={formData.contatoClienteTeams}
-                onChange={(e) => handleInputChange('contatoClienteTeams', e.target.value)}
-                disabled={submitting}
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Telefone (Cliente)"
-                value={formData.contatoClienteTelefone}
-                onChange={(e) => handleInputChange('contatoClienteTelefone', e.target.value)}
-                disabled={submitting}
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Email (Matilha)"
-                type="email"
-                value={formData.contatoMatilhaEmail}
-                onChange={(e) => handleInputChange('contatoMatilhaEmail', e.target.value)}
-                disabled={submitting}
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Teams (Matilha)"
-                placeholder="https://teams.microsoft.com/..."
-                value={formData.contatoMatilhaTeams}
-                onChange={(e) => handleInputChange('contatoMatilhaTeams', e.target.value)}
-                disabled={submitting}
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Telefone (Matilha)"
-                value={formData.contatoMatilhaTelefone}
-                onChange={(e) => handleInputChange('contatoMatilhaTelefone', e.target.value)}
-                disabled={submitting}
-              />
-            </Grid>
-
-            {/* Botões */}
-            <Grid item xs={12}>
-              <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-                <Button
-                  variant="outlined"
-                  onClick={() => navigate('/profissionais')}
-                  disabled={submitting}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  type="submit"
-                  variant="contained"
-                  startIcon={submitting ? <CircularProgress size={20} /> : <Save />}
-                  disabled={submitting}
-                >
-                  {submitting ? 'Salvando...' : 'Salvar Profissional'}
-                </Button>
-              </Box>
-            </Grid>
-          </Grid>
-        </form>
+            <Col span={24}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                <Button onClick={() => navigate('/profissionais')} disabled={submitting}>Cancelar</Button>
+                <Button type="primary" htmlType="submit" icon={<SaveOutlined />} loading={submitting}>Salvar Profissional</Button>
+              </div>
+            </Col>
+          </Row>
+        </Form>
 
         {error && (
-          <Alert severity="error" sx={{ mt: 2 }}>
-            {error}
-          </Alert>
+          <Alert type="error" message={error} showIcon style={{ marginTop: 16 }} />
         )}
-      </Paper>
-    </Box>
+      </Card>
+    </div>
   )
 }
 

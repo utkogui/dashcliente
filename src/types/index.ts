@@ -2,11 +2,25 @@ export interface Profissional {
   id: string;
   nome: string;
   email: string;
-  telefone: string;
+  telefone?: string;
   especialidade: string;
-  valorHora: number;
+  perfil?: string;
+  especialidadeEspecifica?: string;
+  dataInicio: string;
+  tipoContrato: 'hora' | 'fechado';
+  valorHora?: number;
+  valorFechado?: number;
+  periodoFechado?: string;
+  valorPago: number;
   status: 'ativo' | 'inativo' | 'ferias';
-  dataAdmissao: string;
+  tags?: string;
+  clienteId: string;
+  contatoClienteEmail?: string;
+  contatoClienteTeams?: string;
+  contatoClienteTelefone?: string;
+  contatoMatilhaEmail?: string;
+  contatoMatilhaTeams?: string;
+  contatoMatilhaTelefone?: string;
 }
 
 export interface Cliente {

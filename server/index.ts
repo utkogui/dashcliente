@@ -346,7 +346,7 @@ app.post('/api/profissionais', verificarSessao, async (req, res) => {
     // Adicionar cliente_id automaticamente se não for admin
     const dadosProfissional = {
       ...req.body,
-      clienteId: usuario.tipo === 'admin' ? req.body.clienteId : usuario.clienteId
+      clienteId: usuario.tipo === 'admin' ? (req.body.clienteId || usuario.clienteId) : usuario.clienteId
     }
     
     const profissional = await prisma.profissional.create({
@@ -449,7 +449,7 @@ app.post('/api/clientes', verificarSessao, async (req, res) => {
     const cliente = await prisma.cliente.create({
       data: {
         ...req.body,
-        clienteId: usuario.clienteId,
+        clienteId: usuario.tipo === 'admin' ? req.body.clienteId : usuario.clienteId,
         telefone: req.body.telefone || null,
         endereco: req.body.endereco || null
       }
@@ -468,16 +468,18 @@ app.put('/api/clientes/:id', verificarSessao, async (req, res) => {
   try {
     const { usuario } = req
     
-    // Verificar se o cliente pertence ao usuário
-    const clienteExistente = await prisma.cliente.findFirst({
-      where: { 
-        id: req.params.id,
-        clienteId: usuario.clienteId
+    // Se não for admin, verificar se o cliente pertence ao usuário
+    if (usuario.tipo !== 'admin') {
+      const clienteExistente = await prisma.cliente.findFirst({
+        where: { 
+          id: req.params.id,
+          clienteId: usuario.clienteId
+        }
+      })
+  
+      if (!clienteExistente) {
+        return res.status(404).json({ error: 'Cliente não encontrado' })
       }
-    })
-
-    if (!clienteExistente) {
-      return res.status(404).json({ error: 'Cliente não encontrado' })
     }
 
     const cliente = await prisma.cliente.update({
@@ -502,16 +504,18 @@ app.delete('/api/clientes/:id', verificarSessao, async (req, res) => {
   try {
     const { usuario } = req
     
-    // Verificar se o cliente pertence ao usuário
-    const clienteExistente = await prisma.cliente.findFirst({
-      where: { 
-        id: req.params.id,
-        clienteId: usuario.clienteId
+    // Se não for admin, verificar se o cliente pertence ao usuário
+    if (usuario.tipo !== 'admin') {
+      const clienteExistente = await prisma.cliente.findFirst({
+        where: { 
+          id: req.params.id,
+          clienteId: usuario.clienteId
+        }
+      })
+  
+      if (!clienteExistente) {
+        return res.status(404).json({ error: 'Cliente não encontrado' })
       }
-    })
-
-    if (!clienteExistente) {
-      return res.status(404).json({ error: 'Cliente não encontrado' })
     }
 
     // Verificar se tem contratos ativos
@@ -591,15 +595,27 @@ app.post('/api/contratos', verificarSessao, async (req, res) => {
 
     console.log('Dados recebidos:', { contratoData, profissionais, usuario })
 
-    // Verificar se o usuário tem clienteId (não deve ser admin)
-    if (!usuario.clienteId) {
-      return res.status(403).json({ error: 'Apenas usuários cliente podem criar contratos' })
+    // Determinar cliente do sistema para o contrato
+    let clienteSistemaId: string | null = null
+    if (usuario.tipo === 'admin') {
+      // Para admin, buscar pelo cliente de negócio informado para obter o cliente do sistema
+      const clienteNegocio = await prisma.cliente.findUnique({ where: { id: contratoData.clienteId } })
+      if (!clienteNegocio) {
+        return res.status(400).json({ error: 'Cliente informado não encontrado' })
+      }
+      clienteSistemaId = clienteNegocio.clienteId
+    } else {
+      // Para cliente comum, usar o clienteId da sessão
+      if (!usuario.clienteId) {
+        return res.status(403).json({ error: 'Apenas usuários cliente podem criar contratos' })
+      }
+      clienteSistemaId = usuario.clienteId
     }
 
-    // Adicionar clienteSistemaId baseado no usuário logado
+    // Montar payload com cliente do sistema resolvido
     const contratoComCliente = {
       ...contratoData,
-      clienteSistemaId: usuario.clienteId,
+      clienteSistemaId,
       observacoes: contratoData.observacoes || null
     }
 
@@ -652,16 +668,18 @@ app.put('/api/contratos/:id', verificarSessao, async (req, res) => {
     const { usuario } = req
     const { profissionais, ...contratoData } = req.body
 
-    // Verificar se o contrato pertence ao usuário
-    const contratoExistente = await prisma.contrato.findFirst({
-      where: { 
-        id: req.params.id,
-        clienteSistemaId: usuario.clienteId
+    // Se não for admin, verificar se o contrato pertence ao cliente do usuário
+    if (usuario.tipo !== 'admin') {
+      const contratoExistente = await prisma.contrato.findFirst({
+        where: { 
+          id: req.params.id,
+          clienteSistemaId: usuario.clienteId
+        }
+      })
+  
+      if (!contratoExistente) {
+        return res.status(404).json({ error: 'Contrato não encontrado' })
       }
-    })
-
-    if (!contratoExistente) {
-      return res.status(404).json({ error: 'Contrato não encontrado' })
     }
 
     // Primeiro deleta os profissionais existentes
@@ -708,16 +726,18 @@ app.delete('/api/contratos/:id', verificarSessao, async (req, res) => {
   try {
     const { usuario } = req
 
-    // Verificar se o contrato pertence ao usuário
-    const contratoExistente = await prisma.contrato.findFirst({
-      where: { 
-        id: req.params.id,
-        clienteSistemaId: usuario.clienteId
+    // Se não for admin, verificar se o contrato pertence ao cliente do usuário
+    if (usuario.tipo !== 'admin') {
+      const contratoExistente = await prisma.contrato.findFirst({
+        where: { 
+          id: req.params.id,
+          clienteSistemaId: usuario.clienteId
+        }
+      })
+  
+      if (!contratoExistente) {
+        return res.status(404).json({ error: 'Contrato não encontrado' })
       }
-    })
-
-    if (!contratoExistente) {
-      return res.status(404).json({ error: 'Contrato não encontrado' })
     }
 
     // Primeiro deleta os relacionamentos em ContratoProfissional
