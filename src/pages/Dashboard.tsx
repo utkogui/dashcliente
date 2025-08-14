@@ -233,11 +233,13 @@ const Dashboard = () => {
           ...cardStyle 
         }}
         onClick={() => handleCardClick(type, data)}
-        bodyStyle={{ 
-          padding: 16, 
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column'
+        styles={{
+          body: {
+            padding: 16,
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column'
+          }
         }}
       >
         <Space direction="vertical" size="small" style={{ width: '100%', flex: 1 }}>
@@ -586,7 +588,7 @@ const Dashboard = () => {
                 const ocupado = contratos.some(c => c.status === 'ativo' && c.profissionais.some(p => p.profissionalId === item.id))
                 const cor = ocupado ? '#22c55e' : '#ef4444'
                 return (
-                  <List.Item>
+                  <List.Item onClick={() => handleCardClick('profissional', item)} style={{ cursor: 'pointer' }}>
                     <List.Item.Meta
                       title={
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

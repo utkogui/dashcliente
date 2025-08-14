@@ -123,6 +123,9 @@ interface DataContextType {
   loading: boolean
   error: string | null
   reload: () => Promise<void>
+  // Interações (Visão do Cliente)
+  listInteresses: (filtro?: { contratoId?: string; profissionalId?: string }) => Promise<any[]>
+  listNotas: (filtro?: { contratoId?: string; profissionalId?: string }) => Promise<any[]>
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined)
@@ -241,6 +244,21 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Interações: interesses e notas
+  const listInteresses = async (filtro?: { contratoId?: string; profissionalId?: string }) => {
+    const params = new URLSearchParams()
+    if (filtro?.contratoId) params.set('contratoId', filtro.contratoId)
+    if (filtro?.profissionalId) params.set('profissionalId', filtro.profissionalId)
+    return apiCall(`/client-actions${params.toString() ? `?${params.toString()}` : ''}`, {}, sessionId)
+  }
+
+  const listNotas = async (filtro?: { contratoId?: string; profissionalId?: string }) => {
+    const params = new URLSearchParams()
+    if (filtro?.contratoId) params.set('contratoId', filtro.contratoId)
+    if (filtro?.profissionalId) params.set('profissionalId', filtro.profissionalId)
+    return apiCall(`/notes${params.toString() ? `?${params.toString()}` : ''}`, {}, sessionId)
   }
 
   // Funções para Profissionais
@@ -387,7 +405,9 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     deleteContrato,
     loading,
     error,
-    reload
+    reload,
+    listInteresses,
+    listNotas
   }
 
   return (

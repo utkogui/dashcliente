@@ -37,7 +37,7 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ profissional, proje
       onBlur={() => setIsFocused(false)}
       onClick={onOpen}
       style={{ position: 'relative', height: 420, display: 'flex', flexDirection: 'column', borderRadius: 12, boxShadow: isFocused ? '0 0 0 3px rgba(24, 144, 255, 0.45), 0 4px 20px rgba(0,0,0,0.08)' : '0 4px 20px rgba(0,0,0,0.08)', background: risk.cardBg, outline: 'none', border: `1px solid ${risk.barBg}` }}
-      bodyStyle={{ display: 'flex', flexDirection: 'column', height: '100%', padding: 40 }}
+      styles={{ body: { display: 'flex', flexDirection: 'column', height: '100%', padding: 40 } }}
     >
       <div style={{ height: 6, width: '100%', background: risk.barBg, borderTopLeftRadius: 12, borderTopRightRadius: 12, position: 'absolute', left: 0, top: 0 }} />
 

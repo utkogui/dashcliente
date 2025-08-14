@@ -68,7 +68,7 @@ const CadastroProfissional = () => {
   const [especialidadesDisponiveis, setEspecialidadesDisponiveis] = useState<string[]>([])
   const [especialidadesPorPerfil, setEspecialidadesPorPerfil] = useState<string[]>([])
 
-  const especialidades = [
+  const [especialidadesCustom, setEspecialidadesCustom] = useState<string[]>([
     'Desenvolvedor Full Stack',
     'Desenvolvedor Frontend',
     'Desenvolvedor Backend',
@@ -81,7 +81,8 @@ const CadastroProfissional = () => {
     'Content Ops',
     'QA Engineer',
     'Data Scientist'
-  ]
+  ])
+  const [novaEspecialidade, setNovaEspecialidade] = useState('')
 
   const tagsSugeridas = [
     'Alocação',
@@ -295,7 +296,7 @@ const CadastroProfissional = () => {
                   onChange={(e) => handleInputChange('especialidade', e.target.value)}
                   disabled={submitting}
                 >
-                  {especialidades.map((esp) => (
+                  {especialidadesCustom.map((esp) => (
                     <MenuItem key={esp} value={esp}>
                       {esp}
                     </MenuItem>
@@ -306,6 +307,32 @@ const CadastroProfissional = () => {
                     {errors.especialidade}
                   </Typography>
                 )}
+                <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                  <TextField
+                    size="small"
+                    fullWidth
+                    placeholder="Nova especialidade"
+                    value={novaEspecialidade}
+                    onChange={(e) => setNovaEspecialidade(e.target.value)}
+                    disabled={submitting}
+                  />
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={() => {
+                      const v = novaEspecialidade.trim()
+                      if (!v) return
+                      if (!especialidadesCustom.includes(v)) {
+                        setEspecialidadesCustom(prev => [...prev, v])
+                      }
+                      setFormData(prev => ({ ...prev, especialidade: v }))
+                      setNovaEspecialidade('')
+                    }}
+                    disabled={!novaEspecialidade.trim() || submitting}
+                  >
+                    Adicionar
+                  </Button>
+                </Box>
               </FormControl>
             </Grid>
 
@@ -518,7 +545,7 @@ const CadastroProfissional = () => {
                 </Box>
                 
                 {/* Tags Sugeridas */}
-                <Box sx={{ mb: 2 }}>
+                 <Box sx={{ mb: 2 }}>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                     Tags sugeridas:
                   </Typography>

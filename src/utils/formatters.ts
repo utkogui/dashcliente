@@ -262,17 +262,23 @@ export const getStatusBadgeColor = (contrato: any): string => {
 
 // Novo helper para cores de risco unificadas (barra superior e fundo do card)
 export const getRiskColors = (diasRestantes: number | null): { barBg: string; cardBg: string; text: string } => {
+  // Cores mais vívidas e fundos ~15% mais fortes (aumentando a opacidade)
   if (diasRestantes === null) {
-    return { barBg: '#166534', cardBg: 'rgba(22, 101, 52, 0.06)', text: '#166534' }
+    // Indeterminado: verde mais vivo
+    return { barBg: '#16a34a', cardBg: 'rgba(22, 163, 74, 0.08)', text: '#16a34a' }
   }
   if (diasRestantes > 60) {
-    return { barBg: '#166534', cardBg: 'rgba(22, 101, 52, 0.06)', text: '#166534' } // verde
+    // > 60 dias: verde mais vivo
+    return { barBg: '#16a34a', cardBg: 'rgba(22, 163, 74, 0.08)', text: '#16a34a' }
   }
   if (diasRestantes > 30) {
-    return { barBg: '#92400e', cardBg: 'rgba(146, 64, 14, 0.06)', text: '#92400e' } // amarelo escuro
+    // 31–60 dias: amarelo mais fiel (menos ocre)
+    return { barBg: '#f59e0b', cardBg: 'rgba(245, 158, 11, 0.08)', text: '#f59e0b' }
   }
   if (diasRestantes > 0) {
-    return { barBg: '#b91c1c', cardBg: 'rgba(185, 28, 28, 0.06)', text: '#b91c1c' } // vermelho
+    // 1–30 dias: vermelho mais vermelho
+    return { barBg: '#ef4444', cardBg: 'rgba(239, 68, 68, 0.08)', text: '#ef4444' }
   }
-  return { barBg: '#7f1d1d', cardBg: 'rgba(127, 29, 29, 0.08)', text: '#7f1d1d' } // vencido
+  // Vencido: vermelho profundo
+  return { barBg: '#b91c1c', cardBg: 'rgba(185, 28, 28, 0.10)', text: '#b91c1c' }
 }

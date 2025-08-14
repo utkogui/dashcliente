@@ -4,12 +4,35 @@ import { UserOutlined, SearchOutlined, FieldTimeOutlined, CalendarOutlined, Filt
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext'
 import { useAuth } from '../contexts/AuthContext'
-import { calcularDiasRestantes } from '../utils/formatters'
+import { calcularDiasRestantes, getRiskColors } from '../utils/formatters'
 import logoFtdMatilha from '../assets/logo_ftd_matilha.png'
 import { track } from '../utils/telemetry'
 import ProfessionalCard from '../components/cliente/ProfessionalCard'
 
 const { Text, Title } = Typography
+
+// Estilos customizados para o modal (aplicar padding/base e barra superior)
+const customModalStyles = `
+  .ant-modal-content {
+    position: relative;
+    padding: 10px 10px !important;
+    border-radius: 16px !important;
+    overflow: hidden !important;
+    background-color: #ffffff; /* sobrescrito dinamicamente via styles.content quando houver projeto */
+  }
+  .ant-modal-content::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 6px;
+    background: var(--riskBarBg, #166534);
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    pointer-events: none;
+  }
+`
 
 const VisaoClienteAnt = () => {
   const navigate = useNavigate()
@@ -225,6 +248,9 @@ const VisaoClienteAnt = () => {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
+      {/* Estilos customizados para o modal */}
+      <style>{customModalStyles}</style>
+      
       {/* Header */}
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 120, background: 'rgb(0,49,188)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, boxShadow: 'rgba(0,0,0,0.15) 0 2px 8px' }}>
         {/* Overlays de borda sobre o azul existente */}
@@ -351,10 +377,35 @@ const VisaoClienteAnt = () => {
         open={Boolean(selectedProfissionalId)}
         onCancel={() => setSelectedProfissionalId(null)}
         footer={null}
-        width={1000}
-        styles={{ content: { borderRadius: 12 } }}
+        centered
+        destroyOnClose
+        width="80vw"
+        styles={{ 
+          content: (() => {
+            try {
+              if (!selectedProfissionalId) return { borderRadius: 16, backgroundColor: '#ffffff' }
+              const prof = profissionais.find(p => p.id === selectedProfissionalId)
+              if (!prof) return { borderRadius: 16, backgroundColor: '#ffffff' }
+              const info = getProfissionalInfo(prof)
+              const projetoSel = info.projetos[0]
+              if (!projetoSel) return { borderRadius: 16, backgroundColor: '#ffffff' }
+              const dias = calcularDiasRestantes(projetoSel.contrato)
+              const risk = getRiskColors(dias)
+              return {
+                borderRadius: 16,
+                backgroundColor: '#ffffff',
+                border: `1px solid ${risk.barBg}`,
+                ['--riskBarBg' as any]: risk.barBg,
+              } as any
+            } catch {
+              return { borderRadius: 16, backgroundColor: '#ffffff' }
+            }
+          })(),
+          mask: { backdropFilter: 'blur(4px)' }
+        }}
         keyboard
-        title={(() => profissionais.find(p => p.id === selectedProfissionalId)?.nome || '')()}
+        zIndex={2000}
+        title={profissionais.find(p => p.id === selectedProfissionalId)?.nome || ''}
       >
         {(() => {
           const profissionalSel = profissionais.find(p => p.id === selectedProfissionalId)
@@ -366,192 +417,197 @@ const VisaoClienteAnt = () => {
           return (
             <>
               <Row gutter={[16, 16]}>
+                {/* Coluna 1: Projeto atual, Canais de contato, Linha do tempo */}
                 <Col xs={24} md={12}>
-                  <Card size="small" style={{ borderRadius: 8 }}>
-                    <Text strong>Projeto atual</Text>
-                    <Divider style={{ margin: '8px 0' }} />
-                    {projetoSel ? (
-                      <>
-                        <div><strong>Nome:</strong> {projetoSel.nome}</div>
-                        <div><strong>Cliente:</strong> {projetoSel.cliente}</div>
-                        <div><strong>Início:</strong> {new Date(projetoSel.dataInicio).toLocaleDateString('pt-BR')}</div>
-                        <div><strong>Término:</strong> {projetoSel.dataFim ? new Date(projetoSel.dataFim).toLocaleDateString('pt-BR') : 'Indeterminado'}</div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 8, marginTop: 8, background: `${diasSelColor}10`, borderRadius: 6, border: `1px solid ${diasSelColor}30` }}>
-                          <FieldTimeOutlined style={{ color: diasSelColor }} />
-                          <Text style={{ color: diasSelColor }}>{getDiasRestantesText(diasSel)}</Text>
+                  <Space direction="vertical" size={16} style={{ width: '100%' }}>
+                    <Card size="small" style={{ borderRadius: 8 }}>
+                      <Text strong>Projeto atual</Text>
+                      <Divider style={{ margin: '8px 0' }} />
+                      {projetoSel ? (
+                        <>
+                          <div><strong>Nome:</strong> {projetoSel.nome}</div>
+                          <div><strong>Cliente:</strong> {projetoSel.cliente}</div>
+                          <div><strong>Início:</strong> {new Date(projetoSel.dataInicio).toLocaleDateString('pt-BR')}</div>
+                          <div><strong>Término:</strong> {projetoSel.dataFim ? new Date(projetoSel.dataFim).toLocaleDateString('pt-BR') : 'Indeterminado'}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 8, marginTop: 8, background: `${diasSelColor}10`, borderRadius: 6, border: `1px solid ${diasSelColor}30` }}>
+                            <FieldTimeOutlined style={{ color: diasSelColor }} />
+                            <Text style={{ color: diasSelColor }}>{getDiasRestantesText(diasSel)}</Text>
+                          </div>
+                        </>
+                      ) : (
+                        <Text type="secondary">Sem alocação atual</Text>
+                      )}
+                    </Card>
+
+                    <Card size="small" style={{ borderRadius: 8 }}>
+                      <Text strong>Canais de contato</Text>
+                      <Divider style={{ margin: '8px 0' }} />
+                      <Space direction="vertical" size={6}>
+                        <div>
+                          <Text strong>Cliente</Text>
+                          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                            {(() => {
+                              const contatoEmail = profissionalSel.contatoClienteEmail
+                              const contatoTelefone = profissionalSel.contatoClienteTelefone
+                              const teamsHref = contatoEmail ? `https://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(contatoEmail)}` : undefined
+                              return (
+                                <>
+                                  {contatoEmail && <Button size="small" icon={<MessageOutlined />} href={teamsHref} target="_blank">Teams</Button>}
+                                  {contatoEmail && <Button size="small" icon={<MailOutlined />} href={`mailto:${contatoEmail}`}>Email</Button>}
+                                  {contatoTelefone && <Tag icon={<PhoneOutlined />}>{contatoTelefone}</Tag>}
+                                </>
+                              )
+                            })()}
+                          </div>
                         </div>
-                        {/* removido conteúdo mockado */}
-                      </>
-                    ) : (
-                      <Text type="secondary">Sem alocação atual</Text>
-                    )}
-                  </Card>
-                </Col>
-                <Col xs={24} md={12}>
-                  <Card size="small" style={{ borderRadius: 8 }}>
-                    <Text strong>Histórico de alocação recente</Text>
-                    <Divider style={{ margin: '8px 0' }} />
-                    {historyLoading ? (
-                      <Skeleton active paragraph={{ rows: 3 }} />
-                    ) : historyError ? (
-                      <Alert type="error" message={historyError} />
-                    ) : historyItems.length === 0 ? (
-                      <Text type="secondary">Sem histórico recente</Text>
-                    ) : (
-                      <Space direction="vertical" size={6} style={{ width: '100%' }}>
-                        {historyItems.map((h, idx) => {
-                          const clienteLabel = ((): string => {
-                            const v: any = (h as any).cliente
-                            if (v == null) return 'Cliente não informado'
-                            if (typeof v === 'string') return v
-                            if (typeof v === 'object') return v.empresa || v.nome || 'Cliente'
-                            return String(v)
-                          })()
-                          const projetoLabel = ((): string => {
-                            const v: any = (h as any).projeto
-                            if (v == null) return 'Projeto não informado'
-                            if (typeof v === 'string') return v
-                            if (typeof v === 'object') return v.nome || v.titulo || 'Projeto'
-                            return String(v)
-                          })()
-                          return (
-                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                              <span>{projetoLabel} — {clienteLabel}</span>
-                              <span>{new Date(h.inicio).toLocaleDateString('pt-BR')}{h.fim ? ` → ${new Date(h.fim).toLocaleDateString('pt-BR')}` : ''}</span>
-                            </div>
-                          )
-                        })}
+                        <div>
+                          <Text strong>Matilha</Text>
+                          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                            {(() => {
+                              const contatoEmail = profissionalSel.contatoMatilhaEmail
+                              const contatoTelefone = profissionalSel.contatoMatilhaTelefone
+                              const teamsHref = contatoEmail ? `https://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(contatoEmail)}` : undefined
+                              return (
+                                <>
+                                  {contatoEmail && <Button size="small" icon={<MessageOutlined />} href={teamsHref} target="_blank">Teams</Button>}
+                                  {contatoEmail && <Button size="small" icon={<MailOutlined />} href={`mailto:${contatoEmail}`}>Email</Button>}
+                                  {contatoTelefone && <Tag icon={<PhoneOutlined />}>{contatoTelefone}</Tag>}
+                                </>
+                              )
+                            })()}
+                          </div>
+                        </div>
                       </Space>
-                    )}
-                  </Card>
+                    </Card>
+
+                    <Card size="small" style={{ borderRadius: 8 }}>
+                      <Text strong>Linha do tempo do contrato</Text>
+                      <Divider style={{ margin: '8px 0' }} />
+                      {projetoSel ? (
+                        <Space size={[8, 8]} wrap>
+                          <Tag>{`Início: ${new Date(projetoSel.dataInicio).toLocaleDateString('pt-BR')}`}</Tag>
+                          <Tag>{`Término: ${projetoSel.dataFim ? new Date(projetoSel.dataFim).toLocaleDateString('pt-BR') : 'Indeterminado'}`}</Tag>
+                          <Tag>{`Duração ${projetoSel.dataFim ? '' : 'visual '}: ${getDuracaoMesesVisual(projetoSel.contrato)} meses`}</Tag>
+                        </Space>
+                      ) : (
+                        <Text type="secondary">Sem dados de contrato</Text>
+                      )}
+                    </Card>
+                  </Space>
                 </Col>
+
+                {/* Coluna 2: Histórico, Ações, Anotações */}
                 <Col xs={24} md={12}>
-                  <Card size="small" style={{ borderRadius: 8 }}>
-                    <Text strong>Canais de contato</Text>
-                    <Divider style={{ margin: '8px 0' }} />
-                    <Space direction="vertical" size={6}>
-                      <div>
-                        <Text strong>Cliente</Text>
-                        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                          {(() => {
-                            const contatoEmail = profissionalSel.contatoClienteEmail
-                            const contatoTelefone = profissionalSel.contatoClienteTelefone
-                            const teamsHref = contatoEmail ? `https://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(contatoEmail)}` : undefined
+                  <Space direction="vertical" size={16} style={{ width: '100%' }}>
+                    <Card size="small" style={{ borderRadius: 8 }}>
+                      <Text strong>Histórico de alocação recente</Text>
+                      <Divider style={{ margin: '8px 0' }} />
+                      {historyLoading ? (
+                        <Skeleton active paragraph={{ rows: 3 }} />
+                      ) : historyError ? (
+                        <Alert type="error" message={historyError} />
+                      ) : historyItems.length === 0 ? (
+                        <Text type="secondary">Sem histórico recente</Text>
+                      ) : (
+                        <Space direction="vertical" size={6} style={{ width: '100%' }}>
+                          {historyItems.map((h, idx) => {
+                            const clienteLabel = ((): string => {
+                              const v: any = (h as any).cliente
+                              if (v == null) return 'Cliente não informado'
+                              if (typeof v === 'string') return v
+                              if (typeof v === 'object') return v.empresa || v.nome || 'Cliente'
+                              return String(v)
+                            })()
+                            const projetoLabel = ((): string => {
+                              const v: any = (h as any).projeto
+                              if (v == null) return 'Projeto não informado'
+                              if (typeof v === 'string') return v
+                              if (typeof v === 'object') return v.nome || v.titulo || 'Projeto'
+                              return String(v)
+                            })()
                             return (
-                              <>
-                                {contatoEmail && <Button size="small" icon={<MessageOutlined />} href={teamsHref} target="_blank">Teams</Button>}
-                                {contatoEmail && <Button size="small" icon={<MailOutlined />} href={`mailto:${contatoEmail}`}>Email</Button>}
-                                {contatoTelefone && <Tag icon={<PhoneOutlined />}>{contatoTelefone}</Tag>}
-                              </>
+                              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                                <span>{projetoLabel} — {clienteLabel}</span>
+                                <span>{new Date(h.inicio).toLocaleDateString('pt-BR')}{h.fim ? ` → ${new Date(h.fim).toLocaleDateString('pt-BR')}` : ''}</span>
+                              </div>
                             )
-                          })()}
-                        </div>
-                      </div>
-                      <div>
-                        <Text strong>Matilha</Text>
-                        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                          {(() => {
-                            const contatoEmail = profissionalSel.contatoMatilhaEmail
-                            const contatoTelefone = profissionalSel.contatoMatilhaTelefone
-                            const teamsHref = contatoEmail ? `https://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(contatoEmail)}` : undefined
-                            return (
-                              <>
-                                {contatoEmail && <Button size="small" icon={<MessageOutlined />} href={teamsHref} target="_blank">Teams</Button>}
-                                {contatoEmail && <Button size="small" icon={<MailOutlined />} href={`mailto:${contatoEmail}`}>Email</Button>}
-                                {contatoTelefone && <Tag icon={<PhoneOutlined />}>{contatoTelefone}</Tag>}
-                              </>
-                            )
-                          })()}
-                        </div>
-                      </div>
-                    </Space>
-                  </Card>
-                </Col>
-                {/* removido card de informações financeiras (mock) */}
-                <Col span={24}>
-                  <Card size="small" style={{ borderRadius: 8 }}>
-                    <Text strong>Linha do tempo do contrato</Text>
-                    <Divider style={{ margin: '8px 0' }} />
-                    {projetoSel ? (
-                      <Space size={[8, 8]} wrap>
-                        <Tag>{`Início: ${new Date(projetoSel.dataInicio).toLocaleDateString('pt-BR')}`}</Tag>
-                        <Tag>{`Término: ${projetoSel.dataFim ? new Date(projetoSel.dataFim).toLocaleDateString('pt-BR') : 'Indeterminado'}`}</Tag>
-                        <Tag>{`Duração ${projetoSel.dataFim ? '' : 'visual '}: ${getDuracaoMesesVisual(projetoSel.contrato)} meses`}</Tag>
-                        {/* renovações removido (sem dados reais) */}
-                      </Space>
-                    ) : (
-                      <Text type="secondary">Sem dados de contrato</Text>
-                    )}
-                  </Card>
-                </Col>
-                <Col xs={24} md={12}>
-                  <Card size="small" style={{ borderRadius: 8 }}>
-                    <Text strong>Ações</Text>
-                    <Divider style={{ margin: '8px 0' }} />
-                    <Space wrap>
-                      <Button size="small" disabled={interestLoading} onClick={async () => {
-                        if (!projetoSel) return
-                        try {
-                          setInterestLoading(true); setInterestError(null); setInterestMessage(null)
-                          const resp = await fetch(`${API_BASE_URL}/client-actions/interest`, {
-                            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionId}` },
-                            body: JSON.stringify({ interesse: 'RENOVAR', comentario: null, contratoId: projetoSel.contrato.id, profissionalId: profissionalSel.id })
-                          })
-                          const data = await resp.json()
-                          if (!resp.ok) throw new Error(data.error || 'Falha ao registrar interesse')
-                          setInterestMessage('Interesse registrada: Renovar')
-                          track({ type: 'interest_click', profissionalId: profissionalSel.id, contratoId: projetoSel.contrato.id, acao: 'RENOVAR' })
-                        } catch (e: any) { setInterestError(e.message) } finally { setInterestLoading(false) }
-                      }}>Renovar</Button>
-                      {(diasSel !== null && diasSel <= 60) && (
-                        <Button size="small" danger disabled={interestLoading} onClick={async () => {
+                          })}
+                        </Space>
+                      )}
+                    </Card>
+
+                    <Card size="small" style={{ borderRadius: 8 }}>
+                      <Text strong>Ações</Text>
+                      <Divider style={{ margin: '8px 0' }} />
+                      <Space wrap>
+                        <Button size="small" disabled={interestLoading} onClick={async () => {
                           if (!projetoSel) return
                           try {
                             setInterestLoading(true); setInterestError(null); setInterestMessage(null)
                             const resp = await fetch(`${API_BASE_URL}/client-actions/interest`, {
                               method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionId}` },
-                              body: JSON.stringify({ interesse: 'ESPERAR', comentario: null, contratoId: projetoSel.contrato.id, profissionalId: profissionalSel.id })
+                              body: JSON.stringify({ interesse: 'RENOVAR', comentario: null, contratoId: projetoSel.contrato.id, profissionalId: profissionalSel.id })
                             })
                             const data = await resp.json()
                             if (!resp.ok) throw new Error(data.error || 'Falha ao registrar interesse')
-                            setInterestMessage('Interesse registrada: Esperar')
-                            track({ type: 'interest_click', profissionalId: profissionalSel.id, contratoId: projetoSel.contrato.id, acao: 'ESPERAR' })
+                            setInterestMessage('Interesse registrada: Renovar')
+                            track({ type: 'interest_click', profissionalId: profissionalSel.id, contratoId: projetoSel.contrato.id, acao: 'RENOVAR' })
                           } catch (e: any) { setInterestError(e.message) } finally { setInterestLoading(false) }
-                        }}>Esperar</Button>
-                      )}
-                      {interestLoading && <Text type="secondary">Enviando...</Text>}
-                      {interestMessage && <Text type="success">{interestMessage}</Text>}
-                      {interestError && <Text type="danger">{interestError}</Text>}
-                    </Space>
-                    <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>“Esperar” aparece apenas para contratos com ≤ 60 dias.</Text>
-                  </Card>
-                </Col>
-                <Col xs={24} md={12}>
-                  <Card size="small" style={{ borderRadius: 8 }}>
-                    <Text strong>Anotações do cliente</Text>
-                    <Divider style={{ margin: '8px 0' }} />
-                    <Input.TextArea placeholder="Escreva uma anotação..." autoSize={{ minRows: 3 }} value={noteText} onChange={(e) => { setNoteText(e.target.value); setNoteError(null); setNoteSaved(false) }} />
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-                      <Button type="primary" size="small" onClick={async () => {
-                        if (!noteText.trim()) { setNoteError('Digite uma anotação antes de salvar'); return }
-                        if (!projetoSel) return
-                        try {
-                          const resp = await fetch(`${API_BASE_URL}/notes`, {
-                            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionId}` },
-                            body: JSON.stringify({ contratoId: projetoSel.contrato.id, profissionalId: profissionalSel.id, texto: noteText.trim() })
-                          })
-                          const data = await resp.json()
-                          if (!resp.ok) throw new Error(data.error || 'Falha ao salvar anotação')
-                          setNoteSaved(true)
-                          setNoteError(null)
-                        } catch (e: any) { setNoteError(e.message); setNoteSaved(false) }
-                      }}>Salvar</Button>
-                    </div>
-                    <div style={{ marginTop: 6 }}>
-                      {noteError && <Text type="danger">{noteError}</Text>}
-                      {noteSaved && !noteError && <Text type="success">Anotação salva</Text>}
-                    </div>
-                  </Card>
+                        }}>Renovar</Button>
+                        {(diasSel !== null && diasSel <= 60) && (
+                          <Button size="small" danger disabled={interestLoading} onClick={async () => {
+                            if (!projetoSel) return
+                            try {
+                              setInterestLoading(true); setInterestError(null); setInterestMessage(null)
+                              const resp = await fetch(`${API_BASE_URL}/client-actions/interest`, {
+                                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionId}` },
+                                body: JSON.stringify({ interesse: 'ESPERAR', comentario: null, contratoId: projetoSel.contrato.id, profissionalId: profissionalSel.id })
+                              })
+                              const data = await resp.json()
+                              if (!resp.ok) throw new Error(data.error || 'Falha ao registrar interesse')
+                              setInterestMessage('Interesse registrada: Esperar')
+                              track({ type: 'interest_click', profissionalId: profissionalSel.id, contratoId: projetoSel.contrato.id, acao: 'ESPERAR' })
+                            } catch (e: any) { setInterestError(e.message) } finally { setInterestLoading(false) }
+                          }}>Esperar</Button>
+                        )}
+                        {interestLoading && <Text type="secondary">Enviando...</Text>}
+                        {interestMessage && <Text type="success">{interestMessage}</Text>}
+                        {interestError && <Text type="danger">{interestError}</Text>}
+                      </Space>
+                      <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+                        “Esperar” aparece apenas para contratos com ≤ 60 dias.
+                      </Text>
+                    </Card>
+
+                    <Card size="small" style={{ borderRadius: 8 }}>
+                      <Text strong>Anotações do cliente</Text>
+                      <Divider style={{ margin: '8px 0' }} />
+                      <Input.TextArea placeholder="Escreva uma anotação..." autoSize={{ minRows: 3 }} value={noteText} onChange={(e) => { setNoteText(e.target.value); setNoteError(null); setNoteSaved(false) }} />
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                        <Button type="primary" size="small" onClick={async () => {
+                          if (!noteText.trim()) { setNoteError('Digite uma anotação antes de salvar'); return }
+                          if (!projetoSel) return
+                          try {
+                            const resp = await fetch(`${API_BASE_URL}/notes`, {
+                              method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionId}` },
+                              body: JSON.stringify({ contratoId: projetoSel.contrato.id, profissionalId: profissionalSel.id, texto: noteText.trim() })
+                            })
+                            const data = await resp.json()
+                            if (!resp.ok) throw new Error(data.error || 'Falha ao salvar anotação')
+                            setNoteSaved(true)
+                            setNoteError(null)
+                          } catch (e: any) {
+                            setNoteError(e.message)
+                            setNoteSaved(false)
+                          }
+                        }}>Salvar</Button>
+                      </div>
+                      <div style={{ marginTop: 6 }}>
+                        {noteError && <Text type="danger">{noteError}</Text>}
+                        {noteSaved && !noteError && <Text type="success">Anotação salva</Text>}
+                      </div>
+                    </Card>
+                  </Space>
                 </Col>
               </Row>
             </>

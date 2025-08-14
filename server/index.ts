@@ -825,6 +825,29 @@ app.post('/api/client-actions/interest', verificarSessao, async (req: any, res) 
   }
 })
 
+// Listar interesses do cliente (por contrato/profissional)
+app.get('/api/client-actions', verificarSessao, async (req: any, res) => {
+  try {
+    const { contratoId, profissionalId } = req.query as { contratoId?: string; profissionalId?: string }
+    const usuario = req.usuario
+    const whereClause: any = {}
+    if (contratoId) whereClause.contratoId = contratoId
+    if (profissionalId) whereClause.profissionalId = profissionalId
+    // Restringir por cliente do sistema quando não for admin
+    if (usuario.tipo !== 'admin') {
+      whereClause.clienteId = usuario.clienteId
+    }
+    const itens = await prisma.clienteInteresse.findMany({
+      where: whereClause,
+      orderBy: { createdAt: 'desc' }
+    })
+    res.json(itens)
+  } catch (error) {
+    console.error('Erro ao listar interesses:', { route: '/api/client-actions', error })
+    res.status(500).json({ error: 'Erro ao listar interesses' })
+  }
+})
+
 // Registrar anotação do cliente
 app.post('/api/notes', verificarSessao, async (req: any, res) => {
   try {
@@ -848,6 +871,28 @@ app.post('/api/notes', verificarSessao, async (req: any, res) => {
   } catch (error) {
     console.error('Erro ao registrar anotação:', { route: '/api/notes', error })
     res.status(500).json({ error: 'Erro ao registrar anotação' })
+  }
+})
+
+// Listar anotações do cliente (por contrato/profissional)
+app.get('/api/notes', verificarSessao, async (req: any, res) => {
+  try {
+    const { contratoId, profissionalId } = req.query as { contratoId?: string; profissionalId?: string }
+    const usuario = req.usuario
+    const whereClause: any = {}
+    if (contratoId) whereClause.contratoId = contratoId
+    if (profissionalId) whereClause.profissionalId = profissionalId
+    if (usuario.tipo !== 'admin') {
+      whereClause.clienteId = usuario.clienteId
+    }
+    const notas = await prisma.clienteNota.findMany({
+      where: whereClause,
+      orderBy: { createdAt: 'desc' }
+    })
+    res.json(notas)
+  } catch (error) {
+    console.error('Erro ao listar notas:', { route: '/api/notes', error })
+    res.status(500).json({ error: 'Erro ao listar notas' })
   }
 })
 
