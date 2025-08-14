@@ -1320,6 +1320,32 @@ const startServer = async () => {
   try {
     // Popular banco apenas se estiver vazio
     await seedDatabase()
+
+    // Garantir usuário Marcus (FTD) independente do seed inicial
+    try {
+      const ftd = await prisma.clienteSistema.findFirst({ where: { nome: 'FTD' } })
+      if (ftd) {
+        const existing = await prisma.usuario.findUnique({ where: { email: 'marcus@ftd.com.br' } })
+        if (!existing) {
+          const { criptografarSenha } = await import('./utils/auth.js')
+          const senhaMarcus = await criptografarSenha('ftd2025')
+          await prisma.usuario.create({
+            data: {
+              email: 'marcus@ftd.com.br',
+              senha: senhaMarcus,
+              tipo: 'cliente',
+              clienteId: ftd.id,
+              ativo: true
+            }
+          })
+          console.log('👤 Usuário Marcus (FTD) criado')
+        } else {
+          console.log('👤 Usuário Marcus (FTD) já existe')
+        }
+      }
+    } catch (e) {
+      console.error('Erro garantindo usuário Marcus:', e)
+    }
   } catch (error) {
     console.error('❌ Erro ao popular banco:', error)
   }
