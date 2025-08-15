@@ -449,7 +449,7 @@ app.post('/api/clientes', verificarSessao, async (req, res) => {
     const cliente = await prisma.cliente.create({
       data: {
         ...req.body,
-        clienteId: usuario.tipo === 'admin' ? req.body.clienteId : usuario.clienteId,
+        clienteId: usuario.clienteId || 'ftd', // Usar o clienteId do usuário logado ou 'ftd' como padrão
         telefone: req.body.telefone || null,
         endereco: req.body.endereco || null
       }
@@ -460,6 +460,7 @@ app.post('/api/clientes', verificarSessao, async (req, res) => {
       endereco: cliente.endereco || ''
     })
   } catch (error) {
+    console.error('Erro ao criar cliente:', error)
     res.status(500).json({ error: 'Erro ao criar cliente' })
   }
 })

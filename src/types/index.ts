@@ -30,6 +30,9 @@ export interface Cliente {
   email: string;
   telefone: string;
   endereco: string;
+  anoInicio: number;
+  segmento: string;
+  tamanho: string;
 }
 
 export interface Contrato {
