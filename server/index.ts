@@ -11,7 +11,7 @@ const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',')
   : (process.env.NODE_ENV === 'production'
       ? ['https://dashcliente-1.onrender.com', 'https://dashcliente.onrender.com']
-      : ['http://localhost:5173'])
+      : ['http://localhost:5173', 'http://10.0.1.214:5173', 'http://127.0.0.1:5173'])
 
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
@@ -28,22 +28,26 @@ app.use(cors(corsOptions))
 app.options('*', cors(corsOptions))
 app.use(express.json())
 
-// Middleware de sessão simples (em produção usar Redis ou similar)
-const sessions = new Map()
+import { generateToken, verifyToken, JWTPayload } from './utils/jwt.js'
 
-// Middleware para verificar sessão
+// Middleware para verificar JWT
 const verificarSessao = (req: any, res: any, next: any) => {
-  const sessionId = req.headers.authorization?.replace('Bearer ', '')
-  
-  console.log('Verificando sessão:', { sessionId, hasSession: sessions.has(sessionId) })
-  
-  if (sessionId && sessions.has(sessionId)) {
-    req.usuario = sessions.get(sessionId)
-    console.log('Usuário autenticado:', req.usuario)
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '')
+    
+    if (!token) {
+      console.log('Token não fornecido')
+      return res.status(401).json({ error: 'Token não fornecido' })
+    }
+    
+    const payload = verifyToken(token)
+    console.log('Token verificado:', { userId: payload.id, email: payload.email, tipo: payload.tipo })
+    
+    req.usuario = payload
     next()
-  } else {
-    console.log('Sessão inválida ou não encontrada')
-    res.status(401).json({ error: 'Não autorizado' })
+  } catch (error) {
+    console.log('Token inválido:', error.message)
+    res.status(401).json({ error: 'Token inválido ou expirado' })
   }
 }
 
@@ -343,10 +347,52 @@ app.post('/api/profissionais', verificarSessao, async (req, res) => {
   try {
     const { usuario } = req
     
-    // Adicionar cliente_id automaticamente se não for admin
+    // Debug: verificar dados do usuário
+    console.log('Dados do usuário:', {
+      tipo: usuario.tipo,
+      clienteId: usuario.clienteId,
+      bodyClienteId: req.body.clienteId
+    })
+    
+    // Validar clienteId antes de criar
+    let clienteIdFinal = null
+    
+    if (usuario.tipo === 'admin') {
+      // Admin pode especificar clienteId ou usar o próprio
+      if (req.body.clienteId) {
+        // Verificar se o clienteId existe
+        const clienteExiste = await prisma.clienteSistema.findUnique({
+          where: { id: req.body.clienteId }
+        })
+        if (!clienteExiste) {
+          return res.status(400).json({ 
+            error: 'ClienteId especificado não existe no sistema' 
+          })
+        }
+        clienteIdFinal = req.body.clienteId
+      } else if (usuario.clienteId) {
+        clienteIdFinal = usuario.clienteId
+      } else {
+        return res.status(400).json({ 
+          error: 'Admin deve especificar um clienteId válido' 
+        })
+      }
+    } else {
+      // Usuário cliente usa o próprio clienteId
+      if (!usuario.clienteId) {
+        return res.status(400).json({ 
+          error: 'Usuário não possui clienteId válido' 
+        })
+      }
+      clienteIdFinal = usuario.clienteId
+    }
+    
+    console.log('ClienteId final:', clienteIdFinal)
+    
+    // Adicionar cliente_id validado
     const dadosProfissional = {
       ...req.body,
-      clienteId: usuario.tipo === 'admin' ? (req.body.clienteId || usuario.clienteId) : usuario.clienteId
+      clienteId: clienteIdFinal
     }
     
     const profissional = await prisma.profissional.create({
@@ -362,12 +408,9 @@ app.post('/api/profissionais', verificarSessao, async (req, res) => {
   }
 })
 
-app.put('/api/profissionais/:id', async (req, res) => {
+app.put('/api/profissionais/:id', verificarSessao, async (req, res) => {
   try {
-    // Proteger por sessão e escopo de cliente
-    const sessionId = req.headers.authorization?.replace('Bearer ', '')
-    if (!sessionId || !sessions.has(sessionId)) return res.status(401).json({ error: 'Não autorizado' })
-    const usuario: any = sessions.get(sessionId)
+    const { usuario } = req
 
     // Se não for admin, garantir que o profissional pertence ao mesmo cliente
     if (usuario.tipo !== 'admin') {
@@ -388,12 +431,9 @@ app.put('/api/profissionais/:id', async (req, res) => {
   }
 })
 
-app.delete('/api/profissionais/:id', async (req, res) => {
+app.delete('/api/profissionais/:id', verificarSessao, async (req, res) => {
   try {
-    // Proteger por sessão e escopo de cliente
-    const sessionId = req.headers.authorization?.replace('Bearer ', '')
-    if (!sessionId || !sessions.has(sessionId)) return res.status(401).json({ error: 'Não autorizado' })
-    const usuario: any = sessions.get(sessionId)
+    const { usuario } = req
 
     if (usuario.tipo !== 'admin') {
       const existente = await prisma.profissional.findFirst({ where: { id: req.params.id, clienteId: usuario.clienteId } })
@@ -445,15 +485,39 @@ app.get('/api/clientes', verificarSessao, async (req, res) => {
 app.post('/api/clientes', verificarSessao, async (req, res) => {
   try {
     const { usuario } = req
+    console.log('Criando cliente:', { usuario, body: req.body })
+    
+    // Para usuários admin, usar o clienteId do corpo da requisição ou um padrão
+    let clienteId = req.body.clienteId
+    if (!clienteId) {
+      if (usuario.tipo === 'admin') {
+        // Admin pode escolher qualquer cliente do sistema
+        clienteId = 'cliente_matilha_default'
+      } else {
+        // Usuário cliente usa seu próprio clienteId
+        clienteId = usuario.clienteId
+      }
+    }
+    
+    if (!clienteId) {
+      return res.status(400).json({ error: 'clienteId é obrigatório' })
+    }
     
     const cliente = await prisma.cliente.create({
       data: {
-        ...req.body,
-        clienteId: usuario.clienteId || 'ftd', // Usar o clienteId do usuário logado ou 'ftd' como padrão
+        nome: req.body.nome,
+        empresa: req.body.empresa,
+        email: req.body.email,
         telefone: req.body.telefone || null,
-        endereco: req.body.endereco || null
+        endereco: req.body.endereco || null,
+        anoInicio: req.body.anoInicio,
+        segmento: req.body.segmento,
+        tamanho: req.body.tamanho,
+        clienteId: clienteId
       }
     })
+    
+    console.log('Cliente criado com sucesso:', cliente)
     res.json({
       ...cliente,
       telefone: cliente.telefone || '',
@@ -792,14 +856,12 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(401).json({ error: 'Credenciais inválidas' })
     }
 
-    // Criar sessão
-    const sessionId = Math.random().toString(36).substring(2) + Date.now().toString(36)
-    sessions.set(sessionId, {
+    // Gerar JWT
+    const token = generateToken({
       id: usuario.id,
       email: usuario.email,
       tipo: usuario.tipo,
-      clienteId: usuario.clienteId,
-      cliente: usuario.cliente
+      clienteId: usuario.clienteId
     })
 
     // Retornar dados do usuário (sem senha)
@@ -811,7 +873,7 @@ app.post('/api/auth/login', async (req, res) => {
         clienteId: usuario.clienteId,
         cliente: usuario.cliente
       },
-      sessionId
+      sessionId: token // Mantendo compatibilidade com o frontend
     })
   } catch (error) {
     console.error('Erro no login:', error)
@@ -821,12 +883,8 @@ app.post('/api/auth/login', async (req, res) => {
 
 app.post('/api/auth/logout', async (req, res) => {
   try {
-    const sessionId = req.headers.authorization?.replace('Bearer ', '')
-    
-    if (sessionId && sessions.has(sessionId)) {
-      sessions.delete(sessionId)
-    }
-    
+    // Com JWT, não precisamos fazer nada no servidor
+    // O token será invalidado no frontend
     res.json({ message: 'Logout realizado com sucesso' })
   } catch (error) {
     console.error('Erro no logout:', error)
@@ -861,15 +919,7 @@ app.post('/api/auth/impersonate', verificarSessao, async (req: any, res) => {
     if (!userCliente) {
       return res.status(404).json({ error: 'Usuário do cliente não encontrado' })
     }
-    const sessionId = Math.random().toString(36).substring(2) + Date.now().toString(36)
-    sessions.set(sessionId, {
-      id: userCliente.id,
-      email: userCliente.email,
-      tipo: 'cliente',
-      clienteId: userCliente.clienteId,
-      cliente: userCliente.cliente,
-      impersonatedBy: usuarioAdmin.email
-    })
+    // Para JWT, retornar dados do usuário cliente sem criar sessão
     return res.json({
       usuario: {
         id: userCliente.id,
@@ -879,7 +929,7 @@ app.post('/api/auth/impersonate', verificarSessao, async (req: any, res) => {
         cliente: userCliente.cliente,
         impersonatedBy: usuarioAdmin.email
       },
-      sessionId
+      message: 'Impersonação realizada com sucesso'
     })
   } catch (error) {
     console.error('Erro na impersonação:', error)

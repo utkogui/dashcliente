@@ -142,12 +142,10 @@ interface DataProviderProps {
   children: ReactNode
 }
 
+import { API_CONFIG } from '../config/api'
+
 // Configuração da API
-const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || (
-  process.env.NODE_ENV === 'production'
-    ? 'https://dashcliente.onrender.com/api' // URL correta do backend em produção
-    : 'http://localhost:3001/api'
-)
+const API_BASE_URL = API_CONFIG.BASE_URL
 
 // Funções auxiliares para chamadas da API
 const apiCall = async (endpoint: string, options: RequestInit = {}, sessionId?: string | null) => {

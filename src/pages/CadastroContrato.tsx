@@ -27,7 +27,7 @@ import dayjs from 'dayjs'
 
 const { Title, Text } = Typography
 const { Option } = Select
-const { TextArea } = Input
+
 
 const CadastroContrato = () => {
   const navigate = useNavigate()
@@ -52,6 +52,7 @@ const CadastroContrato = () => {
   const [despesasAdicionais, setDespesasAdicionais] = useState<Array<{
     descricao: string
     valor: string
+    tipo: string
   }>>([])
 
   // Função para calcular resumo em tempo real (base mensal)
@@ -64,39 +65,63 @@ const CadastroContrato = () => {
       if (formValues.tipoContrato === 'hora') {
         const quantidadeHoras = parseFloat(formValues.quantidadeHoras) || 0
         const valorHora = parseFloat(formValues.valorHora) || 0
-        valorContrato = quantidadeHoras * valorHora
-        if (formValues.valorContratoMensal && formValues.contratoIndeterminado) {
-          // Se o usuário marcou como mensal + indeterminado, considera 12 meses no total
-          valorContrato = valorContrato * 12
+        const tipoValor = formValues.tipoValorHora || 'total'
+        
+        if (tipoValor === 'mensal') {
+          valorContrato = quantidadeHoras * valorHora
+          if (formValues.contratoIndeterminado) {
+            // Se o usuário marcou como mensal + indeterminado, considera 12 meses no total
+            valorContrato = valorContrato * 12
+          }
+        } else {
+          valorContrato = quantidadeHoras * valorHora
         }
       } else {
-        valorContrato = parseFloat(formValues.valorContrato) || 0
+        // Para contratos fechados, considerar o tipo de valor
+        const tipoValor = formValues.tipoValorFechado || 'total'
+        if (tipoValor === 'mensal') {
+          valorContrato = parseFloat(formValues.valorContrato) || 0
+          if (formValues.contratoIndeterminado) {
+            // Se for mensal + indeterminado, considerar 12 meses
+            valorContrato = valorContrato * 12
+          }
+        } else {
+          // Se for total, usar diretamente
+          valorContrato = parseFloat(formValues.valorContrato) || 0
+        }
       }
 
-      // Base mensal para impostos e líquido
+      // Base mensal APENAS para custos de profissionais e despesas (não para impostos)
       let valorMensalBase = 0
       if (formValues.tipoContrato === 'hora') {
         const quantidadeHoras = parseFloat(formValues.quantidadeHoras) || 0
         const valorHora = parseFloat(formValues.valorHora) || 0
-        valorMensalBase = quantidadeHoras * valorHora
+        const tipoValor = formValues.tipoValorHora || 'total'
+        
+        if (tipoValor === 'mensal') {
+          valorMensalBase = quantidadeHoras * valorHora
+        } else {
+          // Para contratos por hora com valor total, usar base mensal padrão
+          // (não dividir por duração do projeto)
+          valorMensalBase = (quantidadeHoras * valorHora) / 12
+        }
       } else {
-        const contratoMensal = !!formValues.valorContratoMensal
-        if (contratoMensal) {
+        const tipoValor = formValues.tipoValorFechado || 'total'
+        if (tipoValor === 'mensal') {
           valorMensalBase = parseFloat(formValues.valorContrato) || 0
         } else {
-          // Converter total em mensal
-          const inicio = formValues.dataInicio ? dayjs(formValues.dataInicio) : null
-          const fim = formValues.dataFim ? dayjs(formValues.dataFim) : null
-          const meses = formValues.contratoIndeterminado || !inicio
-            ? 12
-            : Math.max(1, (fim && inicio) ? (fim.year() - inicio.year()) * 12 + (fim.month() - inicio.month()) : 12)
-          valorMensalBase = (parseFloat(formValues.valorContrato) || 0) / meses
+          // Para contratos fechados com valor total, usar base mensal padrão
+          // (não dividir por duração do projeto)
+          valorMensalBase = (parseFloat(formValues.valorContrato) || 0) / 12
         }
       }
 
-      // Calcular impostos (mensal)
+      // Calcular impostos
       const percentualImpostos = parseFloat(formValues.percentualImpostos) || 0
-      const valorImpostos = valorMensalBase * (percentualImpostos / 100)
+      
+      // IMPORTANTE: Impostos SEMPRE sobre valor TOTAL do contrato
+      // valorMensalBase é usado apenas para custos e despesas
+      const valorImpostos = valorContrato * (percentualImpostos / 100)
 
       // Calcular custo dos profissionais
       const custoProfissionais = profissionaisSelecionados.reduce((total, prof) => {
@@ -115,11 +140,20 @@ const CadastroContrato = () => {
 
       // Calcular despesas adicionais
       const totalDespesasAdicionais = despesasAdicionais.reduce((total, despesa) => {
-        return total + (parseFloat(despesa.valor) || 0)
+        const valor = parseFloat(despesa.valor) || 0
+        // Se for despesa mensal, considerar no cálculo mensal
+        if (despesa.tipo === 'mensal') {
+          return total + valor
+        }
+        // Se for despesa única, converter para mensal usando base padrão de 12 meses
+        // (não dividir por duração do projeto)
+        return total + (valor / 12)
       }, 0)
 
-      // Calcular margem (mensal)
-      const valorLiquido = valorMensalBase - valorImpostos
+      // Calcular margem
+      // IMPORTANTE: Margem calculada sobre valor TOTAL do contrato (não mensal)
+      // Datas do projeto são apenas para cronograma, não afetam cálculos financeiros
+      const valorLiquido = valorContrato - valorImpostos
       const margem = valorLiquido - custoProfissionais - totalDespesasAdicionais
       const percentualMargem = valorLiquido > 0 ? (margem / valorLiquido) * 100 : 0
 
@@ -130,7 +164,14 @@ const CadastroContrato = () => {
         custoProfissionais: custoProfissionais || 0,
         totalDespesasAdicionais: totalDespesasAdicionais || 0,
         margem: margem || 0,
-        percentualMargem: percentualMargem || 0
+        percentualMargem: percentualMargem || 0,
+        // Adicionar informações para debug
+        valorMensalBase: valorMensalBase || 0,
+        tipoCalculo: formValues.tipoContrato === 'hora' 
+          ? (formValues.tipoValorHora || 'total')
+          : (formValues.tipoValorFechado || 'total'),
+        // Informações sobre separação financeiro vs datas
+        observacao: 'Impostos e margem calculados sobre valor TOTAL. Datas são apenas para cronograma.'
       }
     } catch (error) {
       console.error('Erro ao calcular resumo:', error)
@@ -164,7 +205,8 @@ const CadastroContrato = () => {
           dataFim: contrato.dataFim ? dayjs(contrato.dataFim) : null,
           tipoContrato: contrato.tipoContrato,
           valorContrato: contrato.valorContrato.toString(),
-          valorContratoMensal: false,
+                            tipoValorHora: 'total',
+                  tipoValorFechado: 'total',
           percentualImpostos: contrato.valorImpostos > 0 ? 
             ((contrato.valorImpostos / contrato.valorContrato) * 100).toFixed(2) : '',
           valorImpostos: contrato.valorImpostos.toString(),
@@ -234,7 +276,8 @@ const CadastroContrato = () => {
   const handleAddDespesa = () => {
     setDespesasAdicionais(prev => [...prev, {
       descricao: '',
-      valor: ''
+      valor: '',
+      tipo: 'unica'
     }])
   }
 
@@ -259,7 +302,24 @@ const CadastroContrato = () => {
     }
   }
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (values: {
+    nomeProjeto: string
+    codigoContrato?: string
+    clienteId: string
+    dataInicio: dayjs.Dayjs
+    dataFim?: dayjs.Dayjs
+    tipoContrato: 'hora' | 'fechado'
+    quantidadeHoras?: string
+    valorHora?: string
+    tipoValorHora?: 'total' | 'mensal'
+    valorContrato?: string
+    tipoValorFechado?: 'total' | 'mensal'
+    percentualImpostos: string
+    status: string
+    observacoes?: string
+    contratoIndeterminado: boolean
+    quantidadeProfissionais: string
+  }) => {
     setError(null)
     setSubmitting(true)
 
@@ -318,22 +378,48 @@ const CadastroContrato = () => {
         }
       }
 
-      // Calcular valor total do contrato e impostos (sem depender do botão OK)
+      // Calcular valor total do contrato e impostos
+      // IMPORTANTE: Para impostos, sempre usar o valor TOTAL do contrato
       let valorContratoFinal = 0
+      let valorContratoParaImpostos = 0
+      
       if (values.tipoContrato === 'hora') {
         const quantidadeHoras = parseFloat(values.quantidadeHoras) || 0
         const valorHora = parseFloat(values.valorHora) || 0
-        valorContratoFinal = quantidadeHoras * valorHora
-        if (values.valorContratoMensal && values.contratoIndeterminado) {
-          valorContratoFinal = valorContratoFinal * 12
+        
+        if (values.tipoValorHora === 'mensal') {
+          // Se é mensal, converter para total
+          valorContratoFinal = quantidadeHoras * valorHora
+          if (values.contratoIndeterminado) {
+            valorContratoFinal = valorContratoFinal * 12
+          }
+        } else {
+          // Se é total, usar diretamente
+          valorContratoFinal = quantidadeHoras * valorHora
         }
+        
+        // Para impostos, sempre usar o valor TOTAL (não mensal)
+        valorContratoParaImpostos = quantidadeHoras * valorHora
       } else {
-        // Para contratos fechados, o valor já é o valor total
-        valorContratoFinal = parseFloat(values.valorContrato) || 0
+        // Para contratos fechados
+        if (values.tipoValorFechado === 'mensal') {
+          // Se é mensal, converter para total
+          valorContratoFinal = parseFloat(values.valorContrato) || 0
+          if (values.contratoIndeterminado) {
+            valorContratoFinal = valorContratoFinal * 12
+          }
+        } else {
+          // Se é total, usar diretamente
+          valorContratoFinal = parseFloat(values.valorContrato) || 0
+        }
+        
+        // Para impostos, sempre usar o valor TOTAL (não mensal)
+        valorContratoParaImpostos = parseFloat(values.valorContrato) || 0
       }
 
       const percentualImpostosNumber = parseFloat(values.percentualImpostos) || 13.0
-      const valorImpostosFinal = Number((valorContratoFinal * (percentualImpostosNumber / 100)).toFixed(2))
+      // IMPORTANTE: Impostos sempre sobre valor TOTAL, não sobre valor mensal
+      const valorImpostosFinal = Number((valorContratoParaImpostos * (percentualImpostosNumber / 100)).toFixed(2))
 
       const contratoData: NovoContrato = {
         nomeProjeto: values.nomeProjeto,
@@ -367,7 +453,8 @@ const CadastroContrato = () => {
         await addContrato(contratoData)
       }
       navigate('/contratos')
-    } catch (err) {
+    } catch (error) {
+      console.error('Erro ao cadastrar contrato:', error)
       setError('Erro ao cadastrar contrato. Tente novamente.')
     } finally {
       setSubmitting(false)
@@ -408,7 +495,8 @@ const CadastroContrato = () => {
                 initialValues={{
                   tipoContrato: 'hora',
                   contratoIndeterminado: false,
-                  valorContratoMensal: false,
+                  tipoValorHora: 'total',
+                  tipoValorFechado: 'total',
                   quantidadeProfissionais: '1'
                 }}
               >
@@ -481,30 +569,40 @@ const CadastroContrato = () => {
               </Col>
 
               {/* Data de Fim (quando não indeterminado) */}
-              <Col xs={24} md={12}>
-                <Form.Item
-                  name="dataFim"
-                  label="Data de Fim"
-                  dependencies={['contratoIndeterminado']}
-                  rules={[
-                    ({ getFieldValue }) => ({
-                      validator(_, value) {
-                        if (!getFieldValue('contratoIndeterminado') && !value) {
-                          return Promise.reject(new Error('Data de fim é obrigatória'));
-                        }
-                        return Promise.resolve();
-                      },
-                    }),
-                  ]}
-                >
-                  <DatePicker 
-                    style={{ width: '100%' }} 
-                    placeholder="Selecione a data"
-                    format="DD/MM/YYYY"
-                    disabled={form.getFieldValue('contratoIndeterminado')}
-                  />
-                </Form.Item>
-              </Col>
+              <Form.Item noStyle shouldUpdate>
+                {({ getFieldValue }) => {
+                  const contratoIndeterminado = getFieldValue('contratoIndeterminado')
+                  
+                  if (contratoIndeterminado) {
+                    return null // Não mostra o campo quando indeterminado
+                  }
+                  
+                  return (
+                    <Col xs={24} md={12}>
+                      <Form.Item
+                        name="dataFim"
+                        label="Data de Fim"
+                        rules={[
+                          ({ getFieldValue }) => ({
+                            validator(_, value) {
+                              if (!getFieldValue('contratoIndeterminado') && !value) {
+                                return Promise.reject(new Error('Data de fim é obrigatória'));
+                              }
+                              return Promise.resolve();
+                            },
+                          }),
+                        ]}
+                      >
+                        <DatePicker 
+                          style={{ width: '100%' }} 
+                          placeholder="Selecione a data"
+                          format="DD/MM/YYYY"
+                        />
+                      </Form.Item>
+                    </Col>
+                  )
+                }}
+              </Form.Item>
             </Row>
 
             <Divider />
@@ -568,10 +666,14 @@ const CadastroContrato = () => {
                       </Col>
                       <Col xs={24} md={8}>
                         <Form.Item
-                          name="valorContratoMensal"
-                          valuePropName="checked"
+                          name="tipoValorHora"
+                          label="Tipo de Valor"
+                          rules={[{ required: true, message: 'Tipo de valor é obrigatório' }]}
                         >
-                          <Checkbox>Valor é mensal</Checkbox>
+                          <Radio.Group>
+                            <Radio value="total">Valor Total</Radio>
+                            <Radio value="mensal">Valor Mensal</Radio>
+                          </Radio.Group>
                         </Form.Item>
                       </Col>
                     </Row>
@@ -599,10 +701,14 @@ const CadastroContrato = () => {
                       <Row gutter={[16, 16]}>
                         <Col xs={24}>
                           <Form.Item
-                            name="valorContratoMensal"
-                            valuePropName="checked"
+                            name="tipoValorFechado"
+                            label="Tipo de Valor"
+                            rules={[{ required: true, message: 'Tipo de valor é obrigatório' }]}
                           >
-                            <Checkbox>Valor é mensal</Checkbox>
+                            <Radio.Group>
+                              <Radio value="total">Valor Total</Radio>
+                              <Radio value="mensal">Valor Mensal</Radio>
+                            </Radio.Group>
                           </Form.Item>
                         </Col>
                       </Row>
@@ -614,10 +720,13 @@ const CadastroContrato = () => {
 
             <Form.Item noStyle shouldUpdate>
               {({ getFieldValue }) => {
-                const valorContratoMensal = getFieldValue('valorContratoMensal')
                 const contratoIndeterminado = getFieldValue('contratoIndeterminado')
                 
-                if (valorContratoMensal && contratoIndeterminado) {
+                const tipoValor = getFieldValue('tipoContrato') === 'hora' 
+                  ? getFieldValue('tipoValorHora') 
+                  : getFieldValue('tipoValorFechado')
+                
+                if (tipoValor === 'mensal' && contratoIndeterminado) {
                   return (
                     <Row gutter={[16, 16]}>
                       <Col xs={24}>
@@ -659,27 +768,21 @@ const CadastroContrato = () => {
                     onClick={() => {
                       const formValues = form.getFieldsValue()
                       const percentualImpostos = parseFloat(formValues.percentualImpostos) || 0
-                      // Calcular base mensal para impostos
-                      let valorMensalBase = 0
+                      
+                      // CÁLCULO SIMPLES: valor total × percentual (ignorar tempo)
+                      let valorContratoTotal = 0
+                      
                       if (formValues.tipoContrato === 'hora') {
                         const quantidadeHoras = parseFloat(formValues.quantidadeHoras) || 0
                         const valorHora = parseFloat(formValues.valorHora) || 0
-                        valorMensalBase = quantidadeHoras * valorHora
+                        valorContratoTotal = quantidadeHoras * valorHora
                       } else {
-                        const contratoMensal = !!formValues.valorContratoMensal
-                        if (contratoMensal) {
-                          valorMensalBase = parseFloat(formValues.valorContrato) || 0
-                        } else {
-                          const inicio = formValues.dataInicio ? dayjs(formValues.dataInicio) : null
-                          const fim = formValues.dataFim ? dayjs(formValues.dataFim) : null
-                          const meses = formValues.contratoIndeterminado || !inicio
-                            ? 12
-                            : Math.max(1, (fim && inicio) ? (fim.year() - inicio.year()) * 12 + (fim.month() - inicio.month()) : 12)
-                          valorMensalBase = (parseFloat(formValues.valorContrato) || 0) / meses
-                        }
+                        // Para contratos fechados, usar o valor digitado
+                        valorContratoTotal = parseFloat(formValues.valorContrato) || 0
                       }
 
-                      const valorImpostos = valorMensalBase * (percentualImpostos / 100)
+                      // Fórmula: valor total × percentual
+                      const valorImpostos = valorContratoTotal * (percentualImpostos / 100)
                       form.setFieldValue('valorImpostos', valorImpostos.toFixed(2))
                     }}
                     style={{ width: '100%', height: '32px' }}
@@ -749,7 +852,7 @@ const CadastroContrato = () => {
                 >
                   <div style={{ width: '100%' }}>
                     <Row gutter={[16, 16]} align="middle">
-                      <Col xs={24} md={12}>
+                      <Col xs={24} md={8}>
                         <Form.Item
                           label="Descrição"
                           style={{ marginBottom: 0 }}
@@ -762,7 +865,7 @@ const CadastroContrato = () => {
                           />
                         </Form.Item>
                       </Col>
-                      <Col xs={24} md={12}>
+                      <Col xs={24} md={6}>
                         <Form.Item
                           label="Valor"
                           style={{ marginBottom: 0 }}
@@ -777,6 +880,22 @@ const CadastroContrato = () => {
                             onChange={(e) => handleDespesaChange(index, 'valor', e.target.value)}
                             disabled={submitting}
                           />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={6}>
+                        <Form.Item
+                          label="Tipo"
+                          style={{ marginBottom: 0 }}
+                        >
+                          <Select
+                            placeholder="Selecione"
+                            value={despesa.tipo || 'unica'}
+                            onChange={(value) => handleDespesaChange(index, 'tipo', value)}
+                            disabled={submitting}
+                          >
+                            <Option value="unica">Despesa Única</Option>
+                            <Option value="mensal">Despesa Mensal</Option>
+                          </Select>
                         </Form.Item>
                       </Col>
                     </Row>
@@ -945,7 +1064,7 @@ const CadastroContrato = () => {
               <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => {
                 const relevantFields = [
                   'tipoContrato', 'quantidadeHoras', 'valorHora', 'valorContrato', 
-                  'valorContratoMensal', 'contratoIndeterminado', 'percentualImpostos', 'valorImpostos'
+                  'tipoValorHora', 'tipoValorFechado', 'contratoIndeterminado', 'percentualImpostos', 'valorImpostos'
                 ]
                 return relevantFields.some(field => prevValues[field] !== currentValues[field])
               }}>
@@ -1011,6 +1130,10 @@ const CadastroContrato = () => {
                           • Profissionais: {profissionaisSelecionados.length}<br/>
                           • Despesas: {despesasAdicionais.length}<br/>
                           • Contrato: {form.getFieldValue('contratoIndeterminado') ? 'Indeterminado' : 'Determinado'}<br/>
+                • Tipo de Valor: {form.getFieldValue('tipoContrato') === 'hora' 
+                  ? (form.getFieldValue('tipoValorHora') === 'mensal' ? 'Mensal' : 'Total')
+                  : (form.getFieldValue('tipoValorFechado') === 'mensal' ? 'Mensal' : 'Total')
+                }<br/>
                           • Tipo: {form.getFieldValue('tipoContrato') === 'hora' ? 'Por Horas' : 'Valor Fechado'}
                         </Text>
                       </div>
@@ -1030,7 +1153,10 @@ const CadastroContrato = () => {
         valorContrato={parseFloat(form.getFieldValue('valorContrato')) || 0}
         valorImpostos={parseFloat(form.getFieldValue('valorImpostos')) || 0}
         quantidadeProfissionais={parseInt(form.getFieldValue('quantidadeProfissionais')) || 1}
-        isMensal={form.getFieldValue('valorContratoMensal')}
+                        isMensal={form.getFieldValue('tipoContrato') === 'hora' 
+                  ? form.getFieldValue('tipoValorHora') === 'mensal'
+                  : form.getFieldValue('tipoValorFechado') === 'mensal'
+                }
         onAplicarSugestao={handleAplicarSugestao}
       />
     </div>

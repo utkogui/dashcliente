@@ -271,23 +271,23 @@ const VisaoClienteAnt = () => {
           </div>
           <Row gutter={[16, 16]}>
             <Col xs={24} sm={12} md={8}>
-              <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar profissionais ou projetos..." prefix={<SearchOutlined />} style={{ background: '#f8fafc', borderRadius: 8 }} />
+              <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="🔍 Buscar profissionais, projetos ou especialidades..." prefix={<SearchOutlined />} style={{ background: '#f8fafc', borderRadius: 8 }} />
             </Col>
             <Col xs={24} sm={12} md={8}>
-              <Select value={filterStatus} onChange={setFilterStatus} style={{ width: '100%' }} placeholder="Status">
+              <Select value={filterStatus} onChange={setFilterStatus} style={{ width: '100%' }} placeholder="📊 Status do Profissional">
                 <Select.Option value="todos">Todos</Select.Option>
                 <Select.Option value="ativo">Ativos</Select.Option>
                 <Select.Option value="aguardando">Aguardando Contrato</Select.Option>
               </Select>
             </Col>
             <Col xs={24} sm={12} md={8}>
-              <Select value={filterEspecialidade} onChange={setFilterEspecialidade} style={{ width: '100%' }} placeholder="Especialidade">
+              <Select value={filterEspecialidade} onChange={setFilterEspecialidade} style={{ width: '100%' }} placeholder="🎯 Área de Especialização">
                 <Select.Option value="todas">Todas as Especialidades</Select.Option>
                 {especialidades.map(esp => <Select.Option key={esp} value={esp}>{esp}</Select.Option>)}
               </Select>
             </Col>
             <Col xs={24} sm={12} md={8}>
-              <Select value={filterPrazo} onChange={(v) => setFilterPrazo(v as any)} style={{ width: '100%' }} placeholder="Prazo">
+              <Select value={filterPrazo} onChange={(v) => setFilterPrazo(v as any)} style={{ width: '100%' }} placeholder="⏰ Prazo do Contrato">
                 <Select.Option value="todos">Todos</Select.Option>
                 <Select.Option value="<60">Menos de 60 dias</Select.Option>
                 <Select.Option value="<30">Menos de 30 dias</Select.Option>
@@ -296,13 +296,13 @@ const VisaoClienteAnt = () => {
               </Select>
             </Col>
             <Col xs={24} sm={12} md={8}>
-              <Select value={filterSenioridade} onChange={setFilterSenioridade} style={{ width: '100%' }} placeholder="Senioridade">
+              <Select value={filterSenioridade} onChange={setFilterSenioridade} style={{ width: '100%' }} placeholder="👨‍💼 Nível de Senioridade">
                 <Select.Option value="todas">Todas</Select.Option>
                 {senioridades.map(l => <Select.Option key={l} value={l}>{l}</Select.Option>)}
               </Select>
             </Col>
             <Col xs={24} sm={12} md={8}>
-              <Select value={orderBy} onChange={(v) => setOrderBy(v as any)} style={{ width: '100%' }} placeholder="Ordenar por">
+              <Select value={orderBy} onChange={(v) => setOrderBy(v as any)} style={{ width: '100%' }} placeholder="🔄 Ordenação dos Resultados">
                 <Select.Option value="prazo">Prazo (menor→maior)</Select.Option>
                 <Select.Option value="status">Status (ativos primeiro)</Select.Option>
               </Select>

@@ -1,12 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-// Configuração da API
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (
-  process.env.NODE_ENV === 'production'
-    ? 'https://dashcliente.onrender.com/api'
-    : 'http://localhost:3001/api'
-)
+import { loginUser, checkAuth, API_CONFIG } from '../config/api'
 
 // Tipos
 interface Usuario {
@@ -70,24 +65,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return
       }
 
-      const response = await fetch(`${API_BASE_URL}/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${savedSessionId}`
-        },
-        credentials: 'include'
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setUsuario(data.usuario)
-        setSessionId(savedSessionId)
-        // Se estiver logado como cliente e estiver em rota admin, poderíamos forçar navegação (opcional)
-      } else {
-        // Sessão inválida, limpar dados
+      // Verificar se o token não expirou
+      const tokenData = JSON.parse(atob(savedSessionId.split('.')[1]))
+      const currentTime = Date.now() / 1000
+      
+      if (tokenData.exp < currentTime) {
+        console.log('Token expirado')
         localStorage.removeItem('sessionId')
         setUsuario(null)
         setSessionId(null)
+        setLoading(false)
+        return
       }
+
+      const data = await checkAuth(savedSessionId)
+      setUsuario(data.usuario)
+      setSessionId(savedSessionId)
+      // Se estiver logado como cliente e estiver em rota admin, poderíamos forçar navegação (opcional)
     } catch (error) {
       console.error('Erro ao verificar autenticação:', error)
       localStorage.removeItem('sessionId')
@@ -100,32 +94,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, senha: string): Promise<void> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, senha }),
-        credentials: 'include'
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        setUsuario(data.usuario)
-        setSessionId(data.sessionId)
-        localStorage.setItem('sessionId', data.sessionId)
-        
-        // Redirecionar baseado no tipo de usuário
-        if (data.usuario.tipo === 'admin') {
-          navigate('/dashboard')
-        } else {
-          navigate('/visao-cliente')
-        }
+      const data = await loginUser(email, senha)
+      
+      setUsuario(data.usuario)
+      setSessionId(data.sessionId)
+      localStorage.setItem('sessionId', data.sessionId)
+      
+      // Redirecionar baseado no tipo de usuário
+      if (data.usuario.tipo === 'admin') {
+        navigate('/dashboard')
       } else {
-        console.error('Erro no login:', data.error)
-        // Retornar mensagem de erro específica
-        throw new Error(data.error || 'Erro ao fazer login')
+        navigate('/visao-cliente')
       }
     } catch (error) {
       console.error('Erro ao fazer login:', error)
@@ -139,7 +118,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = async (): Promise<void> => {
     try {
       if (sessionId) {
-        await fetch(`${API_BASE_URL}/auth/logout`, {
+        await fetch(`${API_CONFIG.BASE_URL}/auth/logout`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${sessionId}`

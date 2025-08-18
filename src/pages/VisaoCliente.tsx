@@ -318,7 +318,7 @@ const VisaoCliente = () => {
               <TextField
                 fullWidth
                 size="small"
-                placeholder="Buscar profissionais ou projetos..."
+                placeholder="🔍 Buscar profissionais, projetos ou especialidades..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 InputProps={{
@@ -336,7 +336,7 @@ const VisaoCliente = () => {
             </Grid>
             <Grid item xs={12} sm={6} md={4}>
               <FormControl fullWidth size="small">
-                <InputLabel>Status</InputLabel>
+                <InputLabel>📊 Status do Profissional</InputLabel>
                 <Select
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value)}
@@ -355,7 +355,7 @@ const VisaoCliente = () => {
             </Grid>
             <Grid item xs={12} sm={6} md={4}>
               <FormControl fullWidth size="small">
-                <InputLabel>Especialidade</InputLabel>
+                <InputLabel>🎯 Área de Especialização</InputLabel>
                 <Select
                   value={filterEspecialidade}
                   onChange={(e) => setFilterEspecialidade(e.target.value)}
@@ -377,7 +377,7 @@ const VisaoCliente = () => {
             </Grid>
             <Grid item xs={12} sm={6} md={4}>
               <FormControl fullWidth size="small">
-                <InputLabel>Prazo</InputLabel>
+                <InputLabel>⏰ Prazo do Contrato</InputLabel>
                 <Select
                   value={filterPrazo}
                   onChange={(e) => setFilterPrazo(e.target.value as any)}
@@ -393,7 +393,7 @@ const VisaoCliente = () => {
             </Grid>
             <Grid item xs={12} sm={6} md={4}>
               <FormControl fullWidth size="small">
-                <InputLabel>Senioridade</InputLabel>
+                <InputLabel>👨‍💼 Nível de Senioridade</InputLabel>
                 <Select
                   value={filterSenioridade}
                   onChange={(e) => setFilterSenioridade(e.target.value)}
@@ -410,7 +410,7 @@ const VisaoCliente = () => {
             </Grid>
             <Grid item xs={12} sm={6} md={4}>
               <FormControl fullWidth size="small">
-                <InputLabel>Ordenar por</InputLabel>
+                <InputLabel>🔄 Ordenação dos Resultados</InputLabel>
                 <Select
                   value={orderBy}
                   onChange={(e) => setOrderBy(e.target.value as any)}

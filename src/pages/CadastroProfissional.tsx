@@ -36,6 +36,10 @@ const CadastroProfissional: React.FC = () => {
   const [form] = Form.useForm()
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  
+  // Debug: verificar se o usuário está sendo carregado
+  console.log('🔍 Debug - Componente CadastroProfissional renderizado')
+  console.log('🔍 Debug - usuario do useAuth():', usuario)
 
   const [formState, setFormState] = useState<{ tipoContrato: 'hora' | 'fechado'; perfil?: string; especialidadeEspecifica?: string; tags: string[] }>({ tipoContrato: 'hora', tags: [] })
   const [newTag, setNewTag] = useState('')
@@ -71,6 +75,33 @@ const CadastroProfissional: React.FC = () => {
   const onFinish = async (values: ProfissionalFormData) => {
     setError(null)
     setSubmitting(true)
+    
+    // Debug: verificar dados do usuário
+    console.log('🔍 Debug - Dados do usuário:', usuario)
+    console.log('🔍 Debug - usuario?.clienteId:', usuario?.clienteId)
+    console.log('🔍 Debug - Tipo do usuario:', typeof usuario)
+    
+    // Para admin, usar clienteId do formulário. Para cliente, usar clienteId do usuário
+    let clienteIdParaUsar = usuario?.clienteId
+    
+    if (usuario?.tipo === 'admin') {
+      // Admin deve selecionar o cliente no formulário
+      if (!values.clienteId) {
+        setError('Admin deve selecionar um cliente do sistema.')
+        setSubmitting(false)
+        return
+      }
+      clienteIdParaUsar = values.clienteId
+    } else if (!usuario?.clienteId) {
+      // Cliente deve ter clienteId válido
+      console.error('❌ Usuário cliente sem clienteId válido:', usuario)
+      setError('Usuário não possui clienteId válido. Entre em contato com o administrador.')
+      setSubmitting(false)
+      return
+    }
+    
+    console.log('🔍 Debug - clienteId que será usado:', clienteIdParaUsar)
+    
     try {
       const payload: ProfissionalFormData = {
         nome: values.nome,
@@ -86,7 +117,7 @@ const CadastroProfissional: React.FC = () => {
         valorPago: parseFloat(values.valorPago.toString()),
         status: values.status,
         tags: formState.tags.join(',') || null,
-        clienteId: usuario?.clienteId || 'ftd', // Usar o clienteId do usuário logado ou 'ftd' como padrão
+        clienteId: clienteIdParaUsar!, // Usar o clienteId determinado pela lógica
         contatoClienteEmail: values.contatoClienteEmail || null,
         contatoClienteTeams: values.contatoClienteTeams || null,
         contatoClienteTelefone: values.contatoClienteTelefone || null,
@@ -94,9 +125,13 @@ const CadastroProfissional: React.FC = () => {
         contatoMatilhaTeams: values.contatoMatilhaTeams || null,
         contatoMatilhaTelefone: values.contatoMatilhaTelefone || null,
       }
+      
+      console.log('🔍 Debug - Payload para cadastro:', payload)
+      
       await addProfissional(payload)
       navigate('/profissionais')
-    } catch {
+    } catch (error) {
+      console.error('Erro ao cadastrar profissional:', error)
       setError('Erro ao cadastrar profissional. Tente novamente.')
     } finally {
       setSubmitting(false)
@@ -111,7 +146,12 @@ const CadastroProfissional: React.FC = () => {
       </div>
 
       <Card>
-        <Form form={form} layout="vertical" onFinish={onFinish} initialValues={{ tipoContrato: 'hora', status: 'ativo', periodoFechado: 'mensal' }}>
+        <Form form={form} layout="vertical" onFinish={onFinish} initialValues={{ 
+          tipoContrato: 'hora', 
+          status: 'ativo', 
+          periodoFechado: 'mensal',
+          clienteId: usuario?.tipo === 'admin' ? undefined : usuario?.clienteId
+        }}>
           <Row gutter={[16, 16]}>
             <Col xs={24} md={12}>
               <Form.Item name="nome" label="Nome Completo" rules={[{ required: true, message: 'Nome é obrigatório' }]}>
@@ -158,6 +198,22 @@ const CadastroProfissional: React.FC = () => {
                 <Input type="date" />
               </Form.Item>
             </Col>
+            
+            {/* Campo para admin selecionar cliente */}
+            {usuario?.tipo === 'admin' && (
+              <Col xs={24} md={12}>
+                <Form.Item 
+                  name="clienteId" 
+                  label="Cliente do Sistema" 
+                  rules={[{ required: true, message: 'Cliente é obrigatório para admin' }]}
+                >
+                  <Select placeholder="Selecione o cliente">
+                    <Select.Option value="cme1imy560000a71egelnpyzy">FTD</Select.Option>
+                    <Select.Option value="cliente_matilha_default">Matilha</Select.Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+            )}
 
             <Col span={24}>
               <Typography.Title level={4} style={{ marginBottom: 8, color: '#1890ff' }}>Tipo de Contrato</Typography.Title>
