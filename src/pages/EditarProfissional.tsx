@@ -14,9 +14,11 @@ import {
   Row,
   Col,
   Divider,
-  Tag
+  Tag,
+  Upload,
+  message
 } from 'antd'
-import { ArrowLeftOutlined, SaveOutlined, PlusOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, SaveOutlined, PlusOutlined, UploadOutlined, FileTextOutlined } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext'
 import { 
@@ -40,6 +42,8 @@ const EditarProfissional = () => {
   const [tags, setTags] = useState<string[]>([])
   const [newTag, setNewTag] = useState('')
   const [especialidadesPorPerfil, setEspecialidadesPorPerfil] = useState<string[]>([])
+  const [arquivoContrato, setArquivoContrato] = useState<File | null>(null)
+  const [arquivoContratoExistente, setArquivoContratoExistente] = useState<string | null>(null)
 
   const especialidades = [
     'Desenvolvedor Full Stack',
@@ -85,6 +89,7 @@ const EditarProfissional = () => {
           especialidade: profissional.especialidade || '',
           perfil: profissional.perfil || '',
           especialidadeEspecifica: profissional.especialidadeEspecifica || '',
+          gestorInterno: profissional.gestorInterno || '',
           dataInicio: profissional.dataInicio ? dayjs(profissional.dataInicio) : null,
           tipoContrato: profissional.tipoContrato || 'hora',
           valorHora: profissional.valorHora?.toString() || '',
@@ -99,6 +104,11 @@ const EditarProfissional = () => {
           contatoMatilhaTeams: profissional.contatoMatilhaTeams || '',
           contatoMatilhaTelefone: profissional.contatoMatilhaTelefone || ''
         })
+        
+        // Carregar arquivo de contrato existente
+        if (profissional.contratoArquivo) {
+          setArquivoContratoExistente(profissional.contratoArquivo)
+        }
         
         // Atualizar especialidades disponíveis para o perfil
         if (profissional.perfil) {
@@ -134,6 +144,59 @@ const EditarProfissional = () => {
     }
   }
 
+  const handleUploadContrato = async (info: any) => {
+    const { file } = info
+    
+    // Validar tipo de arquivo
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg']
+    if (!allowedTypes.includes(file.type)) {
+      message.error('Apenas arquivos PDF, JPG, JPEG e PNG são permitidos')
+      return
+    }
+    
+    // Validar tamanho (máximo 10MB)
+    const maxSize = 10 * 1024 * 1024 // 10MB
+    if (file.size > maxSize) {
+      message.error('Arquivo muito grande. Tamanho máximo permitido: 10MB')
+      return
+    }
+    
+    try {
+      // Simular upload do arquivo (em produção, aqui faria upload para servidor)
+      const fileName = `contrato_${Date.now()}_${file.name}`
+      
+      // Atualizar o profissional com o nome do arquivo
+      const profissionalData = {
+        contratoArquivo: fileName
+      }
+      
+      await updateProfissional(id!, profissionalData)
+      
+      setArquivoContrato(file)
+      setArquivoContratoExistente(fileName)
+      message.success('Arquivo enviado com sucesso!')
+    } catch (error) {
+      message.error('Erro ao enviar arquivo. Tente novamente.')
+    }
+  }
+
+  const handleRemoveContrato = async () => {
+    try {
+      // Atualizar o profissional removendo o arquivo
+      const profissionalData = {
+        contratoArquivo: null
+      }
+      
+      await updateProfissional(id!, profissionalData)
+      
+      setArquivoContrato(null)
+      setArquivoContratoExistente(null)
+      message.info('Arquivo removido com sucesso!')
+    } catch (error) {
+      message.error('Erro ao remover arquivo. Tente novamente.')
+    }
+  }
+
   const handleSubmit = async (values: any) => {
     setError(null)
     setSubmitting(true)
@@ -145,6 +208,8 @@ const EditarProfissional = () => {
         especialidade: values.especialidade,
         perfil: values.perfil || null,
         especialidadeEspecifica: values.especialidadeEspecifica || null,
+        contratoArquivo: arquivoContrato ? arquivoContrato.name : arquivoContratoExistente,
+        gestorInterno: values.gestorInterno && values.gestorInterno.trim() ? values.gestorInterno.trim() : null,
         dataInicio: values.dataInicio?.format('YYYY-MM-DD') || '',
         tipoContrato: values.tipoContrato,
         valorHora: values.tipoContrato === 'hora' ? parseFloat(values.valorHora) : null,
@@ -308,30 +373,96 @@ const EditarProfissional = () => {
                 </Form.Item>
               </Col>
 
-              {/* Especialidade Específica */}
+              {/* Upload de Contrato */}
               <Col xs={24} md={12}>
                 <Form.Item
-                  name="especialidadeEspecifica"
-                  label="Especialidade Específica"
+                  label="Contrato do Profissional"
+                  extra="Faça upload do contrato em PDF, JPG, JPEG ou PNG (máximo 10MB)"
                 >
-                  <Select 
-                    placeholder="Selecione a especialidade específica"
-                    disabled={!form.getFieldValue('perfil')}
-                    onChange={(value) => {
-                      if (value && form.getFieldValue('perfil') && form.getFieldValue('tipoContrato') === 'hora') {
-                        const valorHora = obterValorHora(form.getFieldValue('perfil'), value)
-                        if (valorHora) {
-                          form.setFieldsValue({ valorHora: valorHora.toString() })
-                        }
-                      }
-                    }}
-                  >
-                    {especialidadesPorPerfil.map((especialidade) => (
-                      <Option key={especialidade} value={especialidade}>
-                        {especialidade}
-                      </Option>
-                    ))}
-                  </Select>
+                  <div>
+                    {/* Arquivo existente */}
+                    {arquivoContratoExistente && !arquivoContrato && (
+                      <div style={{ 
+                        padding: '8px 12px', 
+                        border: '1px solid #d9d9d9', 
+                        borderRadius: '6px', 
+                        backgroundColor: '#fafafa',
+                        marginBottom: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between'
+                      }}>
+                        <Space>
+                          <FileTextOutlined />
+                          <span>{arquivoContratoExistente}</span>
+                        </Space>
+                        <Button 
+                          type="link" 
+                          danger 
+                          size="small"
+                          onClick={handleRemoveContrato}
+                        >
+                          Remover
+                        </Button>
+                      </div>
+                    )}
+                    
+                    {/* Novo arquivo selecionado */}
+                    {arquivoContrato && (
+                      <div style={{ 
+                        padding: '8px 12px', 
+                        border: '1px solid #52c41a', 
+                        borderRadius: '6px', 
+                        backgroundColor: '#f6ffed',
+                        marginBottom: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between'
+                      }}>
+                        <Space>
+                          <FileTextOutlined style={{ color: '#52c41a' }} />
+                          <span>{arquivoContrato.name}</span>
+                          <span style={{ color: '#52c41a', fontSize: '12px' }}>
+                            ({(arquivoContrato.size / 1024 / 1024).toFixed(2)} MB)
+                          </span>
+                        </Space>
+                        <Button 
+                          type="link" 
+                          danger 
+                          size="small"
+                          onClick={handleRemoveContrato}
+                        >
+                          Remover
+                        </Button>
+                      </div>
+                    )}
+                    
+                    {/* Upload component */}
+                    <Upload
+                      beforeUpload={() => false} // Impede upload automático
+                      onChange={handleUploadContrato}
+                      showUploadList={false}
+                      accept=".pdf,.jpg,.jpeg,.png"
+                    >
+                      <Button icon={<UploadOutlined />}>
+                        {arquivoContratoExistente || arquivoContrato ? 'Alterar Arquivo' : 'Selecionar Arquivo'}
+                      </Button>
+                    </Upload>
+                  </div>
+                </Form.Item>
+              </Col>
+
+              {/* Gestor Interno */}
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="gestorInterno"
+                  label="Gestor Interno"
+                  extra="Nome do gestor interno do cliente responsável por este profissional"
+                >
+                  <Input 
+                    placeholder="Digite o nome do gestor interno"
+                    style={{ borderRadius: 6 }}
+                  />
                 </Form.Item>
               </Col>
 

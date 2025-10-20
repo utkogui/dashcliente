@@ -11,7 +11,7 @@ const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',')
   : (process.env.NODE_ENV === 'production'
       ? ['https://dashcliente-1.onrender.com', 'https://dashcliente.onrender.com']
-      : ['http://localhost:5173', 'http://10.0.1.214:5173', 'http://127.0.0.1:5173'])
+      : ['http://localhost:5173', 'http://localhost:5176', 'http://10.0.1.214:5173', 'http://127.0.0.1:5173'])
 
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
@@ -411,6 +411,8 @@ app.post('/api/profissionais', verificarSessao, async (req, res) => {
 app.put('/api/profissionais/:id', verificarSessao, async (req, res) => {
   try {
     const { usuario } = req
+    console.log('🔄 Atualizando profissional:', req.params.id)
+    console.log('📝 Dados recebidos:', JSON.stringify(req.body, null, 2))
 
     // Se não for admin, garantir que o profissional pertence ao mesmo cliente
     if (usuario.tipo !== 'admin') {
@@ -422,11 +424,14 @@ app.put('/api/profissionais/:id', verificarSessao, async (req, res) => {
       where: { id: req.params.id },
       data: req.body
     })
+    
+    console.log('✅ Profissional atualizado com sucesso')
     res.json({
       ...profissional,
       status: profissional.status as 'ativo' | 'inativo' | 'ferias'
     })
   } catch (error) {
+    console.error('❌ Erro ao atualizar profissional:', error)
     res.status(500).json({ error: 'Erro ao atualizar profissional' })
   }
 })

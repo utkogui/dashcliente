@@ -6,6 +6,8 @@ export interface Profissional {
   especialidade: string;
   perfil?: string;
   especialidadeEspecifica?: string;
+  contratoArquivo?: string;
+  gestorInterno?: string; // Nome do gestor interno do cliente
   dataInicio: string;
   tipoContrato: 'hora' | 'fechado';
   valorHora?: number;

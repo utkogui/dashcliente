@@ -12,6 +12,7 @@ interface ProfissionalFormData {
   especialidade: string
   perfil: string | null
   especialidadeEspecifica: string | null
+  gestorInterno: string | null
   dataInicio: string
   tipoContrato: 'hora' | 'fechado'
   valorHora: number | null
@@ -109,6 +110,7 @@ const CadastroProfissional: React.FC = () => {
         especialidade: values.especialidade,
         perfil: values.perfil || null,
         especialidadeEspecifica: values.especialidadeEspecifica || null,
+        gestorInterno: values.gestorInterno && values.gestorInterno.trim() ? values.gestorInterno.trim() : null,
         dataInicio: values.dataInicio,
         tipoContrato: values.tipoContrato,
         valorHora: values.tipoContrato === 'hora' ? parseFloat(values.valorHora?.toString() || '0') : null,
@@ -193,6 +195,13 @@ const CadastroProfissional: React.FC = () => {
                 </Select>
               </Form.Item>
             </Col>
+
+            <Col xs={24} md={12}>
+              <Form.Item name="gestorInterno" label="Gestor Interno" extra="Nome do gestor interno do cliente responsável por este profissional">
+                <Input placeholder="Digite o nome do gestor interno" />
+              </Form.Item>
+            </Col>
+
             <Col xs={24} md={12}>
               <Form.Item name="dataInicio" label="Data de Início" rules={[{ required: true, message: 'Data de início é obrigatória' }]}>
                 <Input type="date" />

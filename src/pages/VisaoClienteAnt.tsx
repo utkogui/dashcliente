@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Row, Col, Card, Tag, Input, Select, Alert, Divider, Button, Modal, Typography, Skeleton, Pagination, Space, Spin, FloatButton } from 'antd'
-import { UserOutlined, SearchOutlined, FieldTimeOutlined, CalendarOutlined, FilterOutlined, MailOutlined, MessageOutlined, PhoneOutlined } from '@ant-design/icons'
+import { UserOutlined, SearchOutlined, FieldTimeOutlined, CalendarOutlined, FilterOutlined, MailOutlined, MessageOutlined, PhoneOutlined, DownloadOutlined, FileTextOutlined } from '@ant-design/icons'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -57,6 +57,28 @@ const VisaoClienteAnt = () => {
   const [historyLoading, setHistoryLoading] = useState(false)
   const [historyError, setHistoryError] = useState<string | null>(null)
   const [historyItems, setHistoryItems] = useState<Array<{ cliente: string; projeto: string; inicio: string; fim?: string | null }>>([])
+
+  const handleDownloadContrato = async (profissionalId: string, fileName: string) => {
+    try {
+      // Simular download do arquivo
+      const content = `Contrato do Profissional: ${profissionais.find(p => p.id === profissionalId)?.nome || 'N/A'}\n\nEste é um documento de contrato simulado.\n\nData: ${new Date().toLocaleDateString('pt-BR')}\nArquivo: ${fileName}`
+      
+      const blob = new Blob([content], { type: 'text/plain' })
+      const url = window.URL.createObjectURL(blob)
+      
+      const link = document.createElement('a')
+      link.href = url
+      link.download = fileName || 'contrato.txt'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+      
+      track({ type: 'contract_download', profissionalId, fileName })
+    } catch (error) {
+      console.error('Erro ao baixar contrato:', error)
+    }
+  }
 
   // Debounce busca
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -264,52 +286,152 @@ const VisaoClienteAnt = () => {
 
       <div style={{ paddingTop: 140, paddingBottom: 24, paddingLeft: 24, paddingRight: 24 }}>
         {/* Filtros */}
-        <div style={{ padding: 16, marginBottom: 32, borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.08)', background: '#fff' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-            <FilterOutlined style={{ color: '#1677ff', fontSize: 18 }} />
-            <Text strong>Filtros</Text>
+        <div style={{ padding: 24, marginBottom: 32, borderRadius: 16, boxShadow: '0 4px 20px rgba(0,0,0,0.08)', background: '#fff' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+            <FilterOutlined style={{ color: '#1677ff', fontSize: 22 }} />
+            <Title level={3} style={{ margin: 0, color: '#262626' }}>Filtros e Busca</Title>
           </div>
-          <Row gutter={[16, 16]}>
-            <Col xs={24} sm={12} md={8}>
-              <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="🔍 Buscar profissionais, projetos ou especialidades..." prefix={<SearchOutlined />} style={{ background: '#f8fafc', borderRadius: 8 }} />
+          <Row gutter={[20, 20]}>
+            <Col xs={24} sm={12} lg={8}>
+              <div style={{ marginBottom: 8 }}>
+                <Text strong style={{ fontSize: '14px', color: '#595959' }}>Buscar</Text>
+              </div>
+              <Input 
+                value={searchTerm} 
+                onChange={(e) => setSearchTerm(e.target.value)} 
+                placeholder="Digite nome, projeto ou especialidade..." 
+                prefix={<SearchOutlined style={{ color: '#8c8c8c' }} />} 
+                size="large"
+                style={{ 
+                  background: '#f8fafc', 
+                  borderRadius: 12,
+                  border: '2px solid #e8e8e8',
+                  fontSize: '16px',
+                  height: '48px'
+                }} 
+              />
             </Col>
-            <Col xs={24} sm={12} md={8}>
-              <Select value={filterStatus} onChange={setFilterStatus} style={{ width: '100%' }} placeholder="📊 Status do Profissional">
-                <Select.Option value="todos">Todos</Select.Option>
-                <Select.Option value="ativo">Ativos</Select.Option>
-                <Select.Option value="aguardando">Aguardando Contrato</Select.Option>
+            <Col xs={24} sm={12} lg={8}>
+              <div style={{ marginBottom: 8 }}>
+                <Text strong style={{ fontSize: '14px', color: '#595959' }}>Status do Profissional</Text>
+              </div>
+              <Select 
+                value={filterStatus} 
+                onChange={setFilterStatus} 
+                style={{ width: '100%' }} 
+                placeholder="Selecione o status"
+                size="large"
+                style={{ 
+                  width: '100%',
+                  height: '48px'
+                }}
+              >
+                <Select.Option value="todos">Todos os Status</Select.Option>
+                <Select.Option value="ativo">Em Projeto</Select.Option>
+                <Select.Option value="aguardando">Disponível</Select.Option>
               </Select>
             </Col>
-            <Col xs={24} sm={12} md={8}>
-              <Select value={filterEspecialidade} onChange={setFilterEspecialidade} style={{ width: '100%' }} placeholder="🎯 Área de Especialização">
+            <Col xs={24} sm={12} lg={8}>
+              <div style={{ marginBottom: 8 }}>
+                <Text strong style={{ fontSize: '14px', color: '#595959' }}>Especialidade</Text>
+              </div>
+              <Select 
+                value={filterEspecialidade} 
+                onChange={setFilterEspecialidade} 
+                style={{ width: '100%' }} 
+                placeholder="Selecione a especialidade"
+                size="large"
+                style={{ 
+                  width: '100%',
+                  height: '48px'
+                }}
+              >
                 <Select.Option value="todas">Todas as Especialidades</Select.Option>
                 {especialidades.map(esp => <Select.Option key={esp} value={esp}>{esp}</Select.Option>)}
               </Select>
             </Col>
-            <Col xs={24} sm={12} md={8}>
-              <Select value={filterPrazo} onChange={(v) => setFilterPrazo(v as any)} style={{ width: '100%' }} placeholder="⏰ Prazo do Contrato">
-                <Select.Option value="todos">Todos</Select.Option>
+            <Col xs={24} sm={12} lg={8}>
+              <div style={{ marginBottom: 8 }}>
+                <Text strong style={{ fontSize: '14px', color: '#595959' }}>Prazo do Contrato</Text>
+              </div>
+              <Select 
+                value={filterPrazo} 
+                onChange={(v) => setFilterPrazo(v as any)} 
+                style={{ width: '100%' }} 
+                placeholder="Selecione o prazo"
+                size="large"
+                style={{ 
+                  width: '100%',
+                  height: '48px'
+                }}
+              >
+                <Select.Option value="todos">Todos os Prazos</Select.Option>
                 <Select.Option value="<60">Menos de 60 dias</Select.Option>
                 <Select.Option value="<30">Menos de 30 dias</Select.Option>
                 <Select.Option value="<15">Menos de 15 dias</Select.Option>
                 <Select.Option value="indeterminado">Indeterminado</Select.Option>
               </Select>
             </Col>
-            <Col xs={24} sm={12} md={8}>
-              <Select value={filterSenioridade} onChange={setFilterSenioridade} style={{ width: '100%' }} placeholder="👨‍💼 Nível de Senioridade">
-                <Select.Option value="todas">Todas</Select.Option>
+            <Col xs={24} sm={12} lg={8}>
+              <div style={{ marginBottom: 8 }}>
+                <Text strong style={{ fontSize: '14px', color: '#595959' }}>Nível de Senioridade</Text>
+              </div>
+              <Select 
+                value={filterSenioridade} 
+                onChange={setFilterSenioridade} 
+                style={{ width: '100%' }} 
+                placeholder="Selecione o nível"
+                size="large"
+                style={{ 
+                  width: '100%',
+                  height: '48px'
+                }}
+              >
+                <Select.Option value="todas">Todos os Níveis</Select.Option>
                 {senioridades.map(l => <Select.Option key={l} value={l}>{l}</Select.Option>)}
               </Select>
             </Col>
-            <Col xs={24} sm={12} md={8}>
-              <Select value={orderBy} onChange={(v) => setOrderBy(v as any)} style={{ width: '100%' }} placeholder="🔄 Ordenação dos Resultados">
-                <Select.Option value="prazo">Prazo (menor→maior)</Select.Option>
-                <Select.Option value="status">Status (ativos primeiro)</Select.Option>
+            <Col xs={24} sm={12} lg={8}>
+              <div style={{ marginBottom: 8 }}>
+                <Text strong style={{ fontSize: '14px', color: '#595959' }}>Ordenação</Text>
+              </div>
+              <Select 
+                value={orderBy} 
+                onChange={(v) => setOrderBy(v as any)} 
+                style={{ width: '100%' }} 
+                placeholder="Selecione a ordenação"
+                size="large"
+                style={{ 
+                  width: '100%',
+                  height: '48px'
+                }}
+              >
+                <Select.Option value="prazo">Por Prazo (menor→maior)</Select.Option>
+                <Select.Option value="status">Por Status (ativos primeiro)</Select.Option>
               </Select>
             </Col>
             <Col span={24}>
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <Button onClick={() => { setSearchTerm(''); setFilterStatus('todos'); setFilterEspecialidade('todas'); setFilterPrazo('todos'); setFilterSenioridade('todas'); setOrderBy('prazo') }}>Limpar filtros</Button>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                <Button 
+                  onClick={() => { 
+                    setSearchTerm(''); 
+                    setFilterStatus('todos'); 
+                    setFilterEspecialidade('todas'); 
+                    setFilterPrazo('todos'); 
+                    setFilterSenioridade('todas'); 
+                    setOrderBy('prazo') 
+                  }}
+                  size="large"
+                  style={{
+                    height: '44px',
+                    paddingLeft: '24px',
+                    paddingRight: '24px',
+                    borderRadius: '12px',
+                    fontWeight: '500'
+                  }}
+                >
+                  Limpar Todos os Filtros
+                </Button>
               </div>
             </Col>
           </Row>
@@ -484,16 +606,59 @@ const VisaoClienteAnt = () => {
                     </Card>
 
                     <Card size="small" style={{ borderRadius: 8 }}>
-                      <Text strong>Linha do tempo do contrato</Text>
+                      <Text strong>Documento do Contrato</Text>
                       <Divider style={{ margin: '8px 0' }} />
-                      {projetoSel ? (
-                        <Space size={[8, 8]} wrap>
-                          <Tag>{`Início: ${new Date(projetoSel.dataInicio).toLocaleDateString('pt-BR')}`}</Tag>
-                          <Tag>{`Término: ${projetoSel.dataFim ? new Date(projetoSel.dataFim).toLocaleDateString('pt-BR') : 'Indeterminado'}`}</Tag>
-                          <Tag>{`Duração ${projetoSel.dataFim ? '' : 'visual '}: ${getDuracaoMesesVisual(projetoSel.contrato)} meses`}</Tag>
-                        </Space>
+                      {profissionalSel?.contratoArquivo ? (
+                        <div style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '12px', 
+                          padding: '12px', 
+                          backgroundColor: '#f0f9ff', 
+                          borderRadius: '6px', 
+                          border: '1px solid #bae6fd' 
+                        }}>
+                          <FileTextOutlined style={{ color: '#0ea5e9', fontSize: '24px' }} />
+                          <div style={{ flex: 1 }}>
+                            <Text strong style={{ color: '#0c4a6e', display: 'block' }}>
+                              {profissionalSel.contratoArquivo}
+                            </Text>
+                            <Text type="secondary" style={{ fontSize: '12px' }}>
+                              Clique para baixar o contrato do profissional
+                            </Text>
+                          </div>
+                          <Button
+                            type="primary"
+                            icon={<DownloadOutlined />}
+                            onClick={() => handleDownloadContrato(profissionalSel.id, profissionalSel.contratoArquivo || 'contrato.pdf')}
+                            style={{ 
+                              borderRadius: '6px',
+                              fontWeight: 'bold'
+                            }}
+                          >
+                            Baixar
+                          </Button>
+                        </div>
                       ) : (
-                        <Text type="secondary">Sem dados de contrato</Text>
+                        <div style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '12px', 
+                          padding: '12px', 
+                          backgroundColor: '#f9fafb', 
+                          borderRadius: '6px', 
+                          border: '1px solid #e5e7eb' 
+                        }}>
+                          <FileTextOutlined style={{ color: '#6b7280', fontSize: '24px' }} />
+                          <div style={{ flex: 1 }}>
+                            <Text style={{ color: '#6b7280', display: 'block' }}>
+                              Nenhum documento de contrato disponível
+                            </Text>
+                            <Text type="secondary" style={{ fontSize: '12px' }}>
+                              O contrato será disponibilizado após o upload
+                            </Text>
+                          </div>
+                        </div>
                       )}
                     </Card>
                   </Space>

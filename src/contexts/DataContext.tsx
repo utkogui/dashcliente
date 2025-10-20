@@ -9,6 +9,8 @@ interface Profissional {
   especialidade: string
   perfil: string | null
   especialidadeEspecifica: string | null
+  contratoArquivo: string | null
+  gestorInterno: string | null // Nome do gestor interno do cliente
   valorHora: number | null
   status: 'ativo' | 'inativo' | 'ferias'
   dataInicio: string

@@ -32,7 +32,9 @@ import {
   FilterList,
   Email,
   Chat,
-  Close
+  Close,
+  Download,
+  Description
 } from '@mui/icons-material'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext'
@@ -241,6 +243,32 @@ const VisaoCliente = () => {
     if (dias === null) return 'Indeterminado'
     if (dias > 0) return `${dias} dias`
     return 'Vencido'
+  }
+
+  const handleDownloadContrato = async (profissionalId: string, fileName: string) => {
+    try {
+      // Simular download do arquivo
+      // Em uma implementação real, aqui faria uma requisição para o servidor
+      // para obter o arquivo e fazer o download
+      
+      // Por enquanto, vamos simular criando um arquivo de exemplo
+      const content = `Contrato do Profissional: ${profissionais.find(p => p.id === profissionalId)?.nome || 'N/A'}\n\nEste é um documento de contrato simulado.\n\nData: ${new Date().toLocaleDateString('pt-BR')}\nArquivo: ${fileName}`
+      
+      const blob = new Blob([content], { type: 'text/plain' })
+      const url = window.URL.createObjectURL(blob)
+      
+      const link = document.createElement('a')
+      link.href = url
+      link.download = fileName || 'contrato.txt'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+      
+      track({ type: 'contract_download', profissionalId, fileName })
+    } catch (error) {
+      console.error('Erro ao baixar contrato:', error)
+    }
   }
 
   // Estilo do modal: linha superior fixa e fundo igual ao card da frente
@@ -756,20 +784,48 @@ const VisaoCliente = () => {
                     </Paper>
                   </Grid>
 
-                  {/* Linha do tempo do contrato (UI simples) */}
+                  {/* Documento do Contrato */}
                   <Grid item xs={12}>
                     <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
                       <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-                        Linha do tempo do contrato
+                        Documento do Contrato
                       </Typography>
-                      {projetoSel ? (
-                        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                          <Chip label={`Início: ${new Date(projetoSel.dataInicio).toLocaleDateString('pt-BR')}`} size="small" />
-                          <Chip label={`Término: ${projetoSel.dataFim ? new Date(projetoSel.dataFim).toLocaleDateString('pt-BR') : 'Indeterminado'}`} size="small" />
-                          <Chip label="Renovações: 0 (mock)" size="small" color="default" />
+                      {profissionalSel?.contratoArquivo ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 2, bgcolor: 'primary.50', borderRadius: 2, border: '1px solid', borderColor: 'primary.200' }}>
+                          <Description sx={{ color: 'primary.main', fontSize: 32 }} />
+                          <Box sx={{ flex: 1 }}>
+                            <Typography variant="body1" fontWeight="medium" color="primary.dark">
+                              {profissionalSel.contratoArquivo}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Clique para baixar o contrato do profissional
+                            </Typography>
+                          </Box>
+                          <Button
+                            variant="contained"
+                            startIcon={<Download />}
+                            onClick={() => handleDownloadContrato(profissionalSel.id, profissionalSel.contratoArquivo || 'contrato.pdf')}
+                            sx={{ 
+                              borderRadius: 2,
+                              textTransform: 'none',
+                              fontWeight: 'bold'
+                            }}
+                          >
+                            Baixar
+                          </Button>
                         </Box>
                       ) : (
-                        <Typography variant="body2" color="text.secondary">Sem dados de contrato</Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 2, bgcolor: 'grey.50', borderRadius: 2, border: '1px solid', borderColor: 'grey.200' }}>
+                          <Description sx={{ color: 'text.secondary', fontSize: 32 }} />
+                          <Box sx={{ flex: 1 }}>
+                            <Typography variant="body1" color="text.secondary">
+                              Nenhum documento de contrato disponível
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              O contrato será disponibilizado após o upload
+                            </Typography>
+                          </Box>
+                        </Box>
                       )}
                     </Paper>
                   </Grid>
