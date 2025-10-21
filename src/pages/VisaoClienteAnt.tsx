@@ -44,8 +44,8 @@ const VisaoClienteAnt = () => {
   const [filterStatus, setFilterStatus] = useState('todos')
   const [filterEspecialidade, setFilterEspecialidade] = useState('todas')
   const [filterPrazo, setFilterPrazo] = useState<'todos' | '<15' | '<30' | '<60' | 'indeterminado'>('todos')
-  const [filterSenioridade, setFilterSenioridade] = useState('todas')
-  const [orderBy, setOrderBy] = useState<'prazo' | 'status'>('prazo')
+  const [filterSenioridade, setFilterSenioridade] = useState('todos')
+  const [filterGestorInterno, setFilterGestorInterno] = useState('todos')
 
   const [interestLoading, setInterestLoading] = useState(false)
   const [interestMessage, setInterestMessage] = useState<string | null>(null)
@@ -125,7 +125,8 @@ const VisaoClienteAnt = () => {
       const matchesSearch = nomeLc.includes(searchLc) || espLc.includes(searchLc) || info.projetos.some(p => (p.nome || '').toLowerCase().includes(searchLc))
       const matchesStatus = filterStatus === 'todos' || (filterStatus === 'ativo' && info.status === 'ativo') || (filterStatus === 'aguardando' && info.status === 'aguardando')
       const matchesEspecialidade = filterEspecialidade === 'todas' || profissional.especialidade === filterEspecialidade
-      const matchesSenioridade = filterSenioridade === 'todas' || (profissional.perfil || '') === filterSenioridade
+      const matchesSenioridade = filterSenioridade === 'todos' || (profissional.perfil || '') === filterSenioridade
+      const matchesGestorInterno = filterGestorInterno === 'todos' || (filterGestorInterno === 'com' && profissional.gestorInterno) || (filterGestorInterno === 'sem' && !profissional.gestorInterno)
       const projeto = info.projetos[0]
       const dias = projeto ? calcularDiasRestantes(projeto.contrato) : null
       const matchesPrazo = (() => {
@@ -139,16 +140,11 @@ const VisaoClienteAnt = () => {
           default: return true
         }
       })()
-      return matchesSearch && matchesStatus && matchesEspecialidade && matchesSenioridade && matchesPrazo
+      return matchesSearch && matchesStatus && matchesEspecialidade && matchesSenioridade && matchesPrazo && matchesGestorInterno
     })
     .sort((a, b) => {
       const infoA = getProfissionalInfo(a)
       const infoB = getProfissionalInfo(b)
-      if (orderBy === 'status') {
-        if (infoA.status === 'ativo' && infoB.status !== 'ativo') return -1
-        if (infoB.status === 'ativo' && infoA.status !== 'ativo') return 1
-        return a.nome.localeCompare(b.nome)
-      }
       if (infoA.status === 'ativo' && infoB.status !== 'ativo') return -1
       if (infoB.status === 'ativo' && infoA.status !== 'ativo') return 1
       const projetoA = infoA.projetos[0]
@@ -159,7 +155,7 @@ const VisaoClienteAnt = () => {
       return rank(diasA) - rank(diasB)
     })
 
-  useEffect(() => { setPage(1); try { window.scrollTo({ top: 0, behavior: 'smooth' }) } catch (_) {} }, [debouncedSearch, filterStatus, filterEspecialidade, filterPrazo, filterSenioridade, orderBy])
+  useEffect(() => { setPage(1); try { window.scrollTo({ top: 0, behavior: 'smooth' }) } catch (_) {} }, [debouncedSearch, filterStatus, filterEspecialidade, filterPrazo, filterSenioridade, filterGestorInterno])
   const totalPages = Math.max(1, Math.ceil(filteredProfissionais.length / pageSize))
   // Dados exibidos: se há IO, mostramos acumulado até page*pageSize; senão, apenas a página atual
   const visibleProfissionais = useMemo(() => {
@@ -191,14 +187,14 @@ const VisaoClienteAnt = () => {
   const senioridades = [...new Set(profissionais.map(p => p.perfil || '').filter(Boolean))] as string[]
 
   // URL params
-  const syncUrlParams = (state: { q?: string; status?: string; esp?: string; prazo?: string; sen?: string; ord?: string }) => {
+  const syncUrlParams = (state: { q?: string; status?: string; esp?: string; prazo?: string; sen?: string; gestor?: string }) => {
     const params: Record<string, string> = {}
     if (state.q) params.q = state.q
     if (state.status && state.status !== 'todos') params.status = state.status
     if (state.esp && state.esp !== 'todas') params.esp = state.esp
     if (state.prazo && state.prazo !== 'todos') params.prazo = state.prazo
-    if (state.sen && state.sen !== 'todas') params.sen = state.sen
-    if (state.ord && state.ord !== 'prazo') params.ord = state.ord
+    if (state.sen && state.sen !== 'todos') params.sen = state.sen
+    if (state.gestor && state.gestor !== 'todos') params.gestor = state.gestor
     setSearchParams(params, { replace: true })
     track({ type: 'filters_change', payload: params })
   }
@@ -207,20 +203,20 @@ const VisaoClienteAnt = () => {
     const st = searchParams.get('status') || 'todos'
     const esp = searchParams.get('esp') || 'todas'
     const prazo = (searchParams.get('prazo') as any) || 'todos'
-    const sen = searchParams.get('sen') || 'todas'
-    const ord = (searchParams.get('ord') as any) || 'prazo'
+    const sen = searchParams.get('sen') || 'todos'
+    const gestor = searchParams.get('gestor') || 'todos'
     setSearchTerm(q)
     setFilterStatus(st)
     setFilterEspecialidade(esp)
     setFilterPrazo(prazo)
     setFilterSenioridade(sen)
-    setOrderBy(ord)
+    setFilterGestorInterno(gestor)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
-    syncUrlParams({ q: searchTerm, status: filterStatus, esp: filterEspecialidade, prazo: filterPrazo, sen: filterSenioridade, ord: orderBy })
-  }, [searchTerm, filterStatus, filterEspecialidade, filterPrazo, filterSenioridade, orderBy])
+    syncUrlParams({ q: searchTerm, status: filterStatus, esp: filterEspecialidade, prazo: filterPrazo, sen: filterSenioridade, gestor: filterGestorInterno })
+  }, [searchTerm, filterStatus, filterEspecialidade, filterPrazo, filterSenioridade, filterGestorInterno])
 
   // Buscar histórico ao abrir modal
   useEffect(() => {
@@ -393,21 +389,22 @@ const VisaoClienteAnt = () => {
             </Col>
             <Col xs={24} sm={12} lg={8}>
               <div style={{ marginBottom: 8 }}>
-                <Text strong style={{ fontSize: '14px', color: '#595959' }}>Ordenação</Text>
+                <Text strong style={{ fontSize: '14px', color: '#595959' }}>Gestor Interno</Text>
               </div>
               <Select 
-                value={orderBy} 
-                onChange={(v) => setOrderBy(v as any)} 
+                value={filterGestorInterno} 
+                onChange={setFilterGestorInterno} 
                 style={{ width: '100%' }} 
-                placeholder="Selecione a ordenação"
+                placeholder="Selecione o filtro"
                 size="large"
                 style={{ 
                   width: '100%',
                   height: '48px'
                 }}
               >
-                <Select.Option value="prazo">Por Prazo (menor→maior)</Select.Option>
-                <Select.Option value="status">Por Status (ativos primeiro)</Select.Option>
+                <Select.Option value="todos">Todos</Select.Option>
+                <Select.Option value="com">Com Gestor Interno</Select.Option>
+                <Select.Option value="sem">Sem Gestor Interno</Select.Option>
               </Select>
             </Col>
             <Col span={24}>
@@ -418,8 +415,8 @@ const VisaoClienteAnt = () => {
                     setFilterStatus('todos'); 
                     setFilterEspecialidade('todas'); 
                     setFilterPrazo('todos'); 
-                    setFilterSenioridade('todas'); 
-                    setOrderBy('prazo') 
+                    setFilterSenioridade('todos'); 
+                    setFilterGestorInterno('todos') 
                   }}
                   size="large"
                   style={{
