@@ -5,13 +5,22 @@ echo "🚀 Iniciando build do servidor..."
 echo "📦 Instalando dependências..."
 npm install
 
+# Configurar banco baseado no ambiente
+echo "🔧 Configurando banco de dados..."
+node scripts/setup-db.js
+
 # Gerar cliente Prisma
 echo "🔧 Gerando cliente Prisma..."
 npx prisma generate
 
-# Sincronizar schema com PostgreSQL
-echo "🗃️ Sincronizando schema com PostgreSQL..."
-npx prisma db push
+# Aplicar migrações ou sincronizar schema
+if [[ "$DATABASE_URL" == postgresql* ]]; then
+  echo "🗃️ Sincronizando schema com PostgreSQL..."
+  npx prisma db push
+else
+  echo "🗃️ Aplicando migrações SQLite..."
+  npx prisma migrate deploy
+fi
 
 # Compilar TypeScript
 echo "⚙️ Compilando TypeScript..."
