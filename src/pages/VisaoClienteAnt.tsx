@@ -314,7 +314,6 @@ const VisaoClienteAnt = () => {
               <Select 
                 value={filterStatus} 
                 onChange={setFilterStatus} 
-                style={{ width: '100%' }} 
                 placeholder="Selecione o status"
                 size="large"
                 style={{ 

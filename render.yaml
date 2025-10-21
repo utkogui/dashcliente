@@ -17,6 +17,6 @@ services:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        value: file:./prisma/dev.db
+        value: postgresql://neondb_owner:npg_LvhHJDS3B1Rs@ep-nameless-firefly-a8nzhm1o.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require
       - key: CORS_ORIGIN
         value: https://dashcliente-1.onrender.com,https://dashcliente.onrender.com
