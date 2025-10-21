@@ -191,22 +191,10 @@ interface Cliente {
 
 ## 🚀 Deploy
 
-### Vercel
-```bash
-npm run build
-vercel --prod
-```
-
 ### Netlify
 ```bash
 npm run build
 netlify deploy --prod --dir=dist
-```
-
-### GitHub Pages
-```bash
-npm run build
-gh-pages -d dist
 ```
 
 ## 🤝 Contribuição

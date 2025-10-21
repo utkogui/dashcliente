@@ -1503,6 +1503,3 @@ app.listen(process.env.PORT || PORT, async () => {
   console.log(`📊 API disponível em: http://localhost:${process.env.PORT || PORT}/api`)
   await startServer()
 })
-
-// Exportar para Vercel
-export default app 
