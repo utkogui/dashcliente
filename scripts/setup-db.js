@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import 'dotenv/config';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -9,7 +10,9 @@ const __dirname = path.dirname(__filename);
 
 // Detectar se é PostgreSQL ou SQLite baseado na URL
 const databaseUrl = process.env.DATABASE_URL || 'file:./prisma/dev.db';
-const isPostgreSQL = databaseUrl.startsWith('postgresql://') || databaseUrl.startsWith('postgres://');
+const isPostgreSQL = databaseUrl.startsWith('postgresql://') || 
+                    databaseUrl.startsWith('postgres://') || 
+                    databaseUrl.startsWith('prisma+postgres://');
 
 console.log(`🔍 Detected database: ${isPostgreSQL ? 'PostgreSQL' : 'SQLite'}`);
 console.log(`📊 Database URL: ${databaseUrl}`);
