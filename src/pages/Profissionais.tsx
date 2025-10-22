@@ -12,7 +12,8 @@ import {
   Popconfirm,
   Row,
   Col,
-  Statistic
+  Statistic,
+  Modal
 } from 'antd'
 import { 
   SearchOutlined, 
@@ -31,10 +32,59 @@ const Profissionais = () => {
   const { profissionais, deleteProfissional, loading, error } = useData()
   const navigate = useNavigate()
   const [filteredProfissionais, setFilteredProfissionais] = useState(profissionais)
+  const [comentariosModal, setComentariosModal] = useState(false)
+  const [profissionalComentarios, setProfissionalComentarios] = useState<any>(null)
+  const [comentarios, setComentarios] = useState<any[]>([])
+  const [comentariosLoading, setComentariosLoading] = useState(false)
+  const [profissionaisComComentarios, setProfissionaisComComentarios] = useState<Set<string>>(new Set())
+
+  const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || (
+    process.env.NODE_ENV === 'production' ? 'https://dashcliente.onrender.com/api' : 'http://localhost:3001/api'
+  )
 
   // Atualizar lista filtrada quando profissionais mudar
   useEffect(() => {
     setFilteredProfissionais(profissionais)
+  }, [profissionais])
+
+  // Verificar quais profissionais têm comentários
+  useEffect(() => {
+    const verificarComentarios = async () => {
+      if (profissionais.length === 0) return
+      
+      try {
+        const token = localStorage.getItem('sessionId')
+        const promises = profissionais.map(async (profissional) => {
+          try {
+            const response = await fetch(`${API_BASE_URL}/notes?profissionalId=${profissional.id}`, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            })
+            if (response.ok) {
+              const data = await response.json()
+              return { id: profissional.id, temComentarios: data.length > 0 }
+            }
+            return { id: profissional.id, temComentarios: false }
+          } catch (error) {
+            return { id: profissional.id, temComentarios: false }
+          }
+        })
+        
+        const resultados = await Promise.all(promises)
+        const idsComComentarios = new Set(
+          resultados
+            .filter(r => r.temComentarios)
+            .map(r => r.id)
+        )
+        setProfissionaisComComentarios(idsComComentarios)
+      } catch (error) {
+        console.error('Erro ao verificar comentários:', error)
+      }
+    }
+    
+    verificarComentarios()
   }, [profissionais])
 
   const handleSearch = (value: string) => {
@@ -95,6 +145,30 @@ const Profissionais = () => {
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Erro ao deletar profissional'
       alert(errorMessage)
+    }
+  }
+
+  const buscarComentarios = async (profissionalId: string) => {
+    setComentariosLoading(true)
+    try {
+      const token = localStorage.getItem('sessionId')
+      const response = await fetch(`${API_BASE_URL}/notes?profissionalId=${profissionalId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setComentarios(data)
+      } else {
+        setComentarios([])
+      }
+    } catch (error) {
+      console.error('Erro ao buscar comentários:', error)
+      setComentarios([])
+    } finally {
+      setComentariosLoading(false)
     }
   }
 
@@ -187,6 +261,33 @@ const Profissionais = () => {
         { text: 'Inativo', value: 'inativo' },
       ],
       onFilter: (value: string | number | boolean, record: any) => record.status === value,
+      width: 100,
+    },
+    {
+      title: 'Comentário',
+      key: 'comentario',
+      render: (record: any) => {
+        const temComentarios = profissionaisComComentarios.has(record.id)
+        
+        return (
+          <Button
+            type="link"
+            size="small"
+            onClick={async () => {
+              setProfissionalComentarios(record)
+              setComentariosModal(true)
+              await buscarComentarios(record.id)
+            }}
+            disabled={!temComentarios}
+            style={{ 
+              color: temComentarios ? '#1890ff' : '#d9d9d9',
+              cursor: temComentarios ? 'pointer' : 'not-allowed'
+            }}
+          >
+            {temComentarios ? 'Sim' : 'Não'}
+          </Button>
+        )
+      },
       width: 100,
     },
     {
@@ -349,6 +450,54 @@ const Profissionais = () => {
           />
         </Card>
       </Space>
+
+      {/* Modal de Comentários */}
+      <Modal
+        title={`Comentários - ${profissionalComentarios?.nome || ''}`}
+        open={comentariosModal}
+        onCancel={() => setComentariosModal(false)}
+        footer={null}
+        width={600}
+      >
+        <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+          {comentariosLoading ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+              <Spin size="large" />
+              <div style={{ marginTop: '16px' }}>
+                <Text type="secondary">Carregando comentários...</Text>
+              </div>
+            </div>
+          ) : comentarios.length > 0 ? (
+            <div>
+              {comentarios.map((comentario, index) => (
+                <Card key={index} size="small" style={{ marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                    <Text strong style={{ fontSize: '14px' }}>
+                      Comentário #{index + 1}
+                    </Text>
+                    <Text type="secondary" style={{ fontSize: '12px' }}>
+                      {new Date(comentario.createdAt).toLocaleDateString('pt-BR')}
+                    </Text>
+                  </div>
+                  <Text style={{ fontSize: '13px', lineHeight: '1.4' }}>
+                    {comentario.texto}
+                  </Text>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+              <Text type="secondary">
+                Nenhum comentário encontrado para este profissional.
+              </Text>
+              <br />
+              <Text type="secondary" style={{ fontSize: '12px' }}>
+                Os comentários são feitos na página de visão do cliente.
+              </Text>
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
   )
 }

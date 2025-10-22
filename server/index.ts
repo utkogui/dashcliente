@@ -12,7 +12,7 @@ const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',')
   : (process.env.NODE_ENV === 'production'
       ? ['https://dashcliente-1.onrender.com', 'https://dashcliente.onrender.com']
-      : ['http://localhost:5173', 'http://localhost:5176', 'http://10.0.1.214:5173', 'http://127.0.0.1:5173'])
+      : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5176', 'http://10.0.1.214:5173', 'http://10.0.1.214:5174', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174'])
 
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {

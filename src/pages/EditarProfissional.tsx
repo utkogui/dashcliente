@@ -90,6 +90,9 @@ const EditarProfissional = () => {
           perfil: profissional.perfil || '',
           especialidadeEspecifica: profissional.especialidadeEspecifica || '',
           gestorInterno: profissional.gestorInterno || '',
+          linhaCobranca: profissional.linhaCobranca || '',
+          pontosFortes: profissional.pontosFortes || '',
+          pontosFracos: profissional.pontosFracos || '',
           dataInicio: profissional.dataInicio ? dayjs(profissional.dataInicio) : null,
           tipoContrato: profissional.tipoContrato || 'hora',
           valorHora: profissional.valorHora?.toString() || '',
@@ -210,6 +213,9 @@ const EditarProfissional = () => {
         especialidadeEspecifica: values.especialidadeEspecifica || null,
         contratoArquivo: arquivoContrato ? arquivoContrato.name : arquivoContratoExistente,
         gestorInterno: values.gestorInterno && values.gestorInterno.trim() ? values.gestorInterno.trim() : null,
+        linhaCobranca: values.linhaCobranca && values.linhaCobranca.trim() ? values.linhaCobranca.trim() : null,
+        pontosFortes: values.pontosFortes && values.pontosFortes.trim() ? values.pontosFortes.trim() : null,
+        pontosFracos: values.pontosFracos && values.pontosFracos.trim() ? values.pontosFracos.trim() : null,
         dataInicio: values.dataInicio?.format('YYYY-MM-DD') || '',
         tipoContrato: values.tipoContrato,
         valorHora: values.tipoContrato === 'hora' ? parseFloat(values.valorHora) : null,
@@ -450,6 +456,64 @@ const EditarProfissional = () => {
                     </Upload>
                   </div>
                 </Form.Item>
+              </Col>
+
+              {/* Linha de cobrança / Descrição da nota / Atividade */}
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="linhaCobranca"
+                  label="Linha de cobrança / Descrição da nota / Atividade"
+                >
+                  <Input.TextArea
+                    rows={3}
+                    placeholder="Descreva a linha de cobrança, descrição da nota ou atividade do profissional"
+                  />
+                </Form.Item>
+              </Col>
+
+              {/* Pontos Fortes e Pontos Fracos */}
+              <Col xs={24}>
+                <div style={{ 
+                  border: '1px solid #d9d9d9', 
+                  borderRadius: '8px', 
+                  padding: '20px', 
+                  backgroundColor: '#fafafa',
+                  marginBottom: '16px'
+                }}>
+                  <Title level={5} style={{ marginBottom: '16px', color: '#1890ff' }}>
+                    Avaliação do Profissional
+                  </Title>
+                  
+                  <Row gutter={16}>
+                    <Col xs={24} md={12}>
+                      <Form.Item
+                        name="pontosFortes"
+                        label="Pontos Fortes"
+                        extra="Principais qualidades e competências do profissional"
+                      >
+                        <Input.TextArea
+                          rows={4}
+                          placeholder="Descreva os pontos fortes do profissional..."
+                          style={{ borderRadius: 6 }}
+                        />
+                      </Form.Item>
+                    </Col>
+                    
+                    <Col xs={24} md={12}>
+                      <Form.Item
+                        name="pontosFracos"
+                        label="Pontos Fracos"
+                        extra="Áreas de melhoria e pontos de atenção"
+                      >
+                        <Input.TextArea
+                          rows={4}
+                          placeholder="Descreva os pontos fracos do profissional..."
+                          style={{ borderRadius: 6 }}
+                        />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                </div>
               </Col>
 
               {/* Gestor Interno */}

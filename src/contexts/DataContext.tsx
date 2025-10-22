@@ -19,6 +19,9 @@ interface Profissional {
   periodoFechado: string | null
   valorPago: number
   tags: string | null
+  linhaCobranca: string | null
+  pontosFortes: string | null
+  pontosFracos: string | null
   // Canais de contato
   contatoClienteEmail?: string | null
   contatoClienteTeams?: string | null

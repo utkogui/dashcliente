@@ -58,6 +58,7 @@ const VisaoClienteAnt = () => {
   const [historyError, setHistoryError] = useState<string | null>(null)
   const [historyItems, setHistoryItems] = useState<Array<{ cliente: string; projeto: string; inicio: string; fim?: string | null }>>([])
 
+
   const handleDownloadContrato = async (profissionalId: string, fileName: string) => {
     try {
       // Simular download do arquivo
@@ -126,7 +127,7 @@ const VisaoClienteAnt = () => {
       const matchesStatus = filterStatus === 'todos' || (filterStatus === 'ativo' && info.status === 'ativo') || (filterStatus === 'aguardando' && info.status === 'aguardando')
       const matchesEspecialidade = filterEspecialidade === 'todas' || profissional.especialidade === filterEspecialidade
       const matchesSenioridade = filterSenioridade === 'todos' || (profissional.perfil || '') === filterSenioridade
-      const matchesGestorInterno = filterGestorInterno === 'todos' || (filterGestorInterno === 'com' && profissional.gestorInterno) || (filterGestorInterno === 'sem' && !profissional.gestorInterno)
+      const matchesGestorInterno = filterGestorInterno === 'todos' || (filterGestorInterno === 'sem' && !profissional.gestorInterno) || (profissional.gestorInterno === filterGestorInterno)
       const projeto = info.projetos[0]
       const dias = projeto ? calcularDiasRestantes(projeto.contrato) : null
       const matchesPrazo = (() => {
@@ -185,6 +186,7 @@ const VisaoClienteAnt = () => {
 
   const especialidades = [...new Set(profissionais.map(p => p.especialidade || '').filter(Boolean))] as string[]
   const senioridades = [...new Set(profissionais.map(p => p.perfil || '').filter(Boolean))] as string[]
+  const gestoresInternos = [...new Set(profissionais.map(p => p.gestorInterno || '').filter(Boolean))] as string[]
 
   // URL params
   const syncUrlParams = (state: { q?: string; status?: string; esp?: string; prazo?: string; sen?: string; gestor?: string }) => {
@@ -402,8 +404,10 @@ const VisaoClienteAnt = () => {
                 }}
               >
                 <Select.Option value="todos">Todos</Select.Option>
-                <Select.Option value="com">Com Gestor Interno</Select.Option>
                 <Select.Option value="sem">Sem Gestor Interno</Select.Option>
+                {gestoresInternos.map(gestor => (
+                  <Select.Option key={gestor} value={gestor}>{gestor}</Select.Option>
+                ))}
               </Select>
             </Col>
             <Col span={24}>
@@ -526,7 +530,17 @@ const VisaoClienteAnt = () => {
         }}
         keyboard
         zIndex={2000}
-        title={profissionais.find(p => p.id === selectedProfissionalId)?.nome || ''}
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '24px', fontWeight: '700', color: '#000000' }}>
+              {profissionais.find(p => p.id === selectedProfissionalId)?.nome || ''}
+            </span>
+            <span style={{ fontSize: '18px', color: '#666666', fontWeight: '500' }}>
+              {profissionais.find(p => p.id === selectedProfissionalId)?.especialidade || ''}
+              {profissionais.find(p => p.id === selectedProfissionalId)?.perfil && ` / ${profissionais.find(p => p.id === selectedProfissionalId)?.perfil}`}
+            </span>
+          </div>
+        }
       >
         {(() => {
           const profissionalSel = profissionais.find(p => p.id === selectedProfissionalId)
@@ -540,19 +554,68 @@ const VisaoClienteAnt = () => {
               <Row gutter={[16, 16]}>
                 {/* Coluna 1: Projeto atual, Canais de contato, Linha do tempo */}
                 <Col xs={24} md={12}>
-                  <Space direction="vertical" size={16} style={{ width: '100%' }}>
+                  <Space direction="vertical" size={12} style={{ width: '100%' }}>
                     <Card size="small" style={{ borderRadius: 8 }}>
-                      <Text strong>Projeto atual</Text>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                        <Text strong style={{ fontSize: '16px' }}>Projeto atual</Text>
+                        {projetoSel && (
+                          <Text style={{ fontSize: '16px', fontWeight: '600', color: diasSelColor }}>
+                            {projetoSel.nome}
+                          </Text>
+                        )}
+                      </div>
                       <Divider style={{ margin: '8px 0' }} />
                       {projetoSel ? (
                         <>
-                          <div><strong>Nome:</strong> {projetoSel.nome}</div>
-                          <div><strong>Cliente:</strong> {projetoSel.cliente}</div>
-                          <div><strong>Início:</strong> {new Date(projetoSel.dataInicio).toLocaleDateString('pt-BR')}</div>
-                          <div><strong>Término:</strong> {projetoSel.dataFim ? new Date(projetoSel.dataFim).toLocaleDateString('pt-BR') : 'Indeterminado'}</div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 8, marginTop: 8, background: `${diasSelColor}10`, borderRadius: 6, border: `1px solid ${diasSelColor}30` }}>
-                            <FieldTimeOutlined style={{ color: diasSelColor }} />
-                            <Text style={{ color: diasSelColor }}>{getDiasRestantesText(diasSel)}</Text>
+                          {/* Início e Término com destaque */}
+                          <div style={{ display: 'flex', gap: '24px', marginBottom: '16px' }}>
+                            <div style={{ flex: 1 }}>
+                              <Text strong style={{ fontSize: '14px', color: '#666' }}>Início</Text>
+                              <div style={{ fontSize: '16px', fontWeight: '600', color: '#000', marginTop: '4px' }}>
+                                {new Date(projetoSel.dataInicio).toLocaleDateString('pt-BR')}
+                              </div>
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <Text strong style={{ fontSize: '14px', color: '#666' }}>Término</Text>
+                              <div style={{ fontSize: '16px', fontWeight: '600', color: '#000', marginTop: '4px' }}>
+                                {projetoSel.dataFim ? new Date(projetoSel.dataFim).toLocaleDateString('pt-BR') : 'Indeterminado'}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Status com muito destaque */}
+                          <div style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 12, 
+                            padding: '12px', 
+                            marginTop: 12, 
+                            background: `${diasSelColor}15`, 
+                            borderRadius: 8, 
+                            border: `2px solid ${diasSelColor}40`,
+                            justifyContent: 'center'
+                          }}>
+                            <FieldTimeOutlined style={{ color: diasSelColor, fontSize: '20px' }} />
+                            <Text style={{ color: diasSelColor, fontSize: '18px', fontWeight: '700' }}>
+                              {getDiasRestantesText(diasSel)}
+                            </Text>
+                          </div>
+                          
+                          {/* Descrição da nota / Atividade */}
+                          <div style={{ marginTop: '16px' }}>
+                            <Text strong style={{ fontSize: '14px', color: '#666', display: 'block', marginBottom: '8px' }}>
+                              Descrição da nota / Atividade
+                            </Text>
+                            <div style={{ 
+                              padding: '12px', 
+                              backgroundColor: '#f8f9fa', 
+                              borderRadius: '6px',
+                              border: '1px solid #e9ecef'
+                            }}>
+                              <Text style={{ fontSize: '13px', lineHeight: '1.4', color: '#374151' }}>
+                                {profissionalSel?.linhaCobranca || 'Nenhuma descrição registrada'}
+                              </Text>
+                            </div>
                           </div>
                         </>
                       ) : (
@@ -561,55 +624,45 @@ const VisaoClienteAnt = () => {
                     </Card>
 
                     <Card size="small" style={{ borderRadius: 8 }}>
-                      <Text strong>Canais de contato</Text>
+                      <Text strong style={{ fontSize: '16px' }}>Canais de contato</Text>
                       <Divider style={{ margin: '8px 0' }} />
-                      <Space direction="vertical" size={6}>
+                      <Space direction="vertical" size={12}>
                         <div>
-                          <Text strong>Cliente</Text>
-                          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                            {(() => {
-                              const contatoEmail = profissionalSel.contatoClienteEmail
-                              const contatoTelefone = profissionalSel.contatoClienteTelefone
-                              const teamsHref = contatoEmail ? `https://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(contatoEmail)}` : undefined
-                              return (
-                                <>
-                                  {contatoEmail && <Button size="small" icon={<MessageOutlined />} href={teamsHref} target="_blank">Teams</Button>}
-                                  {contatoEmail && <Button size="small" icon={<MailOutlined />} href={`mailto:${contatoEmail}`}>Email</Button>}
-                                  {contatoTelefone && <Tag icon={<PhoneOutlined />}>{contatoTelefone}</Tag>}
-                                </>
-                              )
-                            })()}
+                          <Text strong style={{ fontSize: '16px', color: diasSelColor }}>Matilha Estúdio</Text>
+                          <div style={{ marginTop: '8px' }}>
+                            <Text style={{ fontSize: '14px', color: '#666' }}>Gerente de projetos: Nicolas Iargas</Text>
                           </div>
-                        </div>
-                        <div>
-                          <Text strong>Matilha</Text>
-                          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                            {(() => {
-                              const contatoEmail = profissionalSel.contatoMatilhaEmail
-                              const contatoTelefone = profissionalSel.contatoMatilhaTelefone
-                              const teamsHref = contatoEmail ? `https://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(contatoEmail)}` : undefined
-                              return (
-                                <>
-                                  {contatoEmail && <Button size="small" icon={<MessageOutlined />} href={teamsHref} target="_blank">Teams</Button>}
-                                  {contatoEmail && <Button size="small" icon={<MailOutlined />} href={`mailto:${contatoEmail}`}>Email</Button>}
-                                  {contatoTelefone && <Tag icon={<PhoneOutlined />}>{contatoTelefone}</Tag>}
-                                </>
-                              )
-                            })()}
+                          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                            <Button 
+                              size="small" 
+                              icon={<MessageOutlined />} 
+                              href="https://teams.microsoft.com/l/chat/0/0?users=nicolas.iargas@matilha.digital" 
+                              target="_blank"
+                            >
+                              Teams
+                            </Button>
+                            <Button 
+                              size="small" 
+                              icon={<MailOutlined />} 
+                              href="mailto:nicolas.iargas@matilha.digital"
+                            >
+                              Email
+                            </Button>
+                            <Tag icon={<PhoneOutlined />}>(41) 99641-5108</Tag>
                           </div>
                         </div>
                       </Space>
                     </Card>
 
                     <Card size="small" style={{ borderRadius: 8 }}>
-                      <Text strong>Documento do Contrato</Text>
+                      <Text strong style={{ fontSize: '16px' }}>Documento do Contrato</Text>
                       <Divider style={{ margin: '8px 0' }} />
                       {profissionalSel?.contratoArquivo ? (
                         <div style={{ 
                           display: 'flex', 
                           alignItems: 'center', 
                           gap: '12px', 
-                          padding: '12px', 
+                          padding: '10px', 
                           backgroundColor: '#f0f9ff', 
                           borderRadius: '6px', 
                           border: '1px solid #bae6fd' 
@@ -640,7 +693,7 @@ const VisaoClienteAnt = () => {
                           display: 'flex', 
                           alignItems: 'center', 
                           gap: '12px', 
-                          padding: '12px', 
+                          padding: '10px', 
                           backgroundColor: '#f9fafb', 
                           borderRadius: '6px', 
                           border: '1px solid #e5e7eb' 
@@ -657,14 +710,15 @@ const VisaoClienteAnt = () => {
                         </div>
                       )}
                     </Card>
+
                   </Space>
                 </Col>
 
                 {/* Coluna 2: Histórico, Ações, Anotações */}
                 <Col xs={24} md={12}>
-                  <Space direction="vertical" size={16} style={{ width: '100%' }}>
+                  <Space direction="vertical" size={12} style={{ width: '100%' }}>
                     <Card size="small" style={{ borderRadius: 8 }}>
-                      <Text strong>Histórico de alocação recente</Text>
+                      <Text strong style={{ fontSize: '16px' }}>Histórico de alocação recente</Text>
                       <Divider style={{ margin: '8px 0' }} />
                       {historyLoading ? (
                         <Skeleton active paragraph={{ rows: 3 }} />
@@ -673,7 +727,7 @@ const VisaoClienteAnt = () => {
                       ) : historyItems.length === 0 ? (
                         <Text type="secondary">Sem histórico recente</Text>
                       ) : (
-                        <Space direction="vertical" size={6} style={{ width: '100%' }}>
+                        <ol style={{ paddingLeft: '20px', margin: 0 }}>
                           {historyItems.map((h, idx) => {
                             const clienteLabel = ((): string => {
                               const v: any = (h as any).cliente
@@ -689,66 +743,99 @@ const VisaoClienteAnt = () => {
                               if (typeof v === 'object') return v.nome || v.titulo || 'Projeto'
                               return String(v)
                             })()
+                            
+                            // Se não tem data fim, usar último dia do ano
+                            const dataFim = h.fim ? new Date(h.fim) : new Date(new Date().getFullYear(), 11, 31)
+                            const dataFimTexto = h.fim ? new Date(h.fim).toLocaleDateString('pt-BR') : `${new Date().getFullYear()}-12-31`
+                            
                             return (
-                              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                                <span>{projetoLabel} — {clienteLabel}</span>
-                                <span>{new Date(h.inicio).toLocaleDateString('pt-BR')}{h.fim ? ` → ${new Date(h.fim).toLocaleDateString('pt-BR')}` : ''}</span>
-                              </div>
+                              <li key={idx} style={{ marginBottom: '8px', lineHeight: '1.4' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'flex-start' }}>
+                                  <div style={{ flex: 1 }}>
+                                    <Text strong style={{ fontSize: '14px' }}>{projetoLabel}</Text>
+                                    <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
+                                      {clienteLabel}
+                                    </div>
+                                  </div>
+                                  <div style={{ fontSize: '12px', color: '#666', textAlign: 'right', minWidth: '120px' }}>
+                                    <div>{new Date(h.inicio).toLocaleDateString('pt-BR')}</div>
+                                    <div>→ {dataFimTexto}</div>
+                                    {!h.fim && (
+                                      <div style={{ fontSize: '10px', color: '#999', fontStyle: 'italic' }}>
+                                        (indeterminado)
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </li>
                             )
                           })}
-                        </Space>
+                        </ol>
                       )}
                     </Card>
 
+                    {/* Pontos Positivos e Negativos */}
                     <Card size="small" style={{ borderRadius: 8 }}>
-                      <Text strong>Ações</Text>
+                      <Text strong style={{ fontSize: '16px' }}>Avaliação do Profissional</Text>
                       <Divider style={{ margin: '8px 0' }} />
-                      <Space wrap>
-                        <Button size="small" disabled={interestLoading} onClick={async () => {
-                          if (!projetoSel) return
-                          try {
-                            setInterestLoading(true); setInterestError(null); setInterestMessage(null)
-                            const resp = await fetch(`${API_BASE_URL}/client-actions/interest`, {
-                              method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionId}` },
-                              body: JSON.stringify({ interesse: 'RENOVAR', comentario: null, contratoId: projetoSel.contrato.id, profissionalId: profissionalSel.id })
-                            })
-                            const data = await resp.json()
-                            if (!resp.ok) throw new Error(data.error || 'Falha ao registrar interesse')
-                            setInterestMessage('Interesse registrada: Renovar')
-                            track({ type: 'interest_click', profissionalId: profissionalSel.id, contratoId: projetoSel.contrato.id, acao: 'RENOVAR' })
-                          } catch (e: any) { setInterestError(e.message) } finally { setInterestLoading(false) }
-                        }}>Renovar</Button>
-                        {(diasSel !== null && diasSel <= 60) && (
-                          <Button size="small" danger disabled={interestLoading} onClick={async () => {
-                            if (!projetoSel) return
-                            try {
-                              setInterestLoading(true); setInterestError(null); setInterestMessage(null)
-                              const resp = await fetch(`${API_BASE_URL}/client-actions/interest`, {
-                                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionId}` },
-                                body: JSON.stringify({ interesse: 'ESPERAR', comentario: null, contratoId: projetoSel.contrato.id, profissionalId: profissionalSel.id })
-                              })
-                              const data = await resp.json()
-                              if (!resp.ok) throw new Error(data.error || 'Falha ao registrar interesse')
-                              setInterestMessage('Interesse registrada: Esperar')
-                              track({ type: 'interest_click', profissionalId: profissionalSel.id, contratoId: projetoSel.contrato.id, acao: 'ESPERAR' })
-                            } catch (e: any) { setInterestError(e.message) } finally { setInterestLoading(false) }
-                          }}>Esperar</Button>
-                        )}
-                        {interestLoading && <Text type="secondary">Enviando...</Text>}
-                        {interestMessage && <Text type="success">{interestMessage}</Text>}
-                        {interestError && <Text type="danger">{interestError}</Text>}
-                      </Space>
-                      <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
-                        “Esperar” aparece apenas para contratos com ≤ 60 dias.
-                      </Text>
+                      <div style={{ display: 'flex', gap: '16px' }}>
+                        {/* Pontos Positivos */}
+                        <div style={{ flex: 1 }}>
+                          <Text strong style={{ fontSize: '14px', color: '#16a34a', display: 'block', marginBottom: '8px' }}>
+                            Pontos Positivos
+                          </Text>
+                          <div style={{ 
+                            padding: '12px', 
+                            backgroundColor: 'rgba(22, 163, 74, 0.05)', 
+                            borderRadius: '6px',
+                            border: '1px solid rgba(22, 163, 74, 0.2)',
+                            minHeight: '80px'
+                          }}>
+                            <Text style={{ fontSize: '13px', lineHeight: '1.4', color: '#374151' }}>
+                              {profissionalSel?.pontosFortes ? 
+                                profissionalSel.pontosFortes.split('\n').join(', ') : 
+                                'Nenhum ponto positivo registrado'
+                              }
+                            </Text>
+                          </div>
+                        </div>
+                        
+                        {/* Pontos Negativos */}
+                        <div style={{ flex: 1 }}>
+                          <Text strong style={{ fontSize: '14px', color: '#ef4444', display: 'block', marginBottom: '8px' }}>
+                            Pontos Negativos
+                          </Text>
+                          <div style={{ 
+                            padding: '12px', 
+                            backgroundColor: 'rgba(239, 68, 68, 0.05)', 
+                            borderRadius: '6px',
+                            border: '1px solid rgba(239, 68, 68, 0.2)',
+                            minHeight: '80px'
+                          }}>
+                            <Text style={{ fontSize: '13px', lineHeight: '1.4', color: '#374151' }}>
+                              {profissionalSel?.pontosFracos ? 
+                                profissionalSel.pontosFracos.split('\n').join(', ') : 
+                                'Nenhum ponto negativo registrado'
+                              }
+                            </Text>
+                          </div>
+                        </div>
+                      </div>
                     </Card>
 
                     <Card size="small" style={{ borderRadius: 8 }}>
-                      <Text strong>Anotações do cliente</Text>
+                      <Text strong style={{ fontSize: '16px' }}>Anotações do cliente</Text>
                       <Divider style={{ margin: '8px 0' }} />
                       <Input.TextArea placeholder="Escreva uma anotação..." autoSize={{ minRows: 3 }} value={noteText} onChange={(e) => { setNoteText(e.target.value); setNoteError(null); setNoteSaved(false) }} />
                       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-                        <Button type="primary" size="small" onClick={async () => {
+                        <Button 
+                          size="small" 
+                          style={{ 
+                            backgroundColor: '#16a34a', 
+                            borderColor: '#16a34a',
+                            color: 'white'
+                          }}
+                          onClick={async () => {
                           if (!noteText.trim()) { setNoteError('Digite uma anotação antes de salvar'); return }
                           if (!projetoSel) return
                           try {
@@ -760,17 +847,19 @@ const VisaoClienteAnt = () => {
                             if (!resp.ok) throw new Error(data.error || 'Falha ao salvar anotação')
                             setNoteSaved(true)
                             setNoteError(null)
+                            setNoteText('') // Limpar o campo após salvar
                           } catch (e: any) {
                             setNoteError(e.message)
                             setNoteSaved(false)
                           }
-                        }}>Salvar</Button>
+                        }}>Enviar</Button>
                       </div>
                       <div style={{ marginTop: 6 }}>
                         {noteError && <Text type="danger">{noteError}</Text>}
                         {noteSaved && !noteError && <Text type="success">Anotação salva</Text>}
                       </div>
                     </Card>
+
                   </Space>
                 </Col>
               </Row>

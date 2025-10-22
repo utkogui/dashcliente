@@ -1,10 +1,29 @@
 // Configuração da API
+const getApiBaseUrl = () => {
+  // Se há uma variável de ambiente definida, use ela
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL
+  }
+  
+  // Se está em produção, use a URL de produção
+  if (process.env.NODE_ENV === 'production') {
+    return 'https://dashcliente.onrender.com/api'
+  }
+  
+  // Em desenvolvimento, detectar automaticamente o IP
+  const hostname = window.location.hostname
+  
+  // Se está acessando via IP da rede (10.0.1.214), usar o IP do servidor
+  if (hostname === '10.0.1.214') {
+    return 'http://10.0.1.214:3001/api'
+  }
+  
+  // Para localhost, usar localhost
+  return 'http://localhost:3001/api'
+}
+
 export const API_CONFIG = {
-  BASE_URL: import.meta.env.VITE_API_BASE_URL || (
-    process.env.NODE_ENV === 'production'
-      ? 'https://dashcliente.onrender.com/api'
-      : 'http://localhost:3001/api'
-  ),
+  BASE_URL: getApiBaseUrl(),
   TIMEOUT: 10000,
   RETRY_ATTEMPTS: 3
 }

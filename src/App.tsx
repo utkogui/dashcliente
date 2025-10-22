@@ -14,7 +14,6 @@ import CadastroProfissional from './pages/CadastroProfissional'
 import EditarProfissional from './pages/EditarProfissional'
 import Contratos from './pages/Contratos'
 import CadastroContrato from './pages/CadastroContrato'
-import DatabaseViewer from './pages/DatabaseViewer'
 import Clientes from './pages/Clientes'
 import VisaoCliente from './pages/VisaoClienteAnt'
 import Timeline from './pages/Timeline'
@@ -84,7 +83,6 @@ function App() {
                         <Route path="/editar-profissional/:id" element={<EditarProfissional />} />
                         <Route path="/contratos" element={<Contratos />} />
                         <Route path="/cadastro-contrato" element={<CadastroContrato />} />
-                        <Route path="/database" element={<DatabaseViewer />} />
                         <Route path="/clientes" element={<Clientes />} />
                         <Route path="/timeline" element={<Timeline />} />
                         <Route path="/gestao-usuarios" element={<GestaoUsuarios />} />

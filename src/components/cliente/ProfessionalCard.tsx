@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
-import { Card, Typography, Tag, Space, Divider } from 'antd'
-import { CalendarOutlined, FieldTimeOutlined, UserOutlined } from '@ant-design/icons'
+import { Card, Typography } from 'antd'
+import { CalendarOutlined, UserOutlined } from '@ant-design/icons'
 import { getRiskColors } from '../../utils/formatters'
 
 const { Title, Text } = Typography
@@ -17,11 +17,10 @@ interface ProfessionalCardProps {
   profissional: any
   projeto: ProjetoAtivo | null
   diasRestantes: number | null
-  contatoCliente?: { nome?: string; email?: string; telefone?: string }
   onOpen: () => void
 }
 
-const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ profissional, projeto, diasRestantes, contatoCliente, onOpen }) => {
+const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ profissional, projeto, diasRestantes, onOpen }) => {
   const emProjeto = Boolean(projeto)
   
   // Se não está em projeto, usar cor azul claro
@@ -146,8 +145,8 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ profissional, proje
         {/* Conteúdo do Projeto */}
         {!emProjeto ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 20, background: '#fafafa', borderRadius: 8, textAlign: 'center', height: '100%' }}>
-            <Text type="secondary" style={{ marginBottom: 8, fontSize: '16px' }}>Sem projeto ativo</Text>
-            <Text type="secondary" style={{ fontSize: '14px' }}>Alocar este profissional</Text>
+            <Text type="secondary" style={{ marginBottom: 8, fontSize: '12px' }}>Sem projeto ativo</Text>
+            <Text type="secondary" style={{ fontSize: '10.5px' }}>Alocar este profissional</Text>
           </div>
         ) : (
           <>
@@ -161,13 +160,17 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ profissional, proje
               paddingBottom: 0,
               justifyContent: 'flex-end'
             }}>
-              <Title level={4} style={{ margin: 0, lineHeight: '1.3', wordBreak: 'break-word', color: '#262626' }} title={projeto!.nome}>
+              <Title level={4} style={{ margin: 0, lineHeight: '1.3', wordBreak: 'break-word', color: '#262626', fontSize: '18px' }} title={projeto!.nome}>
                 {projeto!.nome}
               </Title>
               
               {/* Data de Finalização - Destacada */}
-              {projeto!.dataFim && (() => {
-                const dataFim = new Date(projeto!.dataFim!)
+              {(() => {
+                // Para tempo indeterminado, usar último dia do ano
+                const dataFim = diasRestantes === null 
+                  ? new Date(new Date().getFullYear(), 11, 31)
+                  : new Date(projeto!.dataFim!)
+                
                 const hoje = new Date()
                 const isFinalizado = dataFim < hoje
                 
@@ -176,7 +179,7 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ profissional, proje
                     display: 'flex', 
                     alignItems: 'center', 
                     gap: 8,
-                    padding: '6px 10px',
+                    padding: '7.8px 10px',
                     background: isFinalizado 
                       ? `linear-gradient(135deg, ${(risk as any).barBg}15 0%, ${(risk as any).barBg}08 100%)`
                       : `linear-gradient(135deg, ${(risk as any).barBg}20 0%, ${(risk as any).barBg}10 100%)`,
@@ -185,16 +188,16 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ profissional, proje
                   }}>
                     <CalendarOutlined style={{ 
                       color: risk.text, 
-                      fontSize: '14px', 
+                      fontSize: '10.5px', 
                       flexShrink: 0 
                     }} />
                     <Text strong style={{ 
-                      fontSize: '14px', 
+                      fontSize: '10.5px', 
                       lineHeight: '1.2', 
                       color: risk.text,
                       fontWeight: '500'
                     }}>
-                      {isFinalizado ? 'Finalizado em:' : 'Finalização:'} {dataFim.toLocaleDateString('pt-BR')}
+                      Finalização: {dataFim.toLocaleDateString('pt-BR')}
                     </Text>
                   </div>
                 )
@@ -206,7 +209,7 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ profissional, proje
                   display: 'flex', 
                   alignItems: 'center', 
                   gap: 6,
-                  padding: '4px 8px',
+                  padding: '7.8px 8px',
                   background: `linear-gradient(135deg, ${(risk as any).barBg}15 0%, ${(risk as any).barBg}08 100%)`,
                   borderRadius: '6px',
                   border: `1px solid ${(risk as any).barBg}40`
@@ -250,7 +253,7 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({ profissional, proje
           {diasRestantes === null ? '∞' : Math.max(0, diasRestantes)}
         </Text>
         <Text type="secondary" style={{ marginTop: 4, fontSize: '12px' }}>
-          {diasRestantes === null ? 'indeterminado' : 'dias'}
+          {diasRestantes === null ? '' : 'dias'}
         </Text>
       </div>
     </Card>

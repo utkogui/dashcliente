@@ -8,7 +8,6 @@ import {
   TeamOutlined,
   EyeOutlined,
   BarChartOutlined,
-  DatabaseOutlined,
   SettingOutlined,
 } from '@ant-design/icons'
 import { useAuth } from '../contexts/AuthContext'
@@ -53,12 +52,6 @@ const menuItems = [
     icon: <BarChartOutlined />, 
     label: 'Timeline',
     path: '/timeline'
-  },
-  { 
-    key: '/database', 
-    icon: <DatabaseOutlined />, 
-    label: 'Banco de Dados',
-    path: '/database'
   },
   { 
     key: '/gestao-usuarios', 

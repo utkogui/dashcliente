@@ -19,6 +19,9 @@ model Profissional {
   especialidadeEspecifica String? // Service Designer, Research, UX Writer, etc.
   contratoArquivo   String?    // Caminho do arquivo de contrato
   gestorInterno     String?    // Nome do gestor interno do cliente
+  linhaCobranca     String?    // Linha de cobrança / Descrição da nota / Atividade
+  pontosFortes      String?    // Pontos fortes do profissional
+  pontosFracos      String?    // Pontos fracos do profissional
   valorHora         Float?     // Opcional agora (pode ser null para contratos fechados)
   status            String     @default("ativo") // ativo, inativo, ferias
   dataInicio        String     // Data de início (renomeado de dataAdmissao)
