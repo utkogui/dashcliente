@@ -5,13 +5,13 @@ const getApiBaseUrl = () => {
     return import.meta.env.VITE_API_BASE_URL
   }
   
-  // Se está em produção, use a URL de produção
-  if (process.env.NODE_ENV === 'production') {
+  // Detectar ambiente baseado no hostname
+  const hostname = window.location.hostname
+  
+  // Se está em produção (Vercel, Render, etc.)
+  if (hostname.includes('vercel.app') || hostname.includes('onrender.com') || hostname.includes('netlify.app')) {
     return 'https://dashcliente.onrender.com/api'
   }
-  
-  // Em desenvolvimento, detectar automaticamente o IP
-  const hostname = window.location.hostname
   
   // Se está acessando via IP da rede (10.0.1.214), usar o IP do servidor
   if (hostname === '10.0.1.214') {
@@ -22,8 +22,11 @@ const getApiBaseUrl = () => {
   return 'http://localhost:3001/api'
 }
 
+const apiBaseUrl = getApiBaseUrl()
+console.log('🔗 API Base URL:', apiBaseUrl)
+
 export const API_CONFIG = {
-  BASE_URL: getApiBaseUrl(),
+  BASE_URL: apiBaseUrl,
   TIMEOUT: 10000,
   RETRY_ATTEMPTS: 3
 }
