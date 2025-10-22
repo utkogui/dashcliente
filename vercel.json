@@ -1,6 +1,7 @@
 {
   "env": {
-    "VITE_API_BASE_URL": "https://dashcliente.onrender.com/api"
+    "DATABASE_URL": "postgresql://neondb_owner:npg_LvhHJDS3B1Rs@ep-nameless-firefly-a8nzhm1o.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require",
+    "JWT_SECRET": "sua_chave_secreta_muito_segura_2025"
   },
   "rewrites": [
     {

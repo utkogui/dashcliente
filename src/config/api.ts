@@ -2,23 +2,28 @@
 const getApiBaseUrl = () => {
   // Se há uma variável de ambiente definida, use ela
   if (import.meta.env.VITE_API_BASE_URL) {
+    console.log('🔗 Usando VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL)
     return import.meta.env.VITE_API_BASE_URL
   }
   
   // Detectar ambiente baseado no hostname
   const hostname = window.location.hostname
+  console.log('🌐 Hostname detectado:', hostname)
   
-  // Se está em produção (Vercel, Render, etc.)
-  if (hostname.includes('vercel.app') || hostname.includes('onrender.com') || hostname.includes('netlify.app')) {
-    return 'https://dashcliente.onrender.com/api'
+  // Se está na Vercel, usar a própria Vercel
+  if (hostname.includes('vercel.app')) {
+    console.log('✅ Detectado Vercel - usando /api')
+    return '/api'
   }
   
   // Se está acessando via IP da rede (10.0.1.214), usar o IP do servidor
   if (hostname === '10.0.1.214') {
+    console.log('✅ Detectado IP da rede - usando IP local')
     return 'http://10.0.1.214:3001/api'
   }
   
   // Para localhost, usar localhost
+  console.log('✅ Localhost - usando localhost:3001')
   return 'http://localhost:3001/api'
 }
 

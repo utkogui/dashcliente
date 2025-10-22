@@ -395,7 +395,6 @@ const VisaoClienteAnt = () => {
               <Select 
                 value={filterGestorInterno} 
                 onChange={setFilterGestorInterno} 
-                style={{ width: '100%' }} 
                 placeholder="Selecione o filtro"
                 size="large"
                 style={{ 

@@ -7,26 +7,13 @@ const app = express()
 const prisma = new PrismaClient()
 const PORT = 3001
 
-// Middleware
-const allowedOrigins = process.env.CORS_ORIGIN
-  ? process.env.CORS_ORIGIN.split(',')
-  : (process.env.NODE_ENV === 'production'
-      ? ['https://dashcliente-1.onrender.com', 'https://dashcliente.onrender.com']
-      : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5176', 'http://10.0.1.214:5173', 'http://10.0.1.214:5174', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174'])
-
-const corsOptions: cors.CorsOptions = {
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true)
-    if (allowedOrigins.includes(origin)) return callback(null, true)
-    return callback(new Error('Not allowed by CORS'))
-  },
+// Middleware CORS simplificado
+app.use(cors({
+  origin: true, // Aceitar qualquer origem
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
-}
-
-app.use(cors(corsOptions))
-app.options('*', cors(corsOptions))
+}))
 app.use(express.json())
 
 import { generateToken, verifyToken, JWTPayload } from './utils/jwt.js'
