@@ -1,7 +1,15 @@
 import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
+import multer from 'multer'
+import path from 'path'
+import fs from 'fs'
+import { fileURLToPath } from 'url'
 import { PrismaClient } from '@prisma/client'
+
+// Configurar __dirname para ES modules
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 const app = express()
 const prisma = new PrismaClient()
@@ -14,6 +22,41 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }))
+
+// Configuração do multer para upload de arquivos
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = path.join(__dirname, '../uploads/contratos')
+    // Criar diretório se não existir
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true })
+    }
+    cb(null, uploadPath)
+  },
+  filename: (req, file, cb) => {
+    // Gerar nome único para o arquivo
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
+    const ext = path.extname(file.originalname)
+    cb(null, `contrato_${uniqueSuffix}${ext}`)
+  }
+})
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB
+  },
+  fileFilter: (req, file, cb) => {
+    // Permitir apenas PDF e imagens
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg']
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true)
+    } else {
+      cb(new Error('Tipo de arquivo não permitido. Apenas PDF, JPG, JPEG e PNG são aceitos.'))
+    }
+  }
+})
+
 app.use(express.json())
 
 import { generateToken, verifyToken, JWTPayload } from './utils/jwt.js'
@@ -1483,6 +1526,158 @@ const startServer = async () => {
     console.error('❌ Erro ao popular banco:', error)
   }
 }
+
+// Rota para upload de arquivo de contrato
+app.post('/api/upload-contrato/:profissionalId', verificarSessao, upload.single('arquivo'), async (req, res) => {
+  try {
+    const { profissionalId } = req.params
+    const { usuario } = req
+    
+    if (!req.file) {
+      return res.status(400).json({ error: 'Nenhum arquivo enviado' })
+    }
+
+    // Verificar se o profissional existe
+    const profissional = await prisma.profissional.findUnique({
+      where: { id: profissionalId }
+    })
+
+    if (!profissional) {
+      // Remover arquivo se profissional não existir
+      fs.unlinkSync(req.file.path)
+      return res.status(404).json({ error: 'Profissional não encontrado' })
+    }
+
+    // Atualizar o profissional com o nome do arquivo
+    const updatedProfissional = await prisma.profissional.update({
+      where: { id: profissionalId },
+      data: {
+        contratoArquivo: req.file.filename
+      }
+    })
+
+    res.json({
+      success: true,
+      filename: req.file.filename,
+      originalName: req.file.originalname,
+      size: req.file.size,
+      message: 'Arquivo enviado com sucesso'
+    })
+  } catch (error) {
+    console.error('Erro no upload:', error)
+    // Remover arquivo em caso de erro
+    if (req.file) {
+      fs.unlinkSync(req.file.path)
+    }
+    res.status(500).json({ error: 'Erro ao fazer upload do arquivo' })
+  }
+})
+
+// Rota para download de arquivo de contrato
+app.get('/api/download-contrato/:profissionalId', verificarSessao, async (req, res) => {
+  try {
+    const { profissionalId } = req.params
+    
+    // Buscar o profissional
+    const profissional = await prisma.profissional.findUnique({
+      where: { id: profissionalId }
+    })
+
+    if (!profissional || !profissional.contratoArquivo) {
+      return res.status(404).json({ error: 'Arquivo de contrato não encontrado' })
+    }
+
+    const filePath = path.join(__dirname, '../uploads/contratos', profissional.contratoArquivo)
+    
+    // Verificar se o arquivo existe
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Arquivo não encontrado no servidor' })
+    }
+
+    // Determinar o tipo de conteúdo
+    const ext = path.extname(profissional.contratoArquivo).toLowerCase()
+    let contentType = 'application/octet-stream'
+    
+    switch (ext) {
+      case '.pdf':
+        contentType = 'application/pdf'
+        break
+      case '.jpg':
+      case '.jpeg':
+        contentType = 'image/jpeg'
+        break
+      case '.png':
+        contentType = 'image/png'
+        break
+    }
+
+    // Configurar headers para download
+    res.setHeader('Content-Type', contentType)
+    res.setHeader('Content-Disposition', `attachment; filename="${profissional.contratoArquivo}"`)
+    
+    // Enviar o arquivo
+    const fileStream = fs.createReadStream(filePath)
+    fileStream.pipe(res)
+    
+    fileStream.on('error', (error) => {
+      console.error('Erro ao ler arquivo:', error)
+      res.status(500).json({ error: 'Erro ao ler arquivo' })
+    })
+    
+  } catch (error) {
+    console.error('Erro no download:', error)
+    res.status(500).json({ error: 'Erro ao fazer download do arquivo' })
+  }
+})
+
+// Rota para remover arquivo de contrato
+app.delete('/api/remove-contrato/:profissionalId', verificarSessao, async (req, res) => {
+  try {
+    const { profissionalId } = req.params
+    console.log('🔍 Tentando remover arquivo para profissional:', profissionalId)
+    
+    // Buscar o profissional
+    const profissional = await prisma.profissional.findUnique({
+      where: { id: profissionalId }
+    })
+    
+    console.log('👤 Profissional encontrado:', profissional?.nome, 'Arquivo:', profissional?.contratoArquivo)
+
+    if (!profissional || !profissional.contratoArquivo) {
+      return res.status(404).json({ error: 'Arquivo de contrato não encontrado' })
+    }
+
+    const filePath = path.join(__dirname, '../uploads/contratos', profissional.contratoArquivo)
+    console.log('📁 Caminho do arquivo:', filePath)
+    
+    // Remover arquivo do sistema de arquivos
+    if (fs.existsSync(filePath)) {
+      console.log('🗑️ Removendo arquivo do sistema de arquivos')
+      fs.unlinkSync(filePath)
+    } else {
+      console.log('⚠️ Arquivo não encontrado no sistema de arquivos')
+    }
+
+    // Atualizar o profissional removendo a referência ao arquivo
+    console.log('💾 Atualizando banco de dados')
+    await prisma.profissional.update({
+      where: { id: profissionalId },
+      data: {
+        contratoArquivo: null
+      }
+    })
+
+    console.log('✅ Arquivo removido com sucesso')
+    res.json({
+      success: true,
+      message: 'Arquivo removido com sucesso'
+    })
+    
+  } catch (error) {
+    console.error('Erro ao remover arquivo:', error)
+    res.status(500).json({ error: 'Erro ao remover arquivo' })
+  }
+})
 
 // Inicializar servidor
 app.listen(process.env.PORT || PORT, async () => {

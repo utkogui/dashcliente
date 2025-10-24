@@ -61,15 +61,29 @@ const VisaoClienteAnt = () => {
 
   const handleDownloadContrato = async (profissionalId: string, fileName: string) => {
     try {
-      // Simular download do arquivo
-      const content = `Contrato do Profissional: ${profissionais.find(p => p.id === profissionalId)?.nome || 'N/A'}\n\nEste é um documento de contrato simulado.\n\nData: ${new Date().toLocaleDateString('pt-BR')}\nArquivo: ${fileName}`
+      // Fazer download do arquivo real do servidor
+      const response = await fetch(`${API_BASE_URL}/download-contrato/${profissionalId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('sessionId')}`
+        }
+      })
       
-      const blob = new Blob([content], { type: 'text/plain' })
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Erro no download')
+      }
+      
+      // Obter o blob do arquivo
+      const blob = await response.blob()
+      
+      // Criar URL para download
       const url = window.URL.createObjectURL(blob)
       
+      // Criar link de download
       const link = document.createElement('a')
       link.href = url
-      link.download = fileName || 'contrato.txt'
+      link.download = fileName || 'contrato.pdf'
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
@@ -78,6 +92,7 @@ const VisaoClienteAnt = () => {
       track({ type: 'contract_download', profissionalId, fileName })
     } catch (error) {
       console.error('Erro ao baixar contrato:', error)
+      message.error(`Erro ao baixar arquivo: ${error.message}`)
     }
   }
 

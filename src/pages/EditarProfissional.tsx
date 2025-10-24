@@ -28,6 +28,11 @@ import {
 } from '../utils/tabelaPrecos'
 import dayjs from 'dayjs'
 
+// Configuração da API
+const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || (
+  process.env.NODE_ENV === 'production' ? 'https://dashcliente.onrender.com/api' : 'http://localhost:3001/api'
+)
+
 const { Title, Text } = Typography
 const { Option } = Select
 
@@ -165,38 +170,57 @@ const EditarProfissional = () => {
     }
     
     try {
-      // Simular upload do arquivo (em produção, aqui faria upload para servidor)
-      const fileName = `contrato_${Date.now()}_${file.name}`
+      // Criar FormData para upload
+      const formData = new FormData()
+      formData.append('arquivo', file)
       
-      // Atualizar o profissional com o nome do arquivo
-      const profissionalData = {
-        contratoArquivo: fileName
+      // Fazer upload para o servidor
+      const response = await fetch(`${API_BASE_URL}/upload-contrato/${id}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('sessionId')}`
+        },
+        body: formData
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Erro no upload')
       }
       
-      await updateProfissional(id!, profissionalData)
+      const result = await response.json()
       
       setArquivoContrato(file)
-      setArquivoContratoExistente(fileName)
+      setArquivoContratoExistente(result.filename)
       message.success('Arquivo enviado com sucesso!')
     } catch (error) {
-      message.error('Erro ao enviar arquivo. Tente novamente.')
+      console.error('Erro no upload:', error)
+      message.error(`Erro ao enviar arquivo: ${error.message}`)
     }
   }
 
   const handleRemoveContrato = async () => {
     try {
-      // Atualizar o profissional removendo o arquivo
-      const profissionalData = {
-        contratoArquivo: null
-      }
+      // Fazer requisição para remover arquivo do servidor
+      const response = await fetch(`${API_BASE_URL}/remove-contrato/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('sessionId')}`,
+          'Content-Type': 'application/json'
+        }
+      })
       
-      await updateProfissional(id!, profissionalData)
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Erro na remoção')
+      }
       
       setArquivoContrato(null)
       setArquivoContratoExistente(null)
       message.info('Arquivo removido com sucesso!')
     } catch (error) {
-      message.error('Erro ao remover arquivo. Tente novamente.')
+      console.error('Erro ao remover arquivo:', error)
+      message.error(`Erro ao remover arquivo: ${error.message}`)
     }
   }
 
