@@ -370,6 +370,133 @@ app.delete('/api/contratos/:id', async (req, res) => {
         res.status(500).json({ error: 'Erro ao deletar contrato' });
     }
 });
+
+// ===== ROTAS PARA INTERAÇÕES DO CLIENTE =====
+
+// Histórico de alocação por profissional
+app.get('/api/allocations/history', async (req, res) => {
+    try {
+        const { profissionalId } = req.query;
+        if (!profissionalId) {
+            return res.status(400).json({ error: 'profissionalId é obrigatório' });
+        }
+
+        const historico = await prisma.contrato.findMany({
+            where: {
+                profissionais: {
+                    some: { profissionalId }
+                }
+            },
+            select: {
+                id: true,
+                nome: true,
+                dataInicio: true,
+                dataFim: true,
+                cliente: {
+                    select: {
+                        empresa: true
+                    }
+                }
+            },
+            orderBy: { dataInicio: 'desc' }
+        });
+
+        const flattened = historico.map(h => ({
+            projeto: h.nome,
+            inicio: h.dataInicio,
+            fim: h.dataFim,
+            cliente: h.cliente?.empresa || 'Cliente'
+        }));
+
+        res.json(flattened);
+    } catch (error) {
+        console.error('Erro ao obter histórico de alocação:', error);
+        res.status(500).json({ error: 'Erro ao obter histórico de alocação' });
+    }
+});
+
+// Registrar anotação do cliente
+app.post('/api/notes', async (req, res) => {
+    try {
+        const { contratoId, profissionalId, texto } = req.body;
+        if (!texto || !contratoId || !profissionalId) {
+            return res.status(400).json({ error: 'Campos obrigatórios ausentes' });
+        }
+
+        // Para simplificar em produção, vamos usar um cliente padrão
+        const clienteId = 'cme1j4okn0000a7sbuqarofk1'; // ID do cliente FTD
+
+        const created = await prisma.clienteNota.create({
+            data: {
+                clienteId,
+                contratoId,
+                profissionalId,
+                texto
+            }
+        });
+
+        res.json({ ok: true, id: created.id });
+    } catch (error) {
+        console.error('Erro ao registrar anotação:', error);
+        res.status(500).json({ error: 'Erro ao registrar anotação' });
+    }
+});
+
+// Registrar interesse do cliente
+app.post('/api/client-actions/interest', async (req, res) => {
+    try {
+        const { contratoId, profissionalId, interesse, comentario } = req.body;
+        if (!contratoId || !profissionalId || !interesse) {
+            return res.status(400).json({ error: 'Campos obrigatórios ausentes' });
+        }
+
+        // Para simplificar em produção, vamos usar um cliente padrão
+        const clienteId = 'cme1j4okn0000a7sbuqarofk1'; // ID do cliente FTD
+
+        const created = await prisma.clienteInteresse.create({
+            data: {
+                clienteId,
+                contratoId,
+                profissionalId,
+                interesse,
+                comentario: comentario || null
+            }
+        });
+
+        res.json({ ok: true, id: created.id });
+    } catch (error) {
+        console.error('Erro ao registrar interesse:', error);
+        res.status(500).json({ error: 'Erro ao registrar interesse' });
+    }
+});
+
+// Solicitar novo profissional
+app.post('/api/requests/new-professional', async (req, res) => {
+    try {
+        const { especialidade, senioridade, descricao } = req.body;
+        if (!especialidade) {
+            return res.status(400).json({ error: 'Especialidade é obrigatória' });
+        }
+
+        // Para simplificar em produção, vamos usar um cliente padrão
+        const clienteId = 'cme1j4okn0000a7sbuqarofk1'; // ID do cliente FTD
+
+        const created = await prisma.solicitacaoProfissional.create({
+            data: {
+                clienteId,
+                especialidade,
+                senioridade: senioridade || null,
+                descricao: descricao || null
+            }
+        });
+
+        res.json({ ok: true, id: created.id });
+    } catch (error) {
+        console.error('Erro ao solicitar profissional:', error);
+        res.status(500).json({ error: 'Erro ao solicitar profissional' });
+    }
+});
+
 // Rota de health check
 app.get('/api/health', (req, res) => {
     res.json({ status: 'OK', message: 'API funcionando!' });
