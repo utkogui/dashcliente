@@ -62,20 +62,20 @@ export default async function handler(req, res) {
       
       const { profissionalId, contratoId, texto } = req.body
       
-      if (!profissionalId || !texto) {
-        return res.status(400).json({ error: 'profissionalId e texto são obrigatórios' })
+      if (!profissionalId || !texto || !contratoId) {
+        return res.status(400).json({ error: 'profissionalId, contratoId e texto são obrigatórios' })
       }
       
       const nota = await prisma.clienteNota.create({
         data: {
           clienteId: payload.clienteId,
-          contratoId: contratoId || null,
+          contratoId: contratoId,
           profissionalId: profissionalId,
           texto: texto
         }
       })
       
-      res.status(201).json(nota)
+      res.status(201).json({ ok: true, id: nota.id })
       
     } catch (error) {
       console.error('Erro ao criar nota:', error)

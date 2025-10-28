@@ -190,11 +190,8 @@ const VisaoCliente = () => {
   const especialidades = [...new Set(profissionais.map(p => p.especialidade || '').filter(Boolean))] as string[]
   const senioridades = [...new Set(profissionais.map(p => p.perfil || '').filter(Boolean))] as string[]
 
-  const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || (
-    process.env.NODE_ENV === 'production'
-      ? 'https://dashcliente.onrender.com/api'
-      : 'http://localhost:3001/api'
-  )
+  import { API_CONFIG } from '../config/api'
+  const API_BASE_URL = API_CONFIG.BASE_URL
 
   // Inicializar filtros a partir da URL
   useEffect(() => {
@@ -950,7 +947,7 @@ const VisaoCliente = () => {
                         value={noteText}
                         onChange={(e) => { setNoteText(e.target.value); setNoteError(null); setNoteSaved(false) }}
                         error={Boolean(noteError)}
-                        helperText={noteError || (noteSaved ? 'Anotação salva' : ' ')}
+                        helperText={noteError || (noteSaved ? 'Sua mensagem foi enviadaMensagem recebida com sucesso! Em breve retornaremos.' : ' ')}
                       />
                       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
                         <Button 

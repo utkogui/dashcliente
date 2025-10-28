@@ -110,9 +110,8 @@ const VisaoClienteAnt = () => {
   const sentinelRef = useRef<HTMLDivElement | null>(null)
   const ioLockRef = useRef<boolean>(false)
 
-  const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || (
-    process.env.NODE_ENV === 'production' ? 'https://dashcliente.onrender.com/api' : 'http://localhost:3001/api'
-  )
+  import { API_CONFIG } from '../config/api'
+  const API_BASE_URL = API_CONFIG.BASE_URL
 
   const getProfissionalInfo = (profissional: any) => {
     const contratosAtivos = contratos.filter(c => c.status === 'ativo' && c.profissionais.some(p => p.profissionalId === profissional.id))
@@ -870,7 +869,7 @@ const VisaoClienteAnt = () => {
                       </div>
                       <div style={{ marginTop: 6 }}>
                         {noteError && <Text type="danger">{noteError}</Text>}
-                        {noteSaved && !noteError && <Text type="success">Anotação salva</Text>}
+                        {noteSaved && !noteError && <Text type="success">Sua mensagem foi enviadaMensagem recebida com sucesso! Em breve retornaremos.</Text>}
                       </div>
                     </Card>
 
