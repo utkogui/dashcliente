@@ -24,6 +24,7 @@ import {
 } from '@ant-design/icons'
 import { useData } from '../contexts/DataContext'
 import { useNavigate } from 'react-router-dom'
+import { API_CONFIG } from '../config/api'
 
 const { Title, Text } = Typography
 const { Search } = Input
@@ -38,9 +39,7 @@ const Profissionais = () => {
   const [comentariosLoading, setComentariosLoading] = useState(false)
   const [profissionaisComComentarios, setProfissionaisComComentarios] = useState<Set<string>>(new Set())
 
-  const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || (
-    process.env.NODE_ENV === 'production' ? 'https://dashcliente.onrender.com/api' : 'http://localhost:3001/api'
-  )
+  const API_BASE_URL = API_CONFIG.BASE_URL
 
   // Atualizar lista filtrada quando profissionais mudar
   useEffect(() => {

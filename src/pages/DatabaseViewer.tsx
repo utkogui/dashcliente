@@ -20,12 +20,10 @@ import {
 import { ExpandMore, Refresh } from '@mui/icons-material'
 import { formatCurrency } from '../utils/formatters'
 
+import { API_CONFIG } from '../config/api'
+
 // Configuração da API
-const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || (
-  process.env.NODE_ENV === 'production'
-    ? 'https://dashcliente.onrender.com/api'
-    : 'http://localhost:3001/api'
-)
+const API_BASE_URL = API_CONFIG.BASE_URL
 
 interface DatabaseData {
   profissionais: {

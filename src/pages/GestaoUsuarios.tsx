@@ -30,11 +30,9 @@ import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
 
 // Configuração da API
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (
-  process.env.NODE_ENV === 'production'
-    ? 'https://dashcliente.onrender.com/api'
-    : 'http://localhost:3001/api'
-)
+import { API_CONFIG } from '../config/api'
+
+const API_BASE_URL = API_CONFIG.BASE_URL
 
 interface ClienteSistema {
   id: string
