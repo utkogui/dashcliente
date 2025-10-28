@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { calcularDiasRestantes, getCardStyle } from '../utils/formatters'
 import logoFtdMatilha from '../assets/logo_ftd_matilha.png'
 import { track } from '../utils/telemetry'
+import { API_CONFIG } from '../config/api'
 
 import { InputText } from 'primereact/inputtext'
 import { Dropdown } from 'primereact/dropdown'
@@ -42,7 +43,6 @@ const VisaoClientePrime = () => {
   const [first, setFirst] = useState(0)
   const rows = 12
 
-  import { API_CONFIG } from '../config/api'
   const API_BASE_URL = API_CONFIG.BASE_URL
 
   const getProfissionalInfo = (profissional: any) => {

@@ -8,6 +8,7 @@ import { calcularDiasRestantes, getRiskColors } from '../utils/formatters'
 import logoFtdMatilha from '../assets/logo_ftd_matilha.png'
 import { track } from '../utils/telemetry'
 import ProfessionalCard from '../components/cliente/ProfessionalCard'
+import { API_CONFIG } from '../config/api'
 
 const { Text, Title } = Typography
 
@@ -110,7 +111,6 @@ const VisaoClienteAnt = () => {
   const sentinelRef = useRef<HTMLDivElement | null>(null)
   const ioLockRef = useRef<boolean>(false)
 
-  import { API_CONFIG } from '../config/api'
   const API_BASE_URL = API_CONFIG.BASE_URL
 
   const getProfissionalInfo = (profissional: any) => {
@@ -349,7 +349,6 @@ const VisaoClienteAnt = () => {
               <Select 
                 value={filterEspecialidade} 
                 onChange={setFilterEspecialidade} 
-                style={{ width: '100%' }} 
                 placeholder="Selecione a especialidade"
                 size="large"
                 style={{ 
@@ -368,7 +367,6 @@ const VisaoClienteAnt = () => {
               <Select 
                 value={filterPrazo} 
                 onChange={(v) => setFilterPrazo(v as any)} 
-                style={{ width: '100%' }} 
                 placeholder="Selecione o prazo"
                 size="large"
                 style={{ 
@@ -390,7 +388,6 @@ const VisaoClienteAnt = () => {
               <Select 
                 value={filterSenioridade} 
                 onChange={setFilterSenioridade} 
-                style={{ width: '100%' }} 
                 placeholder="Selecione o nível"
                 size="large"
                 style={{ 

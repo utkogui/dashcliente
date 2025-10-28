@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react'
 import { useAuth } from './AuthContext'
+import { API_CONFIG } from '../config/api'
 
 // Tipos
 interface Profissional {
@@ -146,8 +147,6 @@ export const useData = () => {
 interface DataProviderProps {
   children: ReactNode
 }
-
-import { API_CONFIG } from '../config/api'
 
 // Configuração da API
 const API_BASE_URL = API_CONFIG.BASE_URL
