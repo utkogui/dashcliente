@@ -26,19 +26,19 @@ export default async function handler(req, res) {
     
     const payload = jwt.verify(token, JWT_SECRET)
 
-    // No Vercel, rotas dinâmicas vêm em req.query
-    const id = req.query.id || req.query
+    // No Vercel, rotas dinâmicas vêm em req.query.id
+    const { id } = req.query
     
     console.log('🔍 Debug - Método:', req.method)
-    console.log('🔍 Debug - Query:', req.query)
+    console.log('🔍 Debug - Query:', JSON.stringify(req.query))
     console.log('🔍 Debug - ID extraído:', id)
 
     if (req.method === 'PUT') {
-      const profissionalId = Array.isArray(id) ? id[0] : (typeof id === 'string' ? id : null)
-      
-      if (!profissionalId) {
+      if (!id) {
         return res.status(400).json({ error: 'ID é obrigatório', query: req.query })
       }
+      
+      const profissionalId = Array.isArray(id) ? id[0] : id
 
       // Se não for admin, verificar se o profissional pertence ao cliente do usuário
       if (payload.tipo !== 'admin') {
@@ -86,11 +86,11 @@ export default async function handler(req, res) {
       res.status(200).json(profissional)
       
     } else if (req.method === 'DELETE') {
-      const profissionalId = Array.isArray(id) ? id[0] : (typeof id === 'string' ? id : null)
-      
-      if (!profissionalId) {
+      if (!id) {
         return res.status(400).json({ error: 'ID é obrigatório', query: req.query })
       }
+      
+      const profissionalId = Array.isArray(id) ? id[0] : id
 
       // Se não for admin, verificar se o profissional pertence ao cliente do usuário
       if (payload.tipo !== 'admin') {

@@ -26,18 +26,19 @@ export default async function handler(req, res) {
     
     const payload = jwt.verify(token, JWT_SECRET)
 
-    // No Vercel, rotas dinâmicas vêm em req.query
-    const id = req.query.id || req.query
-    const contratoId = Array.isArray(id) ? id[0] : (typeof id === 'string' ? id : null)
-
+    // No Vercel, rotas dinâmicas vêm em req.query.id
+    const { id } = req.query
+    
     console.log('🔍 Debug Contrato - Método:', req.method)
-    console.log('🔍 Debug Contrato - Query:', req.query)
-    console.log('🔍 Debug Contrato - ID extraído:', contratoId)
+    console.log('🔍 Debug Contrato - Query:', JSON.stringify(req.query))
+    console.log('🔍 Debug Contrato - ID extraído:', id)
 
     if (req.method === 'PUT') {
-      if (!contratoId) {
+      if (!id) {
         return res.status(400).json({ error: 'ID é obrigatório', query: req.query })
       }
+      
+      const contratoId = Array.isArray(id) ? id[0] : id
       
       const { profissionais, ...contratoData } = req.body
 
@@ -145,9 +146,11 @@ export default async function handler(req, res) {
       })
       
     } else if (req.method === 'DELETE') {
-      if (!contratoId) {
+      if (!id) {
         return res.status(400).json({ error: 'ID é obrigatório', query: req.query })
       }
+      
+      const contratoId = Array.isArray(id) ? id[0] : id
 
       // Se não for admin, verificar se o contrato pertence ao cliente do usuário
       if (payload.tipo !== 'admin') {
