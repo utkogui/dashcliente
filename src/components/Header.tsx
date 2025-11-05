@@ -1,8 +1,10 @@
 import React from 'react'
 import { Layout, Button, Space, Typography } from 'antd'
 import { LogoutOutlined, UserOutlined } from '@ant-design/icons'
-import logoFtdMatilha from '../assets/logo_ftd_matilha.png'
 import { useAuth } from '../contexts/AuthContext'
+
+// Usar logo do diretório public para garantir carregamento em produção
+const logoFtdMatilha = '/logo_ftd_matilha.png'
 
 const { Header: AntHeader } = Layout
 
@@ -52,7 +54,14 @@ const Header = () => {
         style={{
           height: 80,
           width: 'auto',
-          display: 'block'
+          display: 'block',
+          objectFit: 'contain'
+        }}
+        onError={(e) => {
+          // Log para debug em produção
+          console.error('Erro ao carregar logo:', logoFtdMatilha)
+          const target = e.target as HTMLImageElement
+          target.style.display = 'none'
         }}
       />
       

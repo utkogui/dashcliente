@@ -769,6 +769,32 @@ app.put('/api/contratos/:id', verificarSessao, async (req, res) => {
     const { usuario } = req
     const { profissionais, ...contratoData } = req.body
 
+    // Validar que profissionais é um array válido
+    if (!Array.isArray(profissionais)) {
+      return res.status(400).json({ 
+        error: 'Profissionais deve ser um array',
+        details: 'O campo profissionais não foi enviado ou está em formato inválido'
+      })
+    }
+
+    if (profissionais.length === 0) {
+      return res.status(400).json({ 
+        error: 'É necessário pelo menos um profissional no contrato',
+        details: 'Adicione pelo menos um profissional antes de salvar'
+      })
+    }
+
+    // Validar dados dos profissionais
+    for (let i = 0; i < profissionais.length; i++) {
+      const prof = profissionais[i]
+      if (!prof.profissionalId) {
+        return res.status(400).json({ 
+          error: `Profissional na posição ${i + 1} não possui ID válido`,
+          details: 'Todos os profissionais devem ter um ID válido'
+        })
+      }
+    }
+
     // Se não for admin, verificar se o contrato pertence ao cliente do usuário
     if (usuario.tipo !== 'admin') {
       const contratoExistente = await prisma.contrato.findFirst({
@@ -783,6 +809,35 @@ app.put('/api/contratos/:id', verificarSessao, async (req, res) => {
       }
     }
 
+    // Determinar cliente do sistema para o contrato (igual ao POST)
+    let clienteSistemaId: string | null = null
+    if (usuario.tipo === 'admin') {
+      // Para admin, buscar pelo cliente de negócio informado para obter o cliente do sistema
+      if (contratoData.clienteId) {
+        const clienteNegocio = await prisma.cliente.findUnique({ where: { id: contratoData.clienteId } })
+        if (!clienteNegocio) {
+          return res.status(400).json({ error: 'Cliente informado não encontrado' })
+        }
+        clienteSistemaId = clienteNegocio.clienteId
+      } else {
+        // Se não foi informado clienteId, manter o existente
+        const contratoExistente = await prisma.contrato.findUnique({ where: { id: req.params.id } })
+        if (!contratoExistente) {
+          return res.status(404).json({ error: 'Contrato não encontrado' })
+        }
+        clienteSistemaId = contratoExistente.clienteSistemaId
+      }
+    } else {
+      // Para cliente comum, usar o clienteId da sessão
+      if (!usuario.clienteId) {
+        return res.status(403).json({ error: 'Usuário não possui clienteId válido' })
+      }
+      clienteSistemaId = usuario.clienteId
+    }
+
+    // Remover clienteId do contratoData (não é campo direto do Contrato)
+    const { clienteId, ...dataSemClienteId } = contratoData
+
     // Primeiro deleta os profissionais existentes
     await prisma.contratoProfissional.deleteMany({
       where: { contratoId: req.params.id }
@@ -792,7 +847,8 @@ app.put('/api/contratos/:id', verificarSessao, async (req, res) => {
     const contrato = await prisma.contrato.update({
       where: { id: req.params.id },
       data: {
-        ...contratoData,
+        ...dataSemClienteId,
+        clienteSistemaId,
         observacoes: contratoData.observacoes || null,
         profissionais: {
           create: profissionais.map((prof: any) => ({
@@ -819,7 +875,15 @@ app.put('/api/contratos/:id', verificarSessao, async (req, res) => {
     })
   } catch (error) {
     console.error('Erro ao atualizar contrato:', error)
-    res.status(500).json({ error: 'Erro ao atualizar contrato' })
+    const isDev = process.env.NODE_ENV !== 'production'
+    res.status(500).json({ 
+      error: 'Erro ao atualizar contrato',
+      ...(isDev && {
+        details: (error as any)?.message || String(error),
+        code: (error as any)?.code,
+        stack: (error as any)?.stack
+      })
+    })
   }
 })
 

@@ -170,7 +170,15 @@ const apiCall = async (endpoint: string, options: RequestInit = {}, sessionId?: 
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
-    throw new Error(errorData.error || `Erro na requisição: ${response.status}`)
+    const errorMessage = errorData.error || errorData.message || `Erro na requisição: ${response.status}`
+    const errorWithDetails = errorData.details 
+      ? `${errorMessage}: ${errorData.details}`
+      : errorMessage
+    
+    const error = new Error(errorWithDetails) as any
+    error.response = response
+    error.errorData = errorData
+    throw error
   }
 
   return response.json()

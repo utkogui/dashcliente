@@ -431,7 +431,7 @@ const CadastroContrato = () => {
         valorContrato: valorContratoFinal,
         valorImpostos: valorImpostosFinal,
         percentualImpostos: percentualImpostosNumber,
-        status: values.status,
+        status: values.status || (isEditing ? 'ativo' : 'pendente'),
         observacoes: values.observacoes || null,
         profissionais: profissionaisSelecionados.map(prof => {
           const profissionalSelecionado = profissionais.find(p => p.id === prof.profissionalId)
@@ -453,9 +453,27 @@ const CadastroContrato = () => {
         await addContrato(contratoData)
       }
       navigate('/contratos')
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao cadastrar contrato:', error)
-      setError('Erro ao cadastrar contrato. Tente novamente.')
+      
+      // Tentar extrair mensagem de erro mais específica
+      let errorMessage = 'Erro ao cadastrar contrato. Tente novamente.'
+      
+      if (error?.message) {
+        // Se tiver mensagem de erro (já processada pelo apiCall)
+        errorMessage = error.message
+      } else if (error?.errorData) {
+        // Se tiver dados de erro
+        errorMessage = error.errorData.error || error.errorData.message || errorMessage
+        if (error.errorData.details) {
+          errorMessage += `: ${error.errorData.details}`
+        }
+      } else if (typeof error === 'string') {
+        // Se for string direta
+        errorMessage = error
+      }
+      
+      setError(errorMessage)
     } finally {
       setSubmitting(false)
     }
