@@ -5,7 +5,7 @@
   },
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/((?!api|assets|logo_ftd_matilha\\.png|vite\\.svg).*)",
       "destination": "/index.html"
     }
   ]
