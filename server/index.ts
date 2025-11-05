@@ -6,6 +6,17 @@ import path from 'path'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
 import { PrismaClient } from '@prisma/client'
+// Importar tipos - o TypeScript deve encontrar types.d.ts automaticamente
+import type { JWTPayload } from './utils/jwt.js'
+
+// Declaração de módulo para estender Request do Express
+declare global {
+  namespace Express {
+    interface Request {
+      usuario?: JWTPayload
+    }
+  }
+}
 
 // Configurar __dirname para ES modules
 const __filename = fileURLToPath(import.meta.url)

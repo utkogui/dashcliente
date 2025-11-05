@@ -13,10 +13,12 @@
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
     "declaration": false,
-    "sourceMap": false
+    "sourceMap": false,
+    "typeRoots": ["./node_modules/@types", "./server"]
   },
   "include": [
-    "server/**/*"
+    "server/**/*",
+    "server/types.d.ts"
   ],
   "exclude": [
     "node_modules",

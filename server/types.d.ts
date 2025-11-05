@@ -8,4 +8,5 @@ declare global {
   }
 }
 
+// Exportar vazio para garantir que seja um módulo
 export {}
