@@ -33,17 +33,17 @@ export default async function handler(req, res) {
     return
   }
 
-  if (req.method === 'GET') {
-    try {
-      // Verificar autenticação
-      const token = req.headers.authorization?.replace('Bearer ', '')
-      
-      if (!token) {
-        return res.status(401).json({ error: 'Token não fornecido' })
-      }
-      
-      const payload = jwt.verify(token, JWT_SECRET)
-      
+  try {
+    // Verificar autenticação
+    const token = req.headers.authorization?.replace('Bearer ', '')
+    
+    if (!token) {
+      return res.status(401).json({ error: 'Token não fornecido' })
+    }
+    
+    const payload = jwt.verify(token, JWT_SECRET)
+
+    if (req.method === 'GET') {
       let whereClause = {}
       
       // Se não é admin, filtrar por cliente
@@ -61,13 +61,48 @@ export default async function handler(req, res) {
         status: p.status
       })))
       
-    } catch (error) {
-      console.error('Erro ao buscar profissionais:', error)
-      res.status(500).json({ error: 'Erro ao buscar profissionais' })
-    } finally {
-      await prisma.$disconnect()
+    } else if (req.method === 'POST') {
+      const profissionalData = req.body
+
+      // Determinar clienteId
+      let clienteIdFinal = null
+      if (payload.tipo === 'admin') {
+        if (profissionalData.clienteId) {
+          clienteIdFinal = profissionalData.clienteId
+        } else if (payload.clienteId) {
+          clienteIdFinal = payload.clienteId
+        } else {
+          return res.status(400).json({ error: 'clienteId é obrigatório' })
+        }
+      } else {
+        if (!payload.clienteId) {
+          return res.status(403).json({ error: 'Usuário não possui clienteId válido' })
+        }
+        clienteIdFinal = payload.clienteId
+      }
+
+      const profissional = await prisma.profissional.create({
+        data: {
+          ...profissionalData,
+          clienteId: clienteIdFinal
+        }
+      })
+      
+      res.status(201).json(profissional)
+      
+    } else {
+      res.status(405).json({ error: 'Método não permitido' })
     }
-  } else {
-    res.status(405).json({ error: 'Método não permitido' })
+    
+  } catch (error) {
+    console.error('Erro ao processar requisição de profissionais:', error)
+    
+    if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Token inválido ou expirado' })
+    }
+    
+    res.status(500).json({ error: 'Erro ao processar requisição' })
+  } finally {
+    await prisma.$disconnect()
   }
 }
