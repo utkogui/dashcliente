@@ -27,17 +27,30 @@ export default async function handler(req, res) {
       
       const payload = jwt.verify(token, JWT_SECRET)
       
-      const { profissionalId } = req.query
+      const { profissionalId, contratoId } = req.query
       
-      if (!profissionalId) {
-        return res.status(400).json({ error: 'profissionalId é obrigatório' })
+      if (!profissionalId && !contratoId) {
+        return res.status(400).json({ error: 'profissionalId ou contratoId é obrigatório' })
+      }
+      
+      // Construir where clause
+      const whereClause = {}
+      
+      if (profissionalId) {
+        whereClause.profissionalId = profissionalId
+      }
+      
+      if (contratoId) {
+        whereClause.contratoId = contratoId
+      }
+      
+      // Se não for admin, filtrar por clienteId
+      if (payload.tipo !== 'admin' && payload.clienteId) {
+        whereClause.clienteId = payload.clienteId
       }
       
       const notas = await prisma.clienteNota.findMany({
-        where: {
-          profissionalId: profissionalId,
-          clienteId: payload.clienteId
-        },
+        where: whereClause,
         orderBy: { createdAt: 'desc' }
       })
       
@@ -45,7 +58,7 @@ export default async function handler(req, res) {
       
     } catch (error) {
       console.error('Erro ao buscar notas:', error)
-      res.status(500).json({ error: 'Erro ao buscar notas' })
+      res.status(500).json({ error: 'Erro ao buscar notas', details: error.message })
     } finally {
       await prisma.$disconnect()
     }
@@ -59,6 +72,11 @@ export default async function handler(req, res) {
       }
       
       const payload = jwt.verify(token, JWT_SECRET)
+      
+      // Apenas usuários cliente podem criar notas
+      if (payload.tipo !== 'cliente' || !payload.clienteId) {
+        return res.status(403).json({ error: 'Apenas usuários cliente podem criar notas' })
+      }
       
       const { profissionalId, contratoId, texto } = req.body
       
@@ -79,7 +97,7 @@ export default async function handler(req, res) {
       
     } catch (error) {
       console.error('Erro ao criar nota:', error)
-      res.status(500).json({ error: 'Erro ao criar nota' })
+      res.status(500).json({ error: 'Erro ao criar nota', details: error.message })
     } finally {
       await prisma.$disconnect()
     }

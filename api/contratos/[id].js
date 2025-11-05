@@ -26,11 +26,17 @@ export default async function handler(req, res) {
     
     const payload = jwt.verify(token, JWT_SECRET)
 
-    const { id } = req.query
+    // No Vercel, rotas dinâmicas vêm em req.query
+    const id = req.query.id || req.query
+    const contratoId = Array.isArray(id) ? id[0] : (typeof id === 'string' ? id : null)
+
+    console.log('🔍 Debug Contrato - Método:', req.method)
+    console.log('🔍 Debug Contrato - Query:', req.query)
+    console.log('🔍 Debug Contrato - ID extraído:', contratoId)
 
     if (req.method === 'PUT') {
-      if (!id) {
-        return res.status(400).json({ error: 'ID é obrigatório' })
+      if (!contratoId) {
+        return res.status(400).json({ error: 'ID é obrigatório', query: req.query })
       }
       
       const { profissionais, ...contratoData } = req.body
@@ -65,7 +71,7 @@ export default async function handler(req, res) {
       if (payload.tipo !== 'admin') {
         const contratoExistente = await prisma.contrato.findFirst({
           where: { 
-            id: Array.isArray(id) ? id[0] : id,
+            id: contratoId,
             clienteSistemaId: payload.clienteId
           }
         })
@@ -85,7 +91,7 @@ export default async function handler(req, res) {
           }
           clienteSistemaId = clienteNegocio.clienteId
         } else {
-          const contratoExistente = await prisma.contrato.findUnique({ where: { id: Array.isArray(id) ? id[0] : id } })
+          const contratoExistente = await prisma.contrato.findUnique({ where: { id: contratoId } })
           if (!contratoExistente) {
             return res.status(404).json({ error: 'Contrato não encontrado' })
           }
@@ -103,12 +109,12 @@ export default async function handler(req, res) {
 
       // Primeiro deleta os profissionais existentes
       await prisma.contratoProfissional.deleteMany({
-        where: { contratoId: Array.isArray(id) ? id[0] : id }
+        where: { contratoId: contratoId }
       })
 
       // Depois atualiza o contrato e cria os novos profissionais
       const contrato = await prisma.contrato.update({
-        where: { id: Array.isArray(id) ? id[0] : id },
+        where: { id: contratoId },
         data: {
           ...dataSemClienteId,
           clienteSistemaId,
@@ -139,15 +145,15 @@ export default async function handler(req, res) {
       })
       
     } else if (req.method === 'DELETE') {
-      if (!id) {
-        return res.status(400).json({ error: 'ID é obrigatório' })
+      if (!contratoId) {
+        return res.status(400).json({ error: 'ID é obrigatório', query: req.query })
       }
 
       // Se não for admin, verificar se o contrato pertence ao cliente do usuário
       if (payload.tipo !== 'admin') {
         const contratoExistente = await prisma.contrato.findFirst({
           where: { 
-            id: Array.isArray(id) ? id[0] : id,
+            id: contratoId,
             clienteSistemaId: payload.clienteId
           }
         })
@@ -159,12 +165,12 @@ export default async function handler(req, res) {
 
       // Primeiro deleta os relacionamentos em ContratoProfissional
       await prisma.contratoProfissional.deleteMany({
-        where: { contratoId: Array.isArray(id) ? id[0] : id }
+        where: { contratoId: contratoId }
       })
       
       // Depois deleta o contrato
       await prisma.contrato.delete({
-        where: { id: Array.isArray(id) ? id[0] : id }
+        where: { id: contratoId }
       })
       
       res.status(200).json({ message: 'Contrato deletado com sucesso' })

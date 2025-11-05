@@ -26,18 +26,25 @@ export default async function handler(req, res) {
     
     const payload = jwt.verify(token, JWT_SECRET)
 
-    const { id } = req.query
+    // No Vercel, rotas dinâmicas vêm em req.query
+    const id = req.query.id || req.query
+    
+    console.log('🔍 Debug - Método:', req.method)
+    console.log('🔍 Debug - Query:', req.query)
+    console.log('🔍 Debug - ID extraído:', id)
 
     if (req.method === 'PUT') {
-      if (!id) {
-        return res.status(400).json({ error: 'ID é obrigatório' })
+      const profissionalId = Array.isArray(id) ? id[0] : (typeof id === 'string' ? id : null)
+      
+      if (!profissionalId) {
+        return res.status(400).json({ error: 'ID é obrigatório', query: req.query })
       }
 
       // Se não for admin, verificar se o profissional pertence ao cliente do usuário
       if (payload.tipo !== 'admin') {
         const profissionalExistente = await prisma.profissional.findFirst({
           where: { 
-            id: Array.isArray(id) ? id[0] : id,
+            id: profissionalId,
             clienteId: payload.clienteId
           }
         })
@@ -57,7 +64,7 @@ export default async function handler(req, res) {
         } else {
           // Se não foi informado, manter o existente
           const profissionalExistente = await prisma.profissional.findUnique({
-            where: { id: Array.isArray(id) ? id[0] : id }
+            where: { id: profissionalId }
           })
           if (!profissionalExistente) {
             return res.status(404).json({ error: 'Profissional não encontrado' })
@@ -69,7 +76,7 @@ export default async function handler(req, res) {
       }
 
       const profissional = await prisma.profissional.update({
-        where: { id: Array.isArray(id) ? id[0] : id },
+        where: { id: profissionalId },
         data: {
           ...profissionalData,
           clienteId: clienteIdFinal
@@ -79,15 +86,17 @@ export default async function handler(req, res) {
       res.status(200).json(profissional)
       
     } else if (req.method === 'DELETE') {
-      if (!id) {
-        return res.status(400).json({ error: 'ID é obrigatório' })
+      const profissionalId = Array.isArray(id) ? id[0] : (typeof id === 'string' ? id : null)
+      
+      if (!profissionalId) {
+        return res.status(400).json({ error: 'ID é obrigatório', query: req.query })
       }
 
       // Se não for admin, verificar se o profissional pertence ao cliente do usuário
       if (payload.tipo !== 'admin') {
         const profissionalExistente = await prisma.profissional.findFirst({
           where: { 
-            id: Array.isArray(id) ? id[0] : id,
+            id: profissionalId,
             clienteId: payload.clienteId
           }
         })
@@ -99,7 +108,7 @@ export default async function handler(req, res) {
 
       // Deletar profissional
       await prisma.profissional.delete({
-        where: { id: Array.isArray(id) ? id[0] : id }
+        where: { id: profissionalId }
       })
       
       res.status(200).json({ message: 'Profissional deletado com sucesso' })
