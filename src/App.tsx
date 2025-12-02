@@ -13,6 +13,7 @@ import Profissionais from './pages/Profissionais'
 import CadastroProfissional from './pages/CadastroProfissional'
 import EditarProfissional from './pages/EditarProfissional'
 import Contratos from './pages/Contratos'
+import ContratosNew from './pages/ContratosNew'
 import CadastroContrato from './pages/CadastroContrato'
 import Clientes from './pages/Clientes'
 import VisaoCliente from './pages/VisaoClienteAnt'
@@ -82,6 +83,7 @@ function App() {
                         <Route path="/cadastro-profissional" element={<CadastroProfissional />} />
                         <Route path="/editar-profissional/:id" element={<EditarProfissional />} />
                         <Route path="/contratos" element={<Contratos />} />
+                        <Route path="/contratos_new" element={<ContratosNew />} />
                         <Route path="/cadastro-contrato" element={<CadastroContrato />} />
                         <Route path="/clientes" element={<Clientes />} />
                         <Route path="/timeline" element={<Timeline />} />

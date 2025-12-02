@@ -27,3 +27,15 @@ dist-ssr
 
 # Server compiled files
 server/index.js
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Test/check scripts
+check-*.mjs
+*.mjs
+
+# Vite cache
+.vite/

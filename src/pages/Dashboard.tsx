@@ -36,7 +36,8 @@ import {
   calcularDiasRestantes,
   calcularValorMensal,
   calcularMargemMensal,
-  calcularPercentualMargem
+  calcularPercentualMargem,
+  calcularEvolucaoMensal
 } from '../utils/formatters'
 import {
   LineChart,
@@ -185,15 +186,8 @@ const Dashboard = () => {
     return diasRestantes <= 30 && diasRestantes > 0
   })
 
-  // Dados para gráficos
-  const dadosEvolucao = [
-    { mes: 'Jan', receita: 45000, custo: 32000 },
-    { mes: 'Fev', receita: 52000, custo: 38000 },
-    { mes: 'Mar', receita: 48000, custo: 35000 },
-    { mes: 'Abr', receita: 61000, custo: 42000 },
-    { mes: 'Mai', receita: 55000, custo: 39000 },
-    { mes: 'Jun', receita: 67000, custo: 45000 },
-  ]
+  // Dados para gráficos - usando dados reais dos contratos
+  const dadosEvolucao = calcularEvolucaoMensal(contratos, 6)
 
   const dadosEspecialidades = profissionais.reduce((acc, prof) => {
     const especialidade = prof.especialidade
@@ -704,9 +698,12 @@ const Dashboard = () => {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="mes" />
                   <YAxis />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="receita" stroke="#1890ff" name="Receita" />
+                  <Tooltip 
+                    formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+                  />
+                  <Line type="monotone" dataKey="receita" stroke="#1890ff" name="Receita Líquida" />
                   <Line type="monotone" dataKey="custo" stroke="#52c41a" name="Custo" />
+                  <Line type="monotone" dataKey="lucro" stroke="#faad14" name="Lucro" />
                 </LineChart>
               </ResponsiveContainer>
             </Card>

@@ -282,3 +282,99 @@ export const getRiskColors = (diasRestantes: number | null): { barBg: string; ca
   // Vencido: vermelho profundo
   return { barBg: '#b91c1c', cardBg: 'rgba(185, 28, 28, 0.10)', text: '#b91c1c' }
 }
+
+/**
+ * Calcula a evolução mensal baseada em contratos reais
+ * @param contratos - Array de contratos
+ * @param meses - Número de meses para exibir (padrão: 6)
+ * @returns Array com dados de evolução mensal
+ */
+export const calcularEvolucaoMensal = (contratos: any[], meses: number = 6): Array<{ mes: string; receita: number; custo: number; lucro: number }> => {
+  const hoje = new Date()
+  const dados: Record<string, { receita: number; custo: number; lucro: number }> = {}
+  
+  // Nomes dos meses em português
+  const nomesMeses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+  
+  // Inicializar os últimos N meses com valores zerados
+  for (let i = meses - 1; i >= 0; i--) {
+    const data = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1)
+    const chave = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`
+    const mesNome = `${nomesMeses[data.getMonth()]} ${data.getFullYear().toString().slice(-2)}`
+    
+    if (!dados[chave]) {
+      dados[chave] = { receita: 0, custo: 0, lucro: 0 }
+    }
+  }
+  
+  // Processar cada contrato
+  contratos.forEach(contrato => {
+    // Considerar apenas contratos ativos
+    if (contrato.status !== 'ativo') return
+    
+    const dataInicio = new Date(contrato.dataInicio)
+    const dataFim = contrato.dataFim ? new Date(contrato.dataFim) : null
+    
+    // Calcular valores mensais do contrato
+    const valorMensal = calcularValorMensal(contrato)
+    const impostosMensais = calcularImpostosMensais(contrato)
+    const custoMensal = calcularCustoMensal(contrato)
+    const receitaMensal = valorMensal - impostosMensais // Receita líquida (após impostos)
+    
+    // Determinar o período de vigência do contrato
+    const mesInicio = new Date(dataInicio.getFullYear(), dataInicio.getMonth(), 1)
+    const mesFim = dataFim 
+      ? new Date(dataFim.getFullYear(), dataFim.getMonth(), 1)
+      : new Date(hoje.getFullYear(), hoje.getMonth() + 1, 1) // Se indeterminado, até o próximo mês
+    
+    // Adicionar valores para cada mês em que o contrato está ativo
+    const mesAtual = new Date(mesInicio)
+    while (mesAtual <= mesFim && mesAtual <= hoje) {
+      const chave = `${mesAtual.getFullYear()}-${String(mesAtual.getMonth() + 1).padStart(2, '0')}`
+      
+      // Só adicionar se estiver no período dos últimos N meses
+      const mesesAtras = (hoje.getFullYear() - mesAtual.getFullYear()) * 12 + (hoje.getMonth() - mesAtual.getMonth())
+      if (mesesAtras >= 0 && mesesAtras < meses) {
+        if (!dados[chave]) {
+          dados[chave] = { receita: 0, custo: 0, lucro: 0 }
+        }
+        
+        dados[chave].receita += receitaMensal
+        dados[chave].custo += custoMensal
+        dados[chave].lucro += (receitaMensal - custoMensal)
+      }
+      
+      // Avançar para o próximo mês
+      mesAtual.setMonth(mesAtual.getMonth() + 1)
+    }
+  })
+  
+  // Converter para array e ordenar por data
+  const resultado = Object.entries(dados)
+    .map(([chave, valores]) => {
+      const [ano, mes] = chave.split('-')
+      const data = new Date(parseInt(ano), parseInt(mes) - 1, 1)
+      const mesNome = `${nomesMeses[data.getMonth()]} ${data.getFullYear().toString().slice(-2)}`
+      
+      return {
+        mes: mesNome,
+        receita: Math.round(valores.receita),
+        custo: Math.round(valores.custo),
+        lucro: Math.round(valores.lucro)
+      }
+    })
+    .sort((a, b) => {
+      // Ordenar por data (extrair ano e mês do nome)
+      const [mesA, anoA] = a.mes.split(' ')
+      const [mesB, anoB] = b.mes.split(' ')
+      const indiceA = nomesMeses.indexOf(mesA)
+      const indiceB = nomesMeses.indexOf(mesB)
+      
+      if (anoA !== anoB) {
+        return parseInt(anoA) - parseInt(anoB)
+      }
+      return indiceA - indiceB
+    })
+  
+  return resultado
+}

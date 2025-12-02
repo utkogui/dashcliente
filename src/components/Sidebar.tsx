@@ -30,10 +30,10 @@ const menuItems = [
     path: '/profissionais'
   },
   { 
-    key: '/contratos', 
+    key: '/contratos_new', 
     icon: <FileTextOutlined />, 
     label: 'Contratos',
-    path: '/contratos'
+    path: '/contratos_new'
   },
   { 
     key: '/clientes', 
