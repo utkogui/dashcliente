@@ -162,10 +162,10 @@ const EditarProfissional = () => {
       return
     }
     
-    // Validar tamanho (máximo 10MB)
-    const maxSize = 10 * 1024 * 1024 // 10MB
+    // Validar tamanho (máximo 4MB - limite da Vercel)
+    const maxSize = 4 * 1024 * 1024 // 4MB
     if (file.size > maxSize) {
-      message.error('Arquivo muito grande. Tamanho máximo permitido: 10MB')
+      message.error('Arquivo muito grande. Tamanho máximo permitido: 4MB')
       return
     }
     
@@ -185,7 +185,8 @@ const EditarProfissional = () => {
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || `Erro no upload (${response.status})`)
+        const msg = errorData?.error || `Erro no upload (${response.status})`
+        throw new Error(msg)
       }
       
       const result = await response.json()
@@ -409,7 +410,7 @@ const EditarProfissional = () => {
               <Col xs={24} md={12}>
                 <Form.Item
                   label="Contrato do Profissional"
-                  extra="Faça upload do contrato em PDF, JPG, JPEG ou PNG (máximo 10MB)"
+                  extra="Faça upload do contrato em PDF, JPG, JPEG ou PNG (máximo 4MB na Vercel)"
                 >
                   <div>
                     {/* Arquivo existente */}
