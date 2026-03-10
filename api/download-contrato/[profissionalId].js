@@ -1,5 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 import jwt from 'jsonwebtoken'
+import { get } from '@vercel/blob'
+import { Readable } from 'stream'
 
 const prisma = new PrismaClient()
 const JWT_SECRET = process.env.JWT_SECRET || 'sua_chave_secreta_muito_segura_2025'
@@ -43,6 +45,20 @@ export default async function handler(req, res) {
 
     if (payload.tipo !== 'admin' && profissional.clienteId !== payload.clienteId) {
       return res.status(403).json({ error: 'Sem permissão para baixar este contrato' })
+    }
+
+    if (profissional.contratoArquivo.startsWith('http') && profissional.contratoArquivo.includes('blob.vercel-storage.com')) {
+      const blobResult = await get(profissional.contratoArquivo, { access: 'private' })
+      if (!blobResult || !blobResult.stream) {
+        return res.status(404).json({ error: 'Arquivo não encontrado no storage.' })
+      }
+      const contentType = blobResult.blob?.contentType || 'application/octet-stream'
+      const filename = blobResult.blob?.pathname?.split('/').pop() || 'contrato.pdf'
+      res.setHeader('Content-Type', contentType)
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+      const nodeStream = Readable.fromWeb(blobResult.stream)
+      nodeStream.pipe(res)
+      return
     }
 
     if (profissional.contratoArquivo.startsWith('http')) {

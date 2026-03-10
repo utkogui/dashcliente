@@ -118,7 +118,7 @@ export default async function handler(req, res) {
     let blob
     try {
       blob = await put(pathname, buffer, {
-        access: 'public',
+        access: 'private',
         addRandomSuffix: false,
         contentType: mimetype,
       })
