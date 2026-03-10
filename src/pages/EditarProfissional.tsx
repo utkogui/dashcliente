@@ -184,8 +184,8 @@ const EditarProfissional = () => {
       })
       
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Erro no upload')
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || `Erro no upload (${response.status})`)
       }
       
       const result = await response.json()
@@ -211,8 +211,8 @@ const EditarProfissional = () => {
       })
       
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Erro na remoção')
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || `Erro na remoção (${response.status})`)
       }
       
       setArquivoContrato(null)
@@ -426,7 +426,7 @@ const EditarProfissional = () => {
                       }}>
                         <Space>
                           <FileTextOutlined />
-                          <span>{arquivoContratoExistente}</span>
+                          <span>{arquivoContratoExistente.startsWith('http') ? 'Documento anexado' : arquivoContratoExistente}</span>
                         </Space>
                         <Button 
                           type="link" 
