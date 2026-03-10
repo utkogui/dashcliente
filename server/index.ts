@@ -1648,11 +1648,12 @@ app.post('/api/upload-contrato/:profissionalId', verificarSessao, upload.single(
   }
 })
 
-// Rota para download de arquivo de contrato
+// Rota para download de arquivo de contrato (admin ou cliente dono do profissional)
 app.get('/api/download-contrato/:profissionalId', verificarSessao, async (req, res) => {
   try {
     const { profissionalId } = req.params
-    
+    const { usuario } = req
+
     // Buscar o profissional
     const profissional = await prisma.profissional.findUnique({
       where: { id: profissionalId }
@@ -1660,6 +1661,11 @@ app.get('/api/download-contrato/:profissionalId', verificarSessao, async (req, r
 
     if (!profissional || !profissional.contratoArquivo) {
       return res.status(404).json({ error: 'Arquivo de contrato não encontrado' })
+    }
+
+    // Cliente só pode baixar contrato de profissional do seu clienteId
+    if (usuario.tipo !== 'admin' && profissional.clienteId !== usuario.clienteId) {
+      return res.status(403).json({ error: 'Sem permissão para baixar este contrato' })
     }
 
     const filePath = path.join(__dirname, '../uploads/contratos', profissional.contratoArquivo)

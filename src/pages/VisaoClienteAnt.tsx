@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Row, Col, Card, Tag, Input, Select, Alert, Divider, Button, Modal, Typography, Skeleton, Pagination, Space, Spin, FloatButton } from 'antd'
+import { Row, Col, Card, Tag, Input, Select, Alert, Divider, Button, Modal, Typography, Skeleton, Pagination, Space, Spin, FloatButton, message } from 'antd'
 import { UserOutlined, SearchOutlined, FieldTimeOutlined, CalendarOutlined, FilterOutlined, MailOutlined, MessageOutlined, PhoneOutlined, DownloadOutlined, FileTextOutlined } from '@ant-design/icons'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useData } from '../contexts/DataContext'
@@ -62,27 +62,28 @@ const VisaoClienteAnt = () => {
 
 
   const handleDownloadContrato = async (profissionalId: string, fileName: string) => {
+    const token = sessionId || localStorage.getItem('sessionId')
+    if (!token) {
+      message.warning('Faça login para baixar o contrato.')
+      return
+    }
+    message.loading({ content: 'Preparando download...', key: 'download', duration: 0 })
     try {
-      // Fazer download do arquivo real do servidor
       const response = await fetch(`${API_BASE_URL}/download-contrato/${profissionalId}`, {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('sessionId')}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       })
-      
+
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Erro no download')
+        const errorData = await response.json().catch(() => ({}))
+        const msg = errorData?.error || `Erro ao baixar (${response.status}). Tente de novo ou contate o suporte.`
+        message.destroy('download')
+        message.error(msg)
+        return
       }
-      
-      // Obter o blob do arquivo
+
       const blob = await response.blob()
-      
-      // Criar URL para download
       const url = window.URL.createObjectURL(blob)
-      
-      // Criar link de download
       const link = document.createElement('a')
       link.href = url
       link.download = fileName || 'contrato.pdf'
@@ -90,11 +91,15 @@ const VisaoClienteAnt = () => {
       link.click()
       document.body.removeChild(link)
       window.URL.revokeObjectURL(url)
-      
+
+      message.destroy('download')
+      message.success('Download iniciado.')
       track({ type: 'contract_download', profissionalId, fileName })
-    } catch (error) {
-      console.error('Erro ao baixar contrato:', error)
-      message.error(`Erro ao baixar arquivo: ${error.message}`)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Falha na rede ou no servidor. Tente de novo.'
+      console.error('Erro ao baixar contrato:', err)
+      message.destroy('download')
+      message.error(`Erro ao baixar arquivo: ${msg}`)
     }
   }
 

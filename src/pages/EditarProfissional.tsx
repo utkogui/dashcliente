@@ -235,7 +235,9 @@ const EditarProfissional = () => {
         especialidade: values.especialidade,
         perfil: values.perfil || null,
         especialidadeEspecifica: values.especialidadeEspecifica || null,
-        contratoArquivo: arquivoContrato ? arquivoContrato.name : arquivoContratoExistente,
+        // Usar sempre o nome do arquivo no servidor; nunca enviar o nome original do cliente,
+        // pois o arquivo no disco tem o nome gerado pelo servidor (ex.: contrato_123.pdf).
+        contratoArquivo: arquivoContratoExistente ?? undefined,
         gestorInterno: values.gestorInterno && values.gestorInterno.trim() ? values.gestorInterno.trim() : null,
         linhaCobranca: values.linhaCobranca && values.linhaCobranca.trim() ? values.linhaCobranca.trim() : null,
         pontosFortes: values.pontosFortes && values.pontosFortes.trim() ? values.pontosFortes.trim() : null,

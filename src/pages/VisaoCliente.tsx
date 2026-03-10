@@ -244,18 +244,20 @@ const VisaoCliente = () => {
   }
 
   const handleDownloadContrato = async (profissionalId: string, fileName: string) => {
+    const token = sessionId || localStorage.getItem('sessionId')
+    if (!token) {
+      message.error('Faça login para baixar o contrato')
+      return
+    }
     try {
-      // Fazer download do arquivo real do servidor
       const response = await fetch(`${API_BASE_URL}/download-contrato/${profissionalId}`, {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('sessionId')}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       })
       
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Erro no download')
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || `Erro no download (${response.status})`)
       }
       
       // Obter o blob do arquivo

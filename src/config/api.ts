@@ -16,10 +16,10 @@ const getApiBaseUrl = () => {
     return '/api'
   }
   
-  // Se está acessando via IP da rede (10.0.1.214), usar o IP do servidor
-  if (hostname === '10.0.1.214') {
-    console.log('✅ Detectado IP da rede - usando IP local')
-    return 'http://10.0.1.214:3001/api'
+  // Rede local 10.0.1.x: usar o mesmo host na porta 3001 (front e backend na mesma máquina)
+  if (hostname.startsWith('10.0.1.')) {
+    console.log('✅ Rede local 10.0.1.x - usando', `http://${hostname}:3001/api`)
+    return `http://${hostname}:3001/api`
   }
   
   // Para localhost, usar localhost
